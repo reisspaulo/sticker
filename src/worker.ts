@@ -4,7 +4,6 @@ config();
 
 import { Worker, Job } from 'bullmq';
 import logger from './config/logger';
-import { redis } from './config/redis';
 import { processStaticSticker } from './services/stickerProcessor';
 import { processAnimatedSticker, processAnimatedStickerFromBuffer } from './services/gifProcessor';
 import { uploadSticker } from './services/supabaseStorage';
@@ -17,7 +16,6 @@ import { getUserLimits } from './services/subscriptionService';
 import {
   sendLimitReachedMessage,
   sendErrorMessage,
-  sendStickerSentConfirmation,
   sendVideoSelectionMessage,
 } from './services/messageService';
 import {
@@ -37,6 +35,16 @@ import type { ActivatePixJobData } from './jobs/activatePendingPixSubscription';
 interface ScheduledJob {
   type: 'reset-counters' | 'send-pending';
 }
+
+// Redis connection configuration for Workers
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const redisConnection = {
+  host: redisUrl.includes('://') ? new URL(redisUrl).hostname : redisUrl.split(':')[0],
+  port: redisUrl.includes('://') ? parseInt(new URL(redisUrl).port || '6379') : parseInt(redisUrl.split(':')[1] || '6379'),
+  password: redisUrl.includes('://') ? new URL(redisUrl).password || undefined : undefined,
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+};
 
 // Process Sticker Worker
 const processStickerWorker = new Worker<ProcessStickerJobData>(
@@ -145,8 +153,30 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
         const actualLimit = userLimits.daily_sticker_limit;
         const remainingToday = Math.max(0, actualLimit - newCount);
 
-        // Send confirmation message
-        await sendStickerSentConfirmation(userNumber, userName, remainingToday);
+        // Onboarding: Update step and send personalized confirmation
+        const {
+          updateOnboardingStep,
+          getOnboardingStatus,
+          sendStickerConfirmation,
+          checkTwitterFeaturePresentation,
+        } = await import('./services/onboardingService');
+
+        const onboardingStatus = await getOnboardingStatus(userNumber);
+        let currentStep = onboardingStatus?.step || 0;
+
+        // Update step based on daily count (only for first 3 stickers)
+        if (currentStep < 3) {
+          currentStep = Math.min(newCount, 3);
+          await updateOnboardingStep(userNumber, currentStep);
+        }
+
+        // Send personalized confirmation message
+        await sendStickerConfirmation(userNumber, userName, remainingToday, currentStep);
+
+        // Check if should present Twitter feature (after 3rd sticker)
+        if (currentStep === 3) {
+          await checkTwitterFeaturePresentation(userNumber, userName, currentStep);
+        }
       } else if (status === 'pendente') {
         // User hit limit - send limit reached message
         const pendingCount = await getPendingStickerCount(userNumber);
@@ -243,7 +273,7 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
     }
   },
   {
-    connection: redis,
+    connection: redisConnection,
     concurrency: 5, // Process 5 jobs simultaneously
   }
 );
@@ -335,6 +365,10 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
         // Increment Twitter download count
         if (userId) {
           await incrementTwitterDownloadCount(userId);
+
+          // Mark Twitter feature as used (first time)
+          const { markTwitterFeatureAsUsed } = await import('./services/onboardingService');
+          await markTwitterFeatureAsUsed(userNumber);
         }
 
         const totalTime = Date.now() - startTime;
@@ -472,6 +506,10 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
       if (userId) {
         logger.info({ msg: 'Step 6: Incrementing Twitter download count', jobId: job.id });
         await incrementTwitterDownloadCount(userId);
+
+        // Mark Twitter feature as used (first time)
+        const { markTwitterFeatureAsUsed } = await import('./services/onboardingService');
+        await markTwitterFeatureAsUsed(userNumber);
       }
 
       const totalTime = Date.now() - startTime;
@@ -537,7 +575,7 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
     }
   },
   {
-    connection: redis,
+    connection: redisConnection,
     concurrency: 3, // Process 3 downloads simultaneously
   }
 );
@@ -569,7 +607,7 @@ const scheduledJobsWorker = new Worker<ScheduledJob>(
     return { success: true, type };
   },
   {
-    connection: redis,
+    connection: redisConnection,
     concurrency: 1, // Process scheduled jobs one at a time
   }
 );
@@ -629,7 +667,7 @@ const activatePixSubscriptionWorker = new Worker<ActivatePixJobData>(
   'activate-pix-subscription',
   activatePendingPixSubscriptionJob,
   {
-    connection: redis,
+    connection: redisConnection,
     concurrency: 2,
   }
 );

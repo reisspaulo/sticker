@@ -1,12 +1,17 @@
 import { Queue, QueueOptions } from 'bullmq';
-import { redis } from './redis';
 import type { ActivatePixJobData } from '../jobs/activatePendingPixSubscription';
 
 // Queue connection configuration
-const connection = redis;
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
 const queueOptions: QueueOptions = {
-  connection,
+  connection: {
+    host: redisUrl.includes('://') ? new URL(redisUrl).hostname : redisUrl.split(':')[0],
+    port: redisUrl.includes('://') ? parseInt(new URL(redisUrl).port || '6379') : parseInt(redisUrl.split(':')[1] || '6379'),
+    password: redisUrl.includes('://') ? new URL(redisUrl).password || undefined : undefined,
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+  },
   defaultJobOptions: {
     attempts: 3,
     backoff: {

@@ -119,13 +119,13 @@ Usuário conecta pela primeira vez
 │ [1] 💰 *Premium* - R$ 5,00/mês                 │
 │     • 20 figurinhas/dia                        │
 │     • 15 vídeos Twitter/dia                    │
-│     • Sem marca d'água                         │
+│     • Suporte prioritário                      │
 │                                                 │
 │ [2] 🚀 *Ultra* - R$ 9,90/mês                   │
 │     • Figurinhas ILIMITADAS                    │
 │     • Vídeos Twitter ILIMITADOS                │
 │     • Processamento prioritário                │
-│     • Sem marca d'água                         │
+│     • Suporte VIP                              │
 │                                                 │
 │ Digite *1* ou *2* para conhecer os planos!    │
 │ Digite *começar* para usar o plano gratuito.  │
@@ -170,11 +170,11 @@ Usuário digita: "planos"
 │ ├─────────────────────────────────────────┤   │
 │ │ 💰 Premium - R$ 5,00/mês                │   │
 │ │ 20 figurinhas/dia • 15 vídeos Twitter/  │   │
-│ │ dia • Sem marca d'água                  │   │
+│ │ dia • Suporte prioritário               │   │
 │ ├─────────────────────────────────────────┤   │
 │ │ 🚀 Ultra - R$ 9,90/mês                  │   │
 │ │ ILIMITADO • Processamento prioritário • │   │
-│ │ Sem marca d'água                        │   │
+│ │ Suporte VIP                             │   │
 │ └─────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────┘
 ```
@@ -421,7 +421,7 @@ Usuário clica: "✅ Já Paguei"
 │ ✅ *Benefícios liberados:*                     │
 │ • Figurinhas: 20/dia                           │
 │ • Vídeos Twitter: 15/dia                       │
-│ • Marca d'água: *Não* ✅                       │
+│ • Suporte prioritário ✅                       │
 │                                                 │
 │ 🚀 *Já pode usar agora mesmo!*                 │
 │ Envie suas imagens e GIFs para criar           │
@@ -481,14 +481,14 @@ Seu limite será renovado às *00:00* (horário de Brasília).
 [1] 💰 *Premium* - R$ 5,00/mês
     • 20 figurinhas/dia
     • 15 vídeos Twitter/dia
-    • Sem marca d'água
+    • Suporte prioritário
     • {benefit}
 
 [2] 🚀 *Ultra* - R$ 9,90/mês
     • Figurinhas *ILIMITADAS*
     • Vídeos Twitter *ILIMITADOS*
     • Processamento prioritário
-    • Sem marca d'água
+    • Suporte VIP
     • 🔥 *Nunca mais espere!*
 
 Digite *1* ou *2* para fazer upgrade agora!
@@ -505,7 +505,6 @@ R$ 5,00/mês - Cancele quando quiser
 ✨ *BENEFÍCIOS:*
 ✅ 20 figurinhas por dia
 ✅ 15 vídeos do Twitter por dia
-✅ Sem marca d'água
 ✅ Suporte prioritário
 ✅ 5x mais que o plano gratuito!
 
@@ -534,7 +533,6 @@ R$ 9,90/mês - Cancele quando quiser
 ✅ Figurinhas *ILIMITADAS*
 ✅ Vídeos Twitter *ILIMITADOS*
 ✅ Processamento prioritário
-✅ Sem marca d'água
 ✅ Suporte VIP
 ✅ Nunca mais espere!
 
@@ -567,7 +565,6 @@ Digite *VOLTAR* para ver outros planos.
 🎯 *Seus Limites:*
 • Figurinhas: {limit}
 • Vídeos Twitter: {limit}
-• Marca d'água: *Não* ✅
 • Processamento prioritário ⚡
 
 Continue enviando suas imagens e GIFs! 🎨
@@ -627,12 +624,12 @@ Mais dúvidas? Envie sua pergunta que respondo!
     {
       RowId: "plan_premium",
       title: "💰 Premium - R$ 5,00/mês",
-      desc: "20 figurinhas/dia • 15 vídeos Twitter/dia • Sem marca d'água"
+      desc: "20 figurinhas/dia • 15 vídeos Twitter/dia • Suporte prioritário"
     },
     {
       RowId: "plan_ultra",
       title: "🚀 Ultra - R$ 9,90/mês",
-      desc: "ILIMITADO • Processamento prioritário • Sem marca d'água"
+      desc: "ILIMITADO • Processamento prioritário • Suporte VIP"
     }
   ]
 }
@@ -745,6 +742,88 @@ Mais dúvidas? Envie sua pergunta que respondo!
 
 ---
 
+### **Botão: Conversão Twitter para Sticker**
+
+**Trigger:** Após download bem-sucedido de vídeo do Twitter
+
+**Estrutura Avisa API:**
+```typescript
+{
+  number: "5511946304133",
+  title: "🎨 *Quer transformar em figurinha?*",
+  desc: "Converter em figurinha animada",
+  buttons: [
+    {
+      id: "button_convert_sticker_153ed191-fd42-4f2a-baaa-50118848f167",
+      text: "✅ Sim, quero!"
+    },
+    {
+      id: "button_video_only",
+      text: "⏭️ Só o vídeo"
+    }
+  ]
+}
+```
+
+**Arquivo:** `src/worker.ts:560-599` (após download Twitter)
+
+**Webhook Retorno (Evolution API):**
+```json
+{
+  "event": "messages.upsert",
+  "data": {
+    "message": {
+      "buttonsResponseMessage": {
+        "selectedButtonId": "button_convert_sticker_153ed191-fd42-4f2a-baaa-50118848f167"
+      }
+    }
+  }
+}
+```
+
+**Fluxo Completo:**
+
+```
+1️⃣ Usuário envia link Twitter
+   → Backend adiciona job download-twitter-video
+
+2️⃣ Worker processa:
+   → Baixa vídeo via VxTwitter API
+   → Upload para Supabase Storage
+   → Envia vídeo para usuário (Evolution API)
+   → Salva download_id no banco
+   → Envia botões de conversão (Avisa API)
+
+3️⃣ Usuário clica "✅ Sim, quero!"
+   → Backend detecta button_convert_sticker_{id}
+   → Adiciona job na fila convert-twitter-sticker
+   → Envia "🎨 Processando conversão..."
+
+4️⃣ Worker converte:
+   → Busca vídeo do Storage (pelo download_id)
+   → Processa com FFmpeg (max 10s, 512x512, 15fps)
+   → Upload sticker para Storage
+   → Envia figurinha animada (Evolution API)
+   → Atualiza converted_to_sticker = true
+   → Envia "✅ Figurinha criada com sucesso!"
+
+5️⃣ Alternativa: Usuário clica "⏭️ Só o vídeo"
+   → Backend envia confirmação
+   → "✅ Tudo certo! Seu vídeo está salvo na conversa."
+```
+
+**Créditos Utilizados:**
+- Download Twitter: 1 crédito Twitter
+- Converter para sticker: 1 crédito Sticker (separado!)
+
+**Validações:**
+- ✅ Verifica limite de Twitter antes de baixar
+- ✅ Verifica limite de Sticker antes de converter
+- ✅ Auto-trim vídeos > 10 segundos
+- ✅ Idempotência: nunca envia vídeo 2x
+
+---
+
 ## 🔧 Detalhamento Técnico
 
 ### **Mapeamento API por Tipo de Mensagem**
@@ -839,7 +918,16 @@ context:5511946304133 = {
 **Queue: download-twitter-video**
 - Baixa vídeos do Twitter
 - Valida limites de Twitter
-- Envia vídeo ou converte em sticker
+- Upload para Supabase Storage
+- Envia vídeo para usuário
+- Envia botões de conversão
+
+**Queue: convert-twitter-sticker** (NOVO ✨)
+- Converte vídeos Twitter em figurinhas
+- Busca vídeo do Storage pelo download_id
+- Processa com FFmpeg (auto-trim, resize)
+- Verifica limite de Sticker (separado do Twitter!)
+- Envia figurinha animada
 
 **Queue: activate-pix-subscription**
 - Aguarda 5 minutos (delay)
@@ -980,7 +1068,7 @@ Preciso enviar mensagem ao usuário
    → Cria job process-sticker
    → Worker processa imagem
    → Evolution API envia STICKER
-   → Paulo recebe figurinha SEM marca d'água ✅
+   → Paulo recebe figurinha ✅
 ```
 
 ---
@@ -1097,14 +1185,22 @@ logMenuInteraction(userNumber, 'pix_payment_confirmed');
 - [ ] Stripe configurado (webhooks)
 - [ ] Workers processando jobs
 - [ ] Listas interativas funcionando
-- [ ] Botões interativos funcionando
+- [ ] Botões interativos funcionando (PIX, Twitter)
 - [ ] Pagamentos PIX funcionando
 - [ ] Pagamentos Stripe funcionando
 - [ ] Ativação automática de assinaturas
 - [ ] Envio de stickers funcionando
 - [ ] Download de Twitter funcionando
+- [ ] Conversão Twitter → Sticker funcionando
 
 ---
 
-**Última atualização:** 04/01/2026
-**Versão:** 1.0.0
+**Última atualização:** 05/01/2026
+**Versão:** 1.1.0
+
+**Mudanças nesta versão:**
+- ✅ Removidas referências a "marca d'água" (feature descontinuada)
+- ✅ Adicionados botões de conversão Twitter → Sticker
+- ✅ Documentado fluxo completo de conversão interativa
+- ✅ Adicionada fila `convert-twitter-sticker`
+- ✅ Mensagens simplificadas (sem stats técnicos)

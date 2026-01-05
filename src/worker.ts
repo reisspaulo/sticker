@@ -472,25 +472,29 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
       // Step 5: Save metadata to database
       logger.info({ msg: 'Step 5: Saving metadata to database', jobId: job.id });
 
-      const { error: dbError } = await supabase.from('twitter_downloads').insert({
-        user_number: userNumber,
-        tweet_id: tweetId,
-        tweet_url: tweetUrl,
-        video_url: downloadedMetadata.videoUrl,
-        author_username: downloadedMetadata.username,
-        author_name: downloadedMetadata.author,
-        tweet_text: downloadedMetadata.text,
-        video_duration_ms: downloadedMetadata.duration,
-        video_size_bytes: buffer.length,
-        video_resolution: downloadedMetadata.resolution,
-        likes: downloadedMetadata.likes,
-        retweets: downloadedMetadata.retweets,
-        storage_path: path,
-        processed_url: url,
-        downloaded_at: new Date().toISOString(),
-        sent_at: new Date().toISOString(),
-        converted_to_sticker: false,
-      });
+      const { data: downloadRecord, error: dbError } = await supabase
+        .from('twitter_downloads')
+        .insert({
+          user_number: userNumber,
+          tweet_id: tweetId,
+          tweet_url: tweetUrl,
+          video_url: downloadedMetadata.videoUrl,
+          author_username: downloadedMetadata.username,
+          author_name: downloadedMetadata.author,
+          tweet_text: downloadedMetadata.text,
+          video_duration_ms: downloadedMetadata.duration,
+          video_size_bytes: buffer.length,
+          video_resolution: downloadedMetadata.resolution,
+          likes: downloadedMetadata.likes,
+          retweets: downloadedMetadata.retweets,
+          storage_path: path,
+          processed_url: url,
+          downloaded_at: new Date().toISOString(),
+          sent_at: new Date().toISOString(),
+          converted_to_sticker: false,
+        })
+        .select('id')
+        .single();
 
       if (dbError) {
         logger.error({
@@ -502,6 +506,8 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
         // Don't throw - video was already sent
       }
 
+      const downloadId = downloadRecord?.id;
+
       // Step 6: Update user's Twitter download count
       if (userId) {
         logger.info({ msg: 'Step 6: Incrementing Twitter download count', jobId: job.id });
@@ -510,6 +516,37 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
         // Mark Twitter feature as used (first time)
         const { markTwitterFeatureAsUsed } = await import('./services/onboardingService');
         await markTwitterFeatureAsUsed(userNumber);
+      }
+
+      // Step 7: Send conversion buttons (if download was saved successfully)
+      if (downloadId) {
+        logger.info({ msg: 'Step 7: Sending conversion buttons', jobId: job.id, downloadId });
+
+        const { sendButtons } = await import('./services/avisaApi');
+
+        await sendButtons({
+          number: userNumber,
+          title: '🎨 *Quer transformar em figurinha?*',
+          desc: `Posso converter esse vídeo em uma figurinha animada para você!\n\n⏱️ Duração: ${downloadedMetadata.durationSec?.toFixed(1)}s`,
+          footer: 'Grátis e instantâneo!',
+          buttons: [
+            {
+              id: `button_convert_sticker_${downloadId}`,
+              text: '✅ Sim, quero!',
+            },
+            {
+              id: 'button_video_only',
+              text: '⏭️ Só o vídeo',
+            },
+          ],
+        });
+
+        logger.info({
+          msg: 'Conversion buttons sent',
+          jobId: job.id,
+          userNumber,
+          downloadId,
+        });
       }
 
       const totalTime = Date.now() - startTime;
@@ -577,6 +614,204 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
   {
     connection: redisConnection,
     concurrency: 3, // Process 3 downloads simultaneously
+  }
+);
+
+// Convert Twitter Video to Sticker Worker
+interface ConvertTwitterToStickerJobData {
+  downloadId: string;
+  userNumber: string;
+  userName: string;
+}
+
+new Worker<ConvertTwitterToStickerJobData>(
+  'process-sticker',
+  async (job: Job<ConvertTwitterToStickerJobData>) => {
+    if (job.name !== 'convert-twitter-to-sticker') {
+      return; // Skip non-conversion jobs (handled by main worker)
+    }
+
+    const { downloadId, userNumber, userName } = job.data;
+    const startTime = Date.now();
+
+    logger.info({
+      msg: 'Processing Twitter video to sticker conversion',
+      jobId: job.id,
+      downloadId,
+      userNumber,
+      userName,
+    });
+
+    try {
+      // Step 1: Get download record from database
+      logger.info({ msg: 'Step 1: Fetching download record', jobId: job.id, downloadId });
+
+      const { data: download, error: downloadError } = await supabase
+        .from('twitter_downloads')
+        .select('*')
+        .eq('id', downloadId)
+        .single();
+
+      if (downloadError || !download) {
+        throw new Error(`Download record not found: ${downloadId}`);
+      }
+
+      if (download.converted_to_sticker) {
+        throw new Error('Video already converted to sticker');
+      }
+
+      logger.info({
+        msg: 'Download record found',
+        jobId: job.id,
+        downloadId,
+        storagePath: download.storage_path,
+        durationSec: download.duration_sec,
+      });
+
+      // Step 2: Download video from Supabase Storage
+      logger.info({ msg: 'Step 2: Downloading video from storage', jobId: job.id });
+
+      const { data: videoData, error: storageError } = await supabase.storage
+        .from('twitter-videos')
+        .download(download.storage_path);
+
+      if (storageError || !videoData) {
+        throw new Error(`Failed to download video from storage: ${storageError?.message}`);
+      }
+
+      const videoBuffer = Buffer.from(await videoData.arrayBuffer());
+
+      logger.info({
+        msg: 'Video downloaded from storage',
+        jobId: job.id,
+        size: videoBuffer.length,
+        sizeMB: (videoBuffer.length / 1024 / 1024).toFixed(2),
+      });
+
+      // Step 3: Process video to animated sticker (with auto-trim if needed)
+      logger.info({ msg: 'Step 3: Converting to animated sticker', jobId: job.id });
+
+      const { processAnimatedStickerFromBuffer } = await import('./services/gifProcessor');
+
+      const result = await processAnimatedStickerFromBuffer(videoBuffer);
+
+      logger.info({
+        msg: 'Video converted to sticker',
+        jobId: job.id,
+        stickerSize: result.fileSize,
+        width: result.width,
+        height: result.height,
+        duration: result.duration,
+      });
+
+      // Step 4: Upload sticker to Supabase
+      logger.info({ msg: 'Step 4: Uploading sticker', jobId: job.id });
+
+      const { uploadSticker } = await import('./services/supabaseStorage');
+      const { path: stickerPath, url: stickerUrl } = await uploadSticker(
+        result.buffer,
+        userNumber,
+        'animado'
+      );
+
+      logger.info({
+        msg: 'Sticker uploaded',
+        jobId: job.id,
+        storagePath: stickerPath,
+        publicUrl: stickerUrl,
+      });
+
+      // Step 5: Send sticker to user
+      logger.info({ msg: 'Step 5: Sending sticker to user', jobId: job.id });
+
+      const { sendSticker } = await import('./services/evolutionApi');
+      await sendSticker(userNumber, stickerUrl);
+
+      logger.info({
+        msg: 'Sticker sent successfully',
+        jobId: job.id,
+        userNumber,
+      });
+
+      // Step 6: Get user ID and increment sticker count (not Twitter count!)
+      const { data: user } = await supabase
+        .from('users')
+        .select('id')
+        .eq('whatsapp_number', userNumber)
+        .single();
+
+      if (user?.id) {
+        logger.info({ msg: 'Step 6: Incrementing daily sticker count', jobId: job.id });
+        await incrementDailyCount(user.id);
+      }
+
+      // Step 7: Update download record
+      logger.info({ msg: 'Step 7: Updating download record', jobId: job.id });
+
+      await supabase
+        .from('twitter_downloads')
+        .update({
+          converted_to_sticker: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', downloadId);
+
+      // Step 8: Send success message
+      await sendText(
+        userNumber,
+        `✅ *Figurinha criada com sucesso!*\n\nSua figurinha animada do Twitter está pronta! 🎨\n\n📊 Conversão:\n• Tamanho: ${(result.fileSize / 1024).toFixed(0)} KB\n• Duração: ${result.duration?.toFixed(1)}s`
+      );
+
+      const totalTime = Date.now() - startTime;
+
+      logger.info({
+        msg: 'Twitter video conversion completed',
+        jobId: job.id,
+        downloadId,
+        userNumber,
+        processingTimeMs: totalTime,
+        stickerSize: result.fileSize,
+      });
+
+      return {
+        success: true,
+        downloadId,
+        userNumber,
+        stickerUrl,
+        processingTimeMs: totalTime,
+      };
+    } catch (error) {
+      const totalTime = Date.now() - startTime;
+
+      logger.error({
+        msg: 'Error converting Twitter video to sticker',
+        jobId: job.id,
+        downloadId,
+        userNumber,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        processingTimeMs: totalTime,
+      });
+
+      // Send error message to user
+      try {
+        await sendText(
+          userNumber,
+          `❌ *Erro ao converter vídeo*\n\n${error instanceof Error ? error.message : 'Erro desconhecido'}\n\n💡 Tente novamente ou envie outro vídeo.`
+        );
+      } catch (sendError) {
+        logger.error({
+          msg: 'Error sending error message to user',
+          error: sendError instanceof Error ? sendError.message : 'Unknown error',
+        });
+      }
+
+      throw error;
+    }
+  },
+  {
+    connection: redisConnection,
+    concurrency: 2, // Process 2 conversions simultaneously
   }
 );
 

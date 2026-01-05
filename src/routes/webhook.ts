@@ -256,6 +256,48 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           return reply.status(200).send({ status: 'twitter_dismissed' });
         }
 
+        // Handle Twitter video conversion to sticker
+        if (interactive.id.startsWith('button_convert_sticker_')) {
+          const downloadId = interactive.id.replace('button_convert_sticker_', '');
+
+          fastify.log.info({
+            msg: 'User requested Twitter video conversion to sticker',
+            userNumber,
+            userName,
+            downloadId,
+          });
+
+          // Add job to convert Twitter video to sticker
+          await processStickerQueue.add('convert-twitter-to-sticker', {
+            downloadId,
+            userNumber,
+            userName,
+          });
+
+          // Send immediate feedback
+          await sendText(
+            userNumber,
+            `🎨 *Processando conversão...*\n\nEstou transformando o vídeo em uma figurinha animada!\n\nAguarde alguns segundos... ⏳`
+          );
+
+          return reply.status(200).send({ status: 'conversion_started', downloadId });
+        }
+
+        // Handle "video only" button (just acknowledge)
+        if (interactive.id === 'button_video_only') {
+          fastify.log.info({
+            msg: 'User chose to keep video only',
+            userNumber,
+          });
+
+          await sendText(
+            userNumber,
+            `✅ *Tudo certo!*\n\nSeu vídeo está salvo na conversa.\n\nSe mudar de ideia, é só me enviar o vídeo de volta! 📹`
+          );
+
+          return reply.status(200).send({ status: 'video_only' });
+        }
+
         // Handle plan selection from list
         if (interactive.id === 'plan_premium' || interactive.id === 'plan_ultra' || interactive.id === 'plan_free') {
           const selectedPlan = interactive.id.replace('plan_', '') as PlanType;

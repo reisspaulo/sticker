@@ -83,18 +83,28 @@ async function getVideoMetadata(
  * - Target size: <500KB
  * - FPS: 15
  * - Quality: 75
+ * @param maxDuration Optional max duration in seconds (auto-trim if longer)
  */
 async function convertToAnimatedWebP(
   inputPath: string,
-  outputPath: string
+  outputPath: string,
+  maxDuration?: number
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    logger.info({ inputPath, outputPath }, 'Starting FFmpeg conversion');
+    logger.info({ inputPath, outputPath, maxDuration }, 'Starting FFmpeg conversion');
 
     // Build video filter string
     const videoFilter = 'fps=15,scale=512:512:force_original_aspect_ratio=decrease';
 
-    ffmpeg(inputPath)
+    const command = ffmpeg(inputPath);
+
+    // If max duration specified, trim the video
+    if (maxDuration && maxDuration > 0) {
+      command.duration(maxDuration);
+      logger.info({ maxDuration }, 'Trimming video to max duration');
+    }
+
+    command
       .outputOptions([
         '-vf',
         videoFilter,
@@ -160,9 +170,25 @@ export async function processAnimatedStickerFromBuffer(
     const metadata = await getVideoMetadata(inputPath);
     logger.info({ metadata }, 'Video metadata');
 
+    // Auto-trim if video is too long (max 10 seconds for stickers)
+    const MAX_STICKER_DURATION = 10; // seconds
+    const duration = metadata.duration;
+    const shouldTrim = duration > MAX_STICKER_DURATION;
+
+    if (shouldTrim) {
+      logger.info(
+        { originalDuration: duration, maxDuration: MAX_STICKER_DURATION },
+        'Video exceeds max duration - auto-trimming'
+      );
+    }
+
     // Convert to WebP
     outputPath = join(tmpdir(), `output-${Date.now()}.webp`);
-    await convertToAnimatedWebP(inputPath, outputPath);
+    await convertToAnimatedWebP(
+      inputPath,
+      outputPath,
+      shouldTrim ? MAX_STICKER_DURATION : undefined
+    );
 
     // Read result
     const processedBuffer = await readFileToBuffer(outputPath);
@@ -178,12 +204,17 @@ export async function processAnimatedStickerFromBuffer(
     }
 
     const processingTime = Date.now() - startTime;
+    const effectiveDuration = shouldTrim ? MAX_STICKER_DURATION : metadata.duration;
+
     logger.info(
       {
         fileSize,
         processingTime,
         width: 512,
         height: 512,
+        originalDuration: metadata.duration,
+        effectiveDuration,
+        wasTrimmed: shouldTrim,
       },
       'Animated sticker from buffer processed successfully'
     );
@@ -193,7 +224,7 @@ export async function processAnimatedStickerFromBuffer(
       width: 512,
       height: 512,
       fileSize,
-      duration: metadata.duration,
+      duration: effectiveDuration,
     };
   } catch (error) {
     const processingTime = Date.now() - startTime;

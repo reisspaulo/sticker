@@ -456,57 +456,96 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
         publicUrl: url,
       });
 
-      // Step 4: Send video to user via Evolution API
-      logger.info({ msg: 'Step 4: Sending video to user', jobId: job.id });
+      // Step 4: Send video to user via Evolution API (with idempotency check)
+      logger.info({ msg: 'Step 4: Checking if video already sent', jobId: job.id, tweetId });
 
-      const caption = `🐦 Vídeo do Twitter baixado com sucesso!`;
-
-      await sendVideo(userNumber, url, caption);
-
-      logger.info({
-        msg: 'Video sent to user successfully',
-        jobId: job.id,
-        userNumber,
-      });
-
-      // Step 5: Save metadata to database
-      logger.info({ msg: 'Step 5: Saving metadata to database', jobId: job.id });
-
-      const { data: downloadRecord, error: dbError } = await supabase
+      // Check if this video was already sent to prevent duplicates on retry
+      const { data: existingDownload } = await supabase
         .from('twitter_downloads')
-        .insert({
-          user_number: userNumber,
-          tweet_id: tweetId,
-          tweet_url: tweetUrl,
-          video_url: downloadedMetadata.videoUrl,
-          author_username: downloadedMetadata.username,
-          author_name: downloadedMetadata.author,
-          tweet_text: downloadedMetadata.text,
-          video_duration_ms: downloadedMetadata.duration,
-          video_size_bytes: buffer.length,
-          video_resolution: downloadedMetadata.resolution,
-          likes: downloadedMetadata.likes,
-          retweets: downloadedMetadata.retweets,
-          storage_path: path,
-          processed_url: url,
-          downloaded_at: new Date().toISOString(),
-          sent_at: new Date().toISOString(),
-          converted_to_sticker: false,
-        })
-        .select('id')
-        .single();
+        .select('sent_at, id')
+        .eq('tweet_id', tweetId)
+        .eq('user_number', userNumber)
+        .not('sent_at', 'is', null)
+        .maybeSingle();
 
-      if (dbError) {
-        logger.error({
-          msg: 'Error saving Twitter download metadata',
-          error: dbError.message,
-          userNumber,
+      let videoAlreadySent = false;
+      let existingDownloadId: string | null = null;
+
+      if (existingDownload?.sent_at) {
+        logger.info({
+          msg: 'Video already sent to user (skipping send to prevent duplicates)',
+          jobId: job.id,
           tweetId,
+          userNumber,
+          existingDownloadId: existingDownload.id,
         });
-        // Don't throw - video was already sent
+        videoAlreadySent = true;
+        existingDownloadId = existingDownload.id;
+      } else {
+        logger.info({ msg: 'Sending video to user', jobId: job.id });
+
+        const caption = `🐦 Vídeo do Twitter baixado com sucesso!`;
+
+        await sendVideo(userNumber, url, caption);
+
+        logger.info({
+          msg: 'Video sent to user successfully',
+          jobId: job.id,
+          userNumber,
+        });
       }
 
-      const downloadId = downloadRecord?.id;
+      // Step 5: Save metadata to database (or use existing record if video was already sent)
+      logger.info({ msg: 'Step 5: Saving metadata to database', jobId: job.id });
+
+      let downloadId: string | null = null;
+
+      if (videoAlreadySent && existingDownloadId) {
+        // Use existing download record
+        downloadId = existingDownloadId;
+        logger.info({
+          msg: 'Using existing download record',
+          jobId: job.id,
+          downloadId,
+        });
+      } else {
+        // Create new download record
+        const { data: downloadRecord, error: dbError } = await supabase
+          .from('twitter_downloads')
+          .insert({
+            user_number: userNumber,
+            tweet_id: tweetId,
+            tweet_url: tweetUrl,
+            video_url: downloadedMetadata.videoUrl,
+            author_username: downloadedMetadata.username,
+            author_name: downloadedMetadata.author,
+            tweet_text: downloadedMetadata.text,
+            video_duration_ms: downloadedMetadata.duration,
+            video_size_bytes: buffer.length,
+            video_resolution: downloadedMetadata.resolution,
+            likes: downloadedMetadata.likes,
+            retweets: downloadedMetadata.retweets,
+            storage_path: path,
+            processed_url: url,
+            downloaded_at: new Date().toISOString(),
+            sent_at: new Date().toISOString(),
+            converted_to_sticker: false,
+          })
+          .select('id')
+          .single();
+
+        if (dbError) {
+          logger.error({
+            msg: 'Error saving Twitter download metadata',
+            error: dbError.message,
+            userNumber,
+            tweetId,
+          });
+          // Don't throw - video was already sent
+        }
+
+        downloadId = downloadRecord?.id || null;
+      }
 
       // Step 6: Update user's Twitter download count
       if (userId) {
@@ -519,33 +558,44 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
       }
 
       // Step 7: Send conversion buttons (if download was saved successfully)
+      // Wrapped in try/catch - buttons are optional, job should succeed even if they fail
       if (downloadId) {
         logger.info({ msg: 'Step 7: Sending conversion buttons', jobId: job.id, downloadId });
 
-        const { sendButtons } = await import('./services/avisaApi');
+        try {
+          const { sendButtons } = await import('./services/avisaApi');
 
-        await sendButtons({
-          number: userNumber,
-          title: '🎨 *Quer transformar em figurinha?*',
-          desc: ' ', // Campo obrigatório pela Avisa API
-          buttons: [
-            {
-              id: `button_convert_sticker_${downloadId}`,
-              text: '✅ Sim, quero!',
-            },
-            {
-              id: 'button_video_only',
-              text: '⏭️ Só o vídeo',
-            },
-          ],
-        });
+          await sendButtons({
+            number: userNumber,
+            title: '🎨 *Quer transformar em figurinha?*',
+            desc: 'Converter em figurinha animada', // Texto real para passar validação da API
+            buttons: [
+              {
+                id: `button_convert_sticker_${downloadId}`,
+                text: '✅ Sim, quero!',
+              },
+              {
+                id: 'button_video_only',
+                text: '⏭️ Só o vídeo',
+              },
+            ],
+          });
 
-        logger.info({
-          msg: 'Conversion buttons sent',
-          jobId: job.id,
-          userNumber,
-          downloadId,
-        });
+          logger.info({
+            msg: 'Conversion buttons sent',
+            jobId: job.id,
+            userNumber,
+            downloadId,
+          });
+        } catch (buttonError) {
+          // Don't fail the entire job if buttons fail - video was already delivered
+          logger.error({
+            msg: 'Failed to send conversion buttons, but video was delivered successfully',
+            jobId: job.id,
+            downloadId,
+            error: buttonError instanceof Error ? buttonError.message : 'Unknown error',
+          });
+        }
       }
 
       const totalTime = Date.now() - startTime;
@@ -613,6 +663,7 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
   {
     connection: redisConnection,
     concurrency: 3, // Process 3 downloads simultaneously
+    // Retry config is in queue.ts defaultJobOptions
   }
 );
 

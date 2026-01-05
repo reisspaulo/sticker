@@ -13,7 +13,7 @@ const queueOptions: QueueOptions = {
     enableReadyCheck: false,
   },
   defaultJobOptions: {
-    attempts: 3,
+    attempts: 2, // Reduzido de 3 para 2 para evitar muitos retries
     backoff: {
       type: 'exponential',
       delay: 2000,

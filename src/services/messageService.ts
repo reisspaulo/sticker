@@ -32,7 +32,7 @@ export async function sendWelcomeMessage(userNumber: string, userName: string): 
 }
 
 /**
- * Send message when user reaches daily limit
+ * Send message when user reaches daily limit (with A/B test buttons)
  * @param userNumber WhatsApp number
  * @param userName User's name
  * @param pendingCount Number of pending stickers
@@ -44,7 +44,7 @@ export async function sendLimitReachedMessage(
 ): Promise<void> {
   try {
     // Import menu functions dynamically to avoid circular dependencies
-    const { getLimitReachedMenu } = await import('./menuService');
+    const { sendLimitReachedMenu } = await import('./menuService');
     const { getUserLimits } = await import('./subscriptionService');
     const { getUserByNumber } = await import('./userService');
 
@@ -61,26 +61,30 @@ export async function sendLimitReachedMessage(
     const { getUserPlan } = await import('./subscriptionService');
     const userPlan = await getUserPlan(user.id);
 
-    // Send limit reached menu with upgrade options
-    const limitMenu = getLimitReachedMenu({
+    // First send the pending sticker confirmation
+    await sendText(
+      userNumber,
+      `📦 *Seu sticker foi salvo!*\n\nEle será enviado amanhã às 8h da manhã junto com ${pendingCount > 1 ? `os outros ${pendingCount - 1} stickers pendentes` : 'os outros stickers pendentes'}.`
+    );
+
+    // Then send the limit reached menu with interactive buttons (A/B test)
+    await sendLimitReachedMenu(userNumber, {
+      userName,
       currentPlan: userPlan,
-      dailyCount: userLimits.daily_sticker_limit,
+      dailyCount: user.daily_count,
       dailyLimit: userLimits.daily_sticker_limit,
       isTwitter: false,
+      abTestGroup: user.ab_test_group || 'control',
+      bonusCreditsUsed: user.bonus_credits_today || 0,
     });
 
-    const message = `${limitMenu}
-
-📦 *Seu sticker foi salvo!*
-Ele será enviado amanhã às 8h da manhã junto com ${pendingCount > 1 ? `os outros ${pendingCount - 1} stickers pendentes` : 'os outros stickers pendentes'}.`;
-
-    await sendText(userNumber, message);
-
     logger.info({
-      msg: 'Limit reached message sent with upgrade menu',
+      msg: 'Limit reached message sent with A/B test menu',
       userNumber,
       userName,
       pendingCount,
+      abTestGroup: user.ab_test_group,
+      bonusCreditsUsed: user.bonus_credits_today,
     });
   } catch (error) {
     logger.error({

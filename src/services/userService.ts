@@ -10,6 +10,8 @@ export interface User {
   last_reset_at: string;
   created_at: string;
   last_interaction: string;
+  ab_test_group?: 'control' | 'bonus';
+  bonus_credits_today?: number;
 }
 
 /**
@@ -28,51 +30,69 @@ export async function getUserOrCreate(phoneNumber: string, name: string): Promis
       name,
     });
 
-    // Use upsert to handle both create and update (minimal fields to avoid schema cache issues)
-    const { data: user, error: upsertError } = await supabase
+    // First, try to get existing user
+    const { data: existingUser } = await supabase
       .from('users')
-      .upsert(
-        {
-          whatsapp_number: sanitizedNumber,
-          name,
-        },
-        {
-          onConflict: 'whatsapp_number',
-          ignoreDuplicates: false,
-        }
-      )
+      .select('*')
+      .eq('whatsapp_number', sanitizedNumber)
+      .single();
+
+    // If user exists, return it (don't modify ab_test_group)
+    if (existingUser) {
+      logger.info({
+        msg: 'Existing user found',
+        userId: existingUser.id,
+        phoneNumber: sanitizedNumber,
+        dailyCount: existingUser.daily_count,
+        abTestGroup: existingUser.ab_test_group,
+      });
+      return existingUser;
+    }
+
+    // User doesn't exist - create new with random A/B group assignment
+    const ab_test_group = Math.random() < 0.5 ? 'control' : 'bonus';
+
+    const { data: newUser, error: insertError } = await supabase
+      .from('users')
+      .insert({
+        whatsapp_number: sanitizedNumber,
+        name,
+        ab_test_group,
+        bonus_credits_today: 0,
+      })
       .select()
       .single();
 
-    if (upsertError) {
+    if (insertError) {
       logger.error({
-        msg: 'Failed to upsert user',
-        error: upsertError,
-        code: upsertError.code,
-        message: upsertError.message,
-        details: upsertError.details,
-        hint: upsertError.hint,
+        msg: 'Failed to create user',
+        error: insertError,
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
         phoneNumber: sanitizedNumber,
       });
-      throw upsertError;
+      throw insertError;
     }
 
-    if (!user) {
+    if (!newUser) {
       logger.error({
-        msg: 'Upsert succeeded but no user returned',
+        msg: 'Insert succeeded but no user returned',
         phoneNumber: sanitizedNumber,
       });
-      throw new Error('Failed to get/create user: no data returned');
+      throw new Error('Failed to create user: no data returned');
     }
 
     logger.info({
-      msg: 'User retrieved/created',
-      userId: user.id,
+      msg: 'New user created with A/B group',
+      userId: newUser.id,
       phoneNumber: sanitizedNumber,
-      dailyCount: user.daily_count,
+      abTestGroup: ab_test_group,
+      dailyCount: newUser.daily_count,
     });
 
-    return user;
+    return newUser;
   } catch (error: any) {
     logger.error({
       msg: 'Error in getUserOrCreate',
@@ -114,12 +134,13 @@ export async function checkAndResetIfNeeded(userId: string): Promise<boolean> {
     today.setHours(0, 0, 0, 0);
 
     if (lastReset < today) {
-      // Need to reset counters
+      // Need to reset counters (including bonus credits for A/B test)
       const { error: updateError } = await supabase
         .from('users')
         .update({
           daily_count: 0,
           twitter_download_count: 0,
+          bonus_credits_today: 0,
           last_reset_at: new Date().toISOString(),
         })
         .eq('id', userId);
@@ -150,7 +171,7 @@ export async function checkAndResetIfNeeded(userId: string): Promise<boolean> {
 }
 
 /**
- * Check if user has reached daily limit
+ * Check if user has reached daily limit (considers bonus credits for A/B test)
  * @param userId User ID
  * @returns true if user has reached or exceeded limit
  */
@@ -163,7 +184,7 @@ export async function checkDailyLimit(userId: string): Promise<boolean> {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('daily_count')
+      .select('daily_count, ab_test_group, bonus_credits_today')
       .eq('id', userId)
       .single();
 
@@ -176,14 +197,22 @@ export async function checkDailyLimit(userId: string): Promise<boolean> {
     const userLimits = await getUserLimits(userId);
     const actualLimit = userLimits.daily_sticker_limit;
 
-    const hasReachedLimit = user.daily_count >= actualLimit;
+    // A/B Test: Bonus group gets +2 extra credits per day when activated
+    // Each time they click "Use Bonus", bonus_credits_today increases, raising their effective limit
+    const bonusCreditsActivated = user.ab_test_group === 'bonus' ? (user.bonus_credits_today || 0) : 0;
+    const effectiveLimit = actualLimit + bonusCreditsActivated;
+
+    const hasReachedLimit = user.daily_count >= effectiveLimit;
 
     logger.info({
       msg: 'Daily limit check',
       userId,
       dailyCount: user.daily_count,
-      limit: actualLimit,
+      actualLimit,
+      bonusCreditsActivated,
+      effectiveLimit,
       hasReachedLimit,
+      abTestGroup: user.ab_test_group,
     });
 
     return hasReachedLimit;
@@ -382,6 +411,50 @@ export async function getPendingStickerCount(userNumber: string): Promise<number
       msg: 'Error getting pending sticker count',
       error: error instanceof Error ? error.message : 'Unknown error',
       userNumber,
+    });
+    throw error;
+  }
+}
+
+// ========================================
+// TWITTER-SPECIFIC FUNCTIONS
+// ========================================
+
+// ========================================
+// BONUS CREDITS FUNCTIONS (A/B TEST)
+// ========================================
+
+/**
+ * Increment user's bonus credits used today
+ * @param userId User ID
+ * @returns New bonus credits count
+ */
+export async function incrementBonusCredit(userId: string): Promise<number> {
+  try {
+    logger.debug({ msg: 'Incrementing bonus credit', userId });
+
+    const { data, error } = await supabase.rpc('increment_bonus_credit', {
+      p_user_id: userId,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const newCount = data as number;
+
+    logger.info({
+      msg: 'Bonus credit incremented',
+      userId,
+      newCount,
+    });
+
+    return newCount;
+  } catch (error) {
+    logger.error({
+      msg: 'Error incrementing bonus credit',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId,
     });
     throw error;
   }

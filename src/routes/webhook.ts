@@ -298,6 +298,111 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           return reply.status(200).send({ status: 'video_only' });
         }
 
+        // Handle upgrade button clicks (A/B Test - Limit Reached Menu)
+        if (interactive.id === 'button_upgrade_premium' || interactive.id === 'button_upgrade_ultra') {
+          const selectedPlan = interactive.id.replace('button_upgrade_', '') as 'premium' | 'ultra';
+
+          fastify.log.info({
+            msg: 'User clicked upgrade button from limit menu',
+            userNumber,
+            plan: selectedPlan,
+            abTestGroup: user.ab_test_group,
+          });
+
+          // Track A/B test conversion attempt
+          logMenuInteraction(userNumber, 'ab_test_upgrade_click', selectedPlan);
+
+          // Send payment method selection list
+          await sendPaymentMethodList(userNumber, selectedPlan);
+
+          // Save context for payment method selection
+          await saveConversationContext(userNumber, 'awaiting_payment_method', {
+            selected_plan: selectedPlan,
+          });
+
+          return reply.status(200).send({
+            status: 'upgrade_payment_requested',
+            plan: selectedPlan,
+            abTestGroup: user.ab_test_group,
+          });
+        }
+
+        // Handle bonus credit button click (A/B Test - Bonus Group)
+        if (interactive.id === 'button_use_bonus') {
+          fastify.log.info({
+            msg: 'User clicked use bonus button',
+            userNumber,
+            userId: user.id,
+            currentBonusUsed: user.bonus_credits_today || 0,
+          });
+
+          // Validate user is in bonus group
+          if (user.ab_test_group !== 'bonus') {
+            fastify.log.warn({
+              msg: 'User tried to use bonus but not in bonus group',
+              userNumber,
+              abTestGroup: user.ab_test_group,
+            });
+
+            await sendText(
+              userNumber,
+              `❌ *Erro*\n\nEste recurso não está disponível para você.\n\nDigite *planos* para ver opções de upgrade.`
+            );
+
+            return reply.status(200).send({ status: 'bonus_not_available' });
+          }
+
+          // Check if user has bonus credits remaining
+          const bonusUsed = user.bonus_credits_today || 0;
+          if (bonusUsed >= 2) {
+            await sendText(
+              userNumber,
+              `❌ *Limite de Bônus Atingido*\n\nVocê já usou seus *2 créditos extras* de hoje.\n\nSeu limite será renovado às *00:00* (horário de Brasília).\n\nDigite *planos* para fazer upgrade e ter mais!`
+            );
+
+            return reply.status(200).send({ status: 'bonus_limit_reached' });
+          }
+
+          // Grant bonus credit (increment bonus_credits_today)
+          const { incrementBonusCredit } = await import('../services/userService');
+          const newBonusCount = await incrementBonusCredit(user.id);
+
+          const bonusRemaining = 2 - newBonusCount;
+
+          // Track A/B test bonus usage
+          logMenuInteraction(userNumber, 'ab_test_bonus_used', `${newBonusCount}/2`);
+
+          await sendText(
+            userNumber,
+            `🎁 *Bônus Concedido!*\n\n✅ Você ganhou *+1 crédito extra* agora!\n\n${bonusRemaining > 0 ? `Você ainda pode usar *+${bonusRemaining} bônus* hoje.` : `Você usou todos os seus bônus extras de hoje.`}\n\nEnvie sua imagem, vídeo ou GIF! 🎨`
+          );
+
+          return reply.status(200).send({
+            status: 'bonus_granted',
+            bonusUsed: newBonusCount,
+            bonusRemaining,
+          });
+        }
+
+        // Handle dismiss upgrade button
+        if (interactive.id === 'button_dismiss_upgrade') {
+          fastify.log.info({
+            msg: 'User dismissed upgrade offer',
+            userNumber,
+            abTestGroup: user.ab_test_group,
+          });
+
+          // Track A/B test dismissal
+          logMenuInteraction(userNumber, 'ab_test_upgrade_dismissed', user.ab_test_group || 'unknown');
+
+          await sendText(
+            userNumber,
+            `✅ *Tudo bem!*\n\nSeu limite será renovado às *00:00* (horário de Brasília).\n\nVolte amanhã para criar mais figurinhas! 🎨\n\nQuer fazer upgrade? Digite *planos*.`
+          );
+
+          return reply.status(200).send({ status: 'upgrade_dismissed' });
+        }
+
         // Handle plan selection from list
         if (interactive.id === 'plan_premium' || interactive.id === 'plan_ultra' || interactive.id === 'plan_free') {
           const selectedPlan = interactive.id.replace('plan_', '') as PlanType;

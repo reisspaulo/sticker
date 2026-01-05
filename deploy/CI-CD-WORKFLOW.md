@@ -817,5 +817,82 @@ Adicionar step dedicado no workflow para fazer login no GHCR diretamente na VPS 
 
 ---
 
+### 05/01/2026 - Filas BullMQ: Sempre Exportar de queue.ts
+
+**Problema**:
+Implementamos funcionalidade para converter vídeos do Twitter em figurinhas com botões interativos. Ao clicar em "Sim, quero!", o usuário não recebia a figurinha. Logs mostravam erro:
+```
+ReplyError: NOAUTH Authentication required.
+```
+
+**Investigação**:
+1. Webhook detectava clique no botão ✅
+2. Tentava adicionar job na fila `convert-twitter-sticker` ❌
+3. Erro de autenticação Redis
+4. Job nunca era processado pelo worker
+
+**Causa Raiz**:
+O arquivo `webhook.ts` estava criando uma nova instância de `Queue` inline **sem as credenciais do Redis**:
+
+```typescript
+// ❌ ERRADO - Sem autenticação Redis
+const { Queue } = await import('bullmq');
+const convertTwitterStickerQueue = new Queue('convert-twitter-sticker', {
+  connection: redisConnection, // SEM senha!
+});
+```
+
+O `queueOptions` em `src/config/queue.ts` inclui a senha do Redis extraída de `REDIS_URL`, mas essa nova Queue inline não tinha acesso a essa configuração.
+
+**Solução**:
+1. Criar e exportar a fila em `src/config/queue.ts`:
+```typescript
+export const convertTwitterStickerQueue = new Queue('convert-twitter-sticker', queueOptions);
+```
+
+2. Importar no webhook.ts:
+```typescript
+import { convertTwitterStickerQueue } from '../config/queue';
+```
+
+3. Usar diretamente (já tem autenticação):
+```typescript
+await convertTwitterStickerQueue.add('convert', {...});
+```
+
+**Aprendizados**:
+- ✅ **NUNCA** criar instâncias de `Queue` inline em routes/services
+- ✅ **SEMPRE** exportar filas de `src/config/queue.ts` com `queueOptions`
+- ✅ `queueOptions` centraliza configuração de Redis (host, port, password)
+- ✅ Criar Queue inline ignora autenticação e causa NOAUTH errors
+
+**Checklist para Novas Filas BullMQ**:
+```typescript
+// ✅ CERTO - Em src/config/queue.ts
+export const minhaNovaQueue = new Queue('minha-queue', queueOptions);
+
+export default {
+  processStickerQueue,
+  minhaNovaQueue,  // Adicionar ao export
+};
+
+// ✅ CERTO - Em routes/webhook.ts ou services
+import { minhaNovaQueue } from '../config/queue';
+await minhaNovaQueue.add('job-name', data);
+
+// ❌ ERRADO - Nunca fazer isso!
+const { Queue } = await import('bullmq');
+const queue = new Queue('minha-queue', { connection: {...} });
+```
+
+**Como evitar no futuro**:
+1. Code review: verificar se novas filas estão em `queue.ts`
+2. Lint rule (futuro): detectar `new Queue(` fora de `queue.ts`
+3. Documentar pattern no README
+
+**Commit da correção**: `3bc28c6` - "fix: Corrige autenticação Redis na fila de conversão Twitter"
+
+---
+
 **Última atualização:** 05/01/2026
-**Testado e validado com:** Zero-downtime deployment test + GHCR authentication fix
+**Testado e validado com:** Zero-downtime deployment test + GHCR authentication fix + BullMQ queue pattern

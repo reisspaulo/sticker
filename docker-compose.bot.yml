@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # Backend API do Bot
+  sticker-backend:
+    build: .
+    container_name: sticker_bot_backend
+    restart: always
+    ports:
+      - "3100:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOST=0.0.0.0
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - REDIS_URL=redis://redis:6379
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://localhost:8080}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-meu-zap}
+    networks:
+      - sticker_network
+      - evolution-network  # Connect to Evolution API network
+    command: node dist/server.js
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Worker (processamento assíncrono)
+  sticker-worker:
+    build: .
+    container_name: sticker_bot_worker
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - REDIS_URL=redis://redis:6379
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://localhost:8080}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-meu-zap}
+    networks:
+      - sticker_network
+      - evolution-network
+    command: node dist/worker.js
+
+networks:
+  sticker_network:
+    driver: bridge
+  evolution-network:
+    external: true
+    name: sticker_evolution-network  # Use existing Evolution API network

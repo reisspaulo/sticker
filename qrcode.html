@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code - WhatsApp</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        #qrcode {
+            max-width: 100%;
+            height: auto;
+            border: 5px solid #667eea;
+            border-radius: 10px;
+        }
+        .instructions {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            color: #333;
+            text-align: left;
+        }
+        .instructions h2 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        .instructions ol {
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Conectar WhatsApp</h1>
+        <p>Escaneie o QR Code abaixo com seu WhatsApp</p>
+
+        <img id="qrcode" alt="QR Code" />
+
+        <div class="instructions">
+            <h2>Como conectar:</h2>
+            <ol>
+                <li>Abra o <strong>WhatsApp</strong> no seu celular</li>
+                <li>Toque em <strong>Mais opções</strong> (⋮) ou <strong>Configurações</strong></li>
+                <li>Toque em <strong>Aparelhos conectados</strong></li>
+                <li>Toque em <strong>Conectar um aparelho</strong></li>
+                <li>Aponte a câmera para este QR Code</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // QR Code atualizado
+        const qrcodeBase64 = "data:image/png;base64,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";
+
+        // Exibir QR Code
+        document.getElementById('qrcode').src = qrcodeBase64;
+
+        // Auto-refresh a cada 30 segundos
+        async function refreshQRCode() {
+            try {
+                const response = await fetch('https://wa.ytem.com.br/instance/connect/meu-zap', {
+                    headers: {
+                        'apikey': 'I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+                    }
+                });
+                const data = await response.json();
+                if (data.base64) {
+                    document.getElementById('qrcode').src = data.base64;
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar QR Code:', error);
+            }
+
+            setTimeout(refreshQRCode, 30000);
+        }
+
+        // Iniciar auto-refresh após 30 segundos
+        setTimeout(refreshQRCode, 30000);
+    </script>
+</body>
+</html>

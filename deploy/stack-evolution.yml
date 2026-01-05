@@ -1,0 +1,175 @@
+version: '3.9'
+
+networks:
+  traefik-public:
+    external: true
+
+volumes:
+  evolution_instances:
+    driver: local
+  postgres_data:
+    driver: local
+
+services:
+  # PostgreSQL - Banco de Dados
+  postgres:
+    image: postgres:15-alpine
+    networks:
+      - traefik-public
+    environment:
+      POSTGRES_DB: evolution
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: evolution_password_secure_2025
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=1000"
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  # Evolution API - API Principal do WhatsApp
+  evolution_api:
+    image: evoapicloud/evolution-api:latest
+    networks:
+      - traefik-public
+    environment:
+      # Server
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+
+      # Cors
+      CORS_ORIGIN: '*'
+      CORS_METHODS: 'POST,GET,PUT,DELETE'
+      CORS_CREDENTIALS: 'true'
+
+      # Log
+      LOG_LEVEL: ERROR
+      LOG_COLOR: 'true'
+      LOG_BAILEYS: 'error'
+
+      # Instance
+      DEL_INSTANCE: 'false'
+
+      # Database
+      DATABASE_ENABLED: 'true'
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:evolution_password_secure_2025@postgres:5432/evolution?schema=public
+      DATABASE_CONNECTION_CLIENT_NAME: evolution_v1
+      DATABASE_SAVE_DATA_INSTANCE: 'true'
+      DATABASE_SAVE_DATA_NEW_MESSAGE: 'true'
+      DATABASE_SAVE_MESSAGE_UPDATE: 'true'
+      DATABASE_SAVE_DATA_CONTACTS: 'true'
+      DATABASE_SAVE_DATA_CHATS: 'true'
+
+      # Cache Redis - DESABILITADO (v2 usa CACHE_REDIS_ENABLED)
+      CACHE_REDIS_ENABLED: 'false'
+      CACHE_LOCAL_ENABLED: 'true'
+
+      # RabbitMQ (desabilitado)
+      RABBITMQ_ENABLED: 'false'
+
+      # Websocket (desabilitado)
+      WEBSOCKET_ENABLED: 'false'
+
+      # Auth
+      AUTHENTICATION_TYPE: apikey
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: 'true'
+
+      # Webhook
+      WEBHOOK_GLOBAL_ENABLED: 'false'
+      WEBHOOK_GLOBAL_URL: ''
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: 'false'
+
+      # Config session phone client
+      CONFIG_SESSION_PHONE_CLIENT: 'Evolution API'
+      CONFIG_SESSION_PHONE_NAME: 'Edge'
+
+      # Qrcode
+      QRCODE_LIMIT: 30
+      QRCODE_COLOR: '#198754'
+
+      # Storage
+      STORAGE_TYPE: LOCAL
+
+    volumes:
+      - evolution_instances:/evolution/instances
+    depends_on:
+      - postgres
+    deploy:
+      replicas: 1
+      labels:
+        # Traefik
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+
+        # HTTP Router
+        - "traefik.http.routers.evolution.rule=Host(`wa.ytem.com.br`)"
+        - "traefik.http.routers.evolution.entrypoints=websecure"
+        - "traefik.http.routers.evolution.tls=true"
+        - "traefik.http.routers.evolution.tls.certresolver=letsencrypt"
+
+        # Service
+        - "traefik.http.services.evolution.loadbalancer.server.port=8080"
+
+        # Middleware CORS
+        - "traefik.http.middlewares.evolution-cors.headers.accesscontrolallowmethods=GET,OPTIONS,PUT,POST,DELETE"
+        - "traefik.http.middlewares.evolution-cors.headers.accesscontrolalloworiginlist=*"
+        - "traefik.http.middlewares.evolution-cors.headers.accesscontrolmaxage=100"
+        - "traefik.http.middlewares.evolution-cors.headers.addvaryheader=true"
+        - "traefik.http.routers.evolution.middlewares=evolution-cors"
+
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+
+  # Evolution Manager - Interface de Gerenciamento (Opcional)
+  evolution_manager:
+    image: atendai/evolution-manager:latest
+    networks:
+      - traefik-public
+    environment:
+      EVOLUTION_API_URL: http://evolution_api:8080
+    depends_on:
+      - evolution_api
+    deploy:
+      replicas: 1
+      labels:
+        # Traefik
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+
+        # HTTP Router
+        - "traefik.http.routers.evolution-manager.rule=Host(`wa-manager.ytem.com.br`)"
+        - "traefik.http.routers.evolution-manager.entrypoints=websecure"
+        - "traefik.http.routers.evolution-manager.tls=true"
+        - "traefik.http.routers.evolution-manager.tls.certresolver=letsencrypt"
+
+        # Service
+        - "traefik.http.services.evolution-manager.loadbalancer.server.port=80"
+
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3

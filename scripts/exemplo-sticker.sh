@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# Evolution API - Exemplos de Envio de Stickers
+# Documentação: https://doc.evolution-api.com/v1/api-reference/message-controller/send-sticker
+
+API_KEY="I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc="
+API_URL="http://localhost:8080"
+INSTANCE="meu-zap"
+
+echo "========================================="
+echo "Evolution API - Envio de Stickers"
+echo "========================================="
+echo ""
+
+# Exemplo 1: Enviar Sticker via URL
+echo "1. Enviar Sticker via URL da Imagem"
+echo ""
+echo "curl -X POST $API_URL/message/sendSticker/$INSTANCE \\"
+echo "  -H 'apikey: $API_KEY' \\"
+echo "  -H 'Content-Type: application/json' \\"
+echo "  -d '{"
+echo "    \"number\": \"5511999999999\","
+echo "    \"sticker\": {"
+echo "      \"image\": \"https://example.com/sticker.png\""
+echo "    }"
+echo "  }'"
+echo ""
+echo ""
+
+# Exemplo 2: Enviar Sticker via Base64
+echo "2. Enviar Sticker via Base64"
+echo ""
+echo "curl -X POST $API_URL/message/sendSticker/$INSTANCE \\"
+echo "  -H 'apikey: $API_KEY' \\"
+echo "  -H 'Content-Type: application/json' \\"
+echo "  -d '{"
+echo "    \"number\": \"5511999999999\","
+echo "    \"sticker\": {"
+echo "      \"image\": \"data:image/png;base64,iVBORw0KG...\""
+echo "    }"
+echo "  }'"
+echo ""
+echo ""
+
+# Exemplo 3: Enviar Sticker Animado (WebP)
+echo "3. Enviar Sticker Animado (formato WebP)"
+echo ""
+echo "curl -X POST $API_URL/message/sendSticker/$INSTANCE \\"
+echo "  -H 'apikey: $API_KEY' \\"
+echo "  -H 'Content-Type: application/json' \\"
+echo "  -d '{"
+echo "    \"number\": \"5511999999999\","
+echo "    \"sticker\": {"
+echo "      \"image\": \"https://example.com/sticker.webp\""
+echo "    }"
+echo "  }'"
+echo ""
+echo ""
+
+echo "========================================="
+echo "Formatos Suportados:"
+echo "- PNG (imagem estática)"
+echo "- WebP (estático ou animado)"
+echo "- JPEG (convertido automaticamente)"
+echo ""
+echo "Dicas:"
+echo "- Stickers devem ser quadrados (512x512)"
+echo "- Tamanho máximo: 500KB"
+echo "- Para melhores resultados, use WebP"
+echo "========================================="

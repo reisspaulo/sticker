@@ -1,0 +1,76 @@
+# Evolution API - .gitignore
+
+# Arquivos sensíveis - NUNCA commitar!
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+.mcp.json
+
+# Dados temporários
+qrcode-data.txt
+*.log
+
+# Docker
+docker-compose.override.yml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Node.js (se usar)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# TypeScript
+dist/
+build/
+*.tsbuildinfo
+
+# Doppler
+.doppler/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Arquivos de teste
+test-*.txt
+tmp/
+temp/
+
+# Backups
+*.bak
+*.backup
+*.old
+
+# Certificados SSL (se adicionar HTTPS)
+*.crt
+*.csr
+
+# Dados locais (se houver)
+data/
+storage/
+
+# Logs do Docker
+logs/
+
+# Archive files (large)
+*.tar.gz
+*.zip
+*.tar

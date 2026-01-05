@@ -1,0 +1,133 @@
+version: '3.9'
+
+services:
+  # Evolution API - API Principal do WhatsApp
+  evolution-api:
+    container_name: evolution_api
+    image: evoapicloud/evolution-api:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - evolution_instances:/evolution/instances
+    networks:
+      - evolution-network
+    depends_on:
+      - postgres
+      - redis
+
+  # PostgreSQL - Banco de Dados
+  postgres:
+    container_name: evolution_postgres
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: evolution
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: evolution_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - evolution-network
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=1000"
+
+  # Redis - Cache e Performance
+  redis:
+    container_name: evolution_redis
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - evolution-network
+    command: redis-server --appendonly yes
+
+  # Evolution Manager - Interface de Gerenciamento (Opcional)
+  evolution-manager:
+    container_name: evolution_manager
+    image: atendai/evolution-manager:latest
+    restart: always
+    ports:
+      - "3001:80"
+    environment:
+      - EVOLUTION_API_URL=http://localhost:8080
+    networks:
+      - evolution-network
+    depends_on:
+      - evolution-api
+
+  # Sticker Bot - Servidor Principal
+  sticker-bot:
+    container_name: sticker_bot
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - EVOLUTION_API_URL=http://evolution-api:8080
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - API_KEY=${API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - STRIPE_PREMIUM_PAYMENT_LINK=${STRIPE_PREMIUM_PAYMENT_LINK}
+      - STRIPE_ULTRA_PAYMENT_LINK=${STRIPE_ULTRA_PAYMENT_LINK}
+      - STRIPE_STICKER_PREMIUM_PRODUCT_ID=${STRIPE_STICKER_PREMIUM_PRODUCT_ID}
+      - STRIPE_STICKER_ULTRA_PRODUCT_ID=${STRIPE_STICKER_ULTRA_PRODUCT_ID}
+    networks:
+      - evolution-network
+    depends_on:
+      - redis
+      - evolution-api
+    command: ["node", "dist/server.js"]
+
+  # Sticker Bot - Worker (Processamento em Background)
+  sticker-worker:
+    container_name: sticker_worker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - EVOLUTION_API_URL=http://evolution-api:8080
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    networks:
+      - evolution-network
+    depends_on:
+      - redis
+      - evolution-api
+    command: ["node", "dist/worker.js"]
+
+networks:
+  evolution-network:
+    driver: bridge
+
+volumes:
+  evolution_instances:
+  postgres_data:
+  redis_data:

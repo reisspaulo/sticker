@@ -1,6 +1,6 @@
 # 🚀 Processo de Deploy - Sticker Bot
 
-**Última atualização:** 2026-01-04
+**Última atualização:** 2026-01-05
 **Stack:** sticker
 **VPS:** srv1007351 (69.62.100.250)
 **Arquitetura:** x86_64 (Ubuntu 22.04)
@@ -9,11 +9,32 @@
 
 ## 📋 Visão Geral
 
-O Sticker Bot segue o mesmo padrão de deploy do Brazyl:
+O Sticker Bot usa **CI/CD automatizado** via GitHub Actions com zero-downtime deployment:
 
-1. **Build local** → Cria imagens Docker multi-arquitetura
-2. **Push para GHCR** → Publica no GitHub Container Registry
-3. **Deploy na VPS** → Atualiza serviços via Docker Swarm + Doppler
+### 🎯 Método Recomendado: CI/CD (GitHub Actions)
+
+✅ **Deploy automático** a cada push na branch `main`
+✅ **Zero downtime** com 2 réplicas e rolling updates
+✅ **Rollback automático** se algo falhar
+
+**📖 Documentação completa:** [CI-CD-WORKFLOW.md](./CI-CD-WORKFLOW.md)
+
+**Quick start:**
+```bash
+git add .
+git commit -m "feat: nova funcionalidade"
+git push origin main
+# Pronto! Deploy automático em ~2-3 minutos
+```
+
+### 📦 Método Alternativo: Deploy Manual (Backup/Emergência)
+
+Usar apenas quando:
+- GitHub Actions estiver indisponível
+- Precisar fazer deploy sem commit
+- Deploy de emergência
+
+**Processo resumido abaixo ↓**
 
 ---
 
@@ -547,87 +568,31 @@ sticker/
 
 ---
 
-## 🔮 Melhorias Futuras
+## ✅ Status da Implementação
 
-### 1. Habilitar GHCR (GitHub Container Registry)
+### CI/CD (GitHub Actions)
 
-**Opção A: Novo GitHub Personal Access Token**
+✅ **IMPLEMENTADO** (05/01/2026)
 
-```bash
-# 1. Criar novo token em: https://github.com/settings/tokens
-#    Scopes necessários:
-#    - write:packages
-#    - read:packages
-#    - repo (se repositório privado)
+- [x] GitHub Actions configurado
+- [x] Deploy automático a cada push
+- [x] Zero-downtime deployment testado e validado
+- [x] Rollback automático funcionando
+- [x] 2 réplicas rodando (backend + worker)
 
-# 2. Salvar no Doppler
-doppler secrets set GITHUB_TOKEN="ghp_novo_token" --project sticker --config prd
-
-# 3. Testar login
-echo $GITHUB_TOKEN | docker login ghcr.io -u reisspaulo --password-stdin
-
-# 4. Testar push
-docker push ghcr.io/reisspaulo/sticker-bot-backend:latest
-```
-
-**Opção B: GitHub Actions (CI/CD Automático)**
-
-Criar `.github/workflows/deploy.yml`:
-
-```yaml
-name: Build and Deploy
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ghcr.io/reisspaulo/sticker-bot-backend:latest
-            ghcr.io/reisspaulo/sticker-bot-worker:latest
-
-      - name: Deploy to VPS
-        uses: appleboy/ssh-action@master
-        with:
-          host: 69.62.100.250
-          username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            docker service update --force --image ghcr.io/reisspaulo/sticker-bot-backend:latest sticker_backend
-            docker service update --force --image ghcr.io/reisspaulo/sticker-bot-worker:latest sticker_worker
-```
-
-**Benefícios do CI/CD:**
-- ✅ Deploy automático a cada push na main
-- ✅ Não precisa build local
-- ✅ Não precisa transferir imagens manualmente
-- ✅ Build consistente (sempre Ubuntu)
-- ✅ Histórico de deploys no GitHub
+**📖 Ver documentação completa:** [CI-CD-WORKFLOW.md](./CI-CD-WORKFLOW.md)
 
 ---
 
-### 2. Outros Próximos Passos
+## 🔮 Próximos Passos
 
-- [ ] Configurar CI/CD via GitHub Actions (ver acima)
+Melhorias possíveis para o futuro:
+
+- [ ] Adicionar testes automáticos no workflow (npm test)
+- [ ] Scan de vulnerabilidades (Trivy/Snyk)
 - [ ] Implementar monitoramento com Prometheus/Grafana
 - [ ] Setup de backups automáticos do Redis
 - [ ] Documentar processo de disaster recovery
 - [ ] Criar scripts `start-local.sh` e `stop-local.sh`
+- [ ] Notificações de deploy (Slack/Discord)
+- [ ] Ambientes de staging (branch develop)

@@ -167,25 +167,45 @@
 
 Todos os guias de deployment estao na pasta `/deploy/`:
 
-| Documento | Descricao |
-|-----------|-----------|
-| **[deploy/DEPLOYMENT-GUIDE.md](../deploy/DEPLOYMENT-GUIDE.md)** | Guia completo de deployment para VPS |
-| **[deploy/DOPPLER-SETUP.md](../deploy/DOPPLER-SETUP.md)** | Setup detalhado do Doppler |
-| **[deploy/CLOUDFLARE-DNS-SETUP.md](../deploy/CLOUDFLARE-DNS-SETUP.md)** | Setup DNS no Cloudflare |
-| **[deploy/stack-sticker.yml](../deploy/stack-sticker.yml)** | Stack file para Docker Swarm |
-| **[deploy/deploy-sticker.sh](../deploy/deploy-sticker.sh)** | Script de deploy automatizado |
+| Documento | Descricao | Status |
+|-----------|-----------|--------|
+| **[deploy/CI-CD-WORKFLOW.md](../deploy/CI-CD-WORKFLOW.md)** | 🎯 **PRINCIPAL:** Guia completo do deploy automatizado via GitHub Actions | ✅ IMPLEMENTADO |
+| **[deploy/GITHUB-ACTIONS-SETUP.md](../deploy/GITHUB-ACTIONS-SETUP.md)** | Setup inicial do CI/CD (primeira vez) | ✅ CONFIGURADO |
+| **[deploy/QUICK-DEPLOY.md](../deploy/QUICK-DEPLOY.md)** | Referencia rapida de comandos | ✅ ATUALIZADO |
+| **[deploy/DEPLOYMENT-PROCESS.md](../deploy/DEPLOYMENT-PROCESS.md)** | Processo manual de deploy (backup/emergencia) | 📚 LEGACY |
+| **[deploy/DEPLOYMENT-GUIDE.md](../deploy/DEPLOYMENT-GUIDE.md)** | Guia geral de deployment | 📚 LEGACY |
+| **[deploy/DOPPLER-SETUP.md](../deploy/DOPPLER-SETUP.md)** | Setup detalhado do Doppler | ✅ ATIVO |
+| **[deploy/CLOUDFLARE-DNS-SETUP.md](../deploy/CLOUDFLARE-DNS-SETUP.md)** | Setup DNS no Cloudflare | ✅ ATIVO |
 
-### Comandos Rapidos
+### Deploy Automatizado (CI/CD) - Método Recomendado
+
+✅ **Zero-downtime deployment** com 2 réplicas
+✅ **Rollback automático** se algo falhar
+✅ **Deploy em ~2-3 minutos** após push
 
 ```bash
-# Build e deploy
-npm run build
-docker build -t ghcr.io/reisspaulo/sticker-bot-backend:latest .
-docker push ghcr.io/reisspaulo/sticker-bot-backend:latest
+# 1. Fazer mudanças no código
+# ... editar arquivos em src/ ...
 
-# Deploy para VPS
+# 2. Commit e push para main
+git add .
+git commit -m "feat: nova funcionalidade"
+git push origin main
+
+# 3. Pronto! Deploy automático
+# Acompanhar em: https://github.com/reisspaulo/sticker/actions
+```
+
+**📖 Ver documentação completa:** [CI-CD-WORKFLOW.md](../deploy/CI-CD-WORKFLOW.md)
+
+### Deploy Manual (Backup/Emergência)
+
+```bash
+# Apenas para emergências ou quando GitHub Actions estiver indisponível
 ./deploy/deploy-sticker.sh prd
 ```
+
+**📖 Ver documentação completa:** [DEPLOYMENT-PROCESS.md](../deploy/DEPLOYMENT-PROCESS.md)
 
 ---
 

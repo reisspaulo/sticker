@@ -4,7 +4,33 @@
 
 ---
 
-## 📦 Deploy Completo (Produção)
+## 🎯 Deploy via CI/CD (RECOMENDADO)
+
+**Método principal:** Deploy automático com zero-downtime
+
+```bash
+# 1. Fazer mudanças no código
+# ... editar arquivos em src/ ...
+
+# 2. Commit e push para main
+git add .
+git commit -m "feat: nova funcionalidade"
+git push origin main
+
+# 3. Acompanhar deploy
+# https://github.com/reisspaulo/sticker/actions
+
+# 4. Verificar produção (após 2-3 min)
+curl https://stickers.ytem.com.br/health | jq
+```
+
+**📖 Documentação completa:** [CI-CD-WORKFLOW.md](./CI-CD-WORKFLOW.md)
+
+**Tempo total**: ~2-3 minutos (automático)
+
+---
+
+## 📦 Deploy Manual (Backup/Emergência)
 
 ```bash
 # 1. Parar ambiente local
@@ -95,8 +121,35 @@ vps-ssh "docker service update --rollback sticker_backend"
 
 ---
 
+## 🔄 Monitoramento de Deploy (CI/CD)
+
+### Verificar Status do Deploy
+
+```bash
+# Ver workflow em execução
+# https://github.com/reisspaulo/sticker/actions
+
+# Ver logs dos serviços na VPS
+vps-ssh "docker service logs -f sticker_backend"
+
+# Monitorar health em tempo real
+while true; do curl -s https://stickers.ytem.com.br/health | jq '.status,.version'; sleep 1; done
+```
+
+### Rollback (se necessário)
+
+```bash
+# Rollback imediato via Docker Swarm
+vps-ssh "docker service update --rollback sticker_backend"
+vps-ssh "docker service update --rollback sticker_worker"
+```
+
+---
+
 ## 📚 Documentação Completa
 
-- **Processo detalhado**: [DEPLOYMENT-PROCESS.md](./DEPLOYMENT-PROCESS.md)
+- **CI/CD Workflow**: [CI-CD-WORKFLOW.md](./CI-CD-WORKFLOW.md) - Guia completo do deploy automatizado
+- **GitHub Actions Setup**: [GITHUB-ACTIONS-SETUP.md](./GITHUB-ACTIONS-SETUP.md) - Configuração inicial
+- **Processo manual**: [DEPLOYMENT-PROCESS.md](./DEPLOYMENT-PROCESS.md) - Deploy manual (backup)
 - **Setup do Doppler**: [DOPPLER-SETUP.md](./DOPPLER-SETUP.md)
 - **Guia geral**: [DEPLOYMENT-GUIDE.md](./DEPLOYMENT-GUIDE.md)

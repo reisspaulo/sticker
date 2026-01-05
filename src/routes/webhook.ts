@@ -231,6 +231,31 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           }
         }
 
+        // Handle Twitter feature presentation buttons
+        if (interactive.id === 'button_twitter_learn') {
+          const { handleTwitterLearnMore } = await import('../services/onboardingService');
+          await handleTwitterLearnMore(userNumber, userName);
+
+          fastify.log.info({
+            msg: 'Twitter learn more button clicked',
+            userNumber,
+          });
+
+          return reply.status(200).send({ status: 'twitter_learn_more' });
+        }
+
+        if (interactive.id === 'button_twitter_dismiss') {
+          const { handleTwitterDismiss } = await import('../services/onboardingService');
+          await handleTwitterDismiss(userNumber, userName);
+
+          fastify.log.info({
+            msg: 'Twitter dismiss button clicked',
+            userNumber,
+          });
+
+          return reply.status(200).send({ status: 'twitter_dismissed' });
+        }
+
         // Handle plan selection from list
         if (interactive.id === 'plan_premium' || interactive.id === 'plan_ultra' || interactive.id === 'plan_free') {
           const selectedPlan = interactive.id.replace('plan_', '') as PlanType;

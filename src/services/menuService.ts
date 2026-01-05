@@ -18,28 +18,12 @@ export interface MenuOptions {
 
 /**
  * Welcome message for new users
+ * Versão curta focada em ação imediata (Time to Value)
  */
 export function getWelcomeMenu(userName: string): string {
   return `🎉 Olá ${userName}, bem-vindo ao *StickerBot*!
 
-Envie uma imagem ou GIF e eu transformo em figurinha para você! 🎨
-
-✨ *PLANO GRATUITO*
-Você tem *4 figurinhas por dia* para usar.
-
-💎 *QUER MAIS?*
-
-[1] 💰 *Premium* - R$ 5,00/mês
-    • 20 figurinhas/dia
-    • 15 vídeos Twitter/dia
-
-[2] 🚀 *Ultra* - R$ 9,90/mês
-    • Figurinhas ILIMITADAS
-    • Vídeos Twitter ILIMITADOS
-    • Processamento prioritário
-
-Digite *1* ou *2* para conhecer os planos!
-Digite *começar* para usar o plano gratuito.`;
+Envie uma imagem, vídeo ou GIF agora mesmo que eu transformo em figurinha! 🎨`;
 }
 
 /**

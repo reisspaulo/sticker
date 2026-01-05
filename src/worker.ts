@@ -527,6 +527,7 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
         await sendButtons({
           number: userNumber,
           title: '🎨 *Quer transformar em figurinha?*',
+          desc: ' ', // Campo obrigatório pela Avisa API
           buttons: [
             {
               id: `button_convert_sticker_${downloadId}`,
@@ -622,7 +623,7 @@ interface ConvertTwitterToStickerJobData {
   userName: string;
 }
 
-new Worker<ConvertTwitterToStickerJobData>(
+const convertTwitterStickerWorker = new Worker<ConvertTwitterToStickerJobData>(
   'convert-twitter-sticker',
   async (job: Job<ConvertTwitterToStickerJobData>) => {
     const { downloadId, userNumber, userName } = job.data;
@@ -924,6 +925,7 @@ process.on('SIGTERM', async () => {
   await processStickerWorker.close();
   await scheduledJobsWorker.close();
   await downloadTwitterVideoWorker.close();
+  await convertTwitterStickerWorker.close();
   await activatePixSubscriptionWorker.close();
   process.exit(0);
 });
@@ -933,6 +935,7 @@ process.on('SIGINT', async () => {
   await processStickerWorker.close();
   await scheduledJobsWorker.close();
   await downloadTwitterVideoWorker.close();
+  await convertTwitterStickerWorker.close();
   await activatePixSubscriptionWorker.close();
   process.exit(0);
 });
@@ -941,4 +944,5 @@ logger.info('🔧 Workers started and waiting for jobs...');
 logger.info('  - process-sticker (concurrency: 5)');
 logger.info('  - scheduled-jobs (concurrency: 1)');
 logger.info('  - download-twitter-video (concurrency: 3)');
+logger.info('  - convert-twitter-sticker (concurrency: 2)');
 logger.info('  - activate-pix-subscription (concurrency: 2)');

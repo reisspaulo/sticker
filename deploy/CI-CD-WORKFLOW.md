@@ -83,7 +83,9 @@ O workflow roda automaticamente quando:
   - `package.json` ou `package-lock.json`
   - `tsconfig.json`
 
-**Deploy manual**: Também pode rodar manualmente via GitHub UI
+⚠️ **IMPORTANTE**: Mudanças apenas no arquivo `.github/workflows/deploy-sticker.yml` **NÃO** disparam deploy automático. Isso é intencional para evitar deploys acidentais ao modificar o workflow.
+
+**Deploy manual**: Também pode rodar manualmente via GitHub UI (veja seção abaixo)
 
 ### 2. Build da Imagem
 
@@ -96,6 +98,23 @@ Build and push Docker image:
     - ghcr.io/reisspaulo/stickerbot:<git-sha>
   - Cache: GitHub Actions cache
 ```
+
+### 2.1. Login no GHCR na VPS
+
+**⚠️ CRÍTICO**: Antes de deployar, o workflow faz login no GHCR diretamente na VPS:
+
+```bash
+echo "$GHCR_PAT" | docker login ghcr.io -u <username> --password-stdin
+```
+
+**Por que isso é necessário?**
+- A VPS precisa de credenciais para fazer pull de imagens privadas do GHCR
+- O flag `--with-registry-auth` sozinho não é suficiente no contexto SSH
+- Sem esse login, a VPS tenta usar cache antigo e o deploy falha silenciosamente
+
+**Problema resolvido (05/01/2026)**:
+- Antes: VPS não conseguia puxar novas imagens, usava cache antigo
+- Depois: Login explícito garante que VPS sempre puxe imagem mais recente
 
 ### 3. Deploy Backend (com Zero Downtime)
 
@@ -309,17 +328,31 @@ git commit -m "feat: nova funcionalidade"
 git push origin main
 ```
 
-### 2. Deploy Manual (Via GitHub UI)
+### 2. Deploy Manual (Via GitHub UI - workflow_dispatch)
 
 **Quando usar**:
-- Redeploy sem mudança de código
+- Mudanças apenas no arquivo `.github/workflows/deploy-sticker.yml`
+- Redeploy sem mudança de código (forçar rebuild)
 - Deploy de emergência
-- Testar workflow
+- Testar workflow após modificações
 
 **Como fazer**:
 1. Ir para: https://github.com/reisspaulo/sticker/actions
-2. Selecionar "Deploy Sticker Bot"
+2. Selecionar "Deploy Sticker Bot" na lista de workflows
 3. Clicar em "Run workflow" → selecionar branch `main` → "Run workflow"
+4. Aguardar workflow completar (~2-3 min)
+
+**Via CLI (gh)**:
+```bash
+# Disparar workflow manualmente
+gh workflow run deploy-sticker.yml
+
+# Aguardar 10s e monitorar
+sleep 10 && gh run list --limit 1
+
+# Acompanhar em tempo real
+gh run watch <run-id>
+```
 
 ### 3. Deploy com Teste Local Primeiro
 
@@ -435,7 +468,10 @@ vps-ssh "docker service update --rollback sticker_backend"
 
 ### Imagem não faz pull do GHCR
 
-**Sintomas**: Logs mostram "image could not be accessed on a registry"
+**Sintomas**:
+- Logs mostram "image could not be accessed on a registry"
+- Deploy completa com sucesso mas código antigo continua rodando
+- Worker/Backend não atualiza mesmo após workflow passar
 
 **Diagnóstico**:
 ```bash
@@ -444,15 +480,50 @@ gh api repos/reisspaulo/sticker/packages
 
 # Testar pull manual na VPS
 vps-ssh "docker pull ghcr.io/reisspaulo/stickerbot:latest"
+
+# Verificar se VPS tem credenciais do Docker
+vps-ssh "cat ~/.docker/config.json"
+# Se vazio ou não existir, é esse o problema!
+
+# Ver qual imagem está rodando no worker
+vps-ssh "docker service inspect sticker_worker --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'"
+
+# Verificar se o arquivo do novo código existe no container
+vps-ssh "docker exec \$(docker ps -q -f name=sticker_worker) ls -la /app/dist/services/ | grep onboarding"
 ```
 
-**Solução**:
+**Causa raiz**:
+VPS não tem credenciais para autenticar no GHCR. O flag `--with-registry-auth` no `docker service update` não funciona no contexto SSH da GitHub Action.
+
+**Solução permanente** (já implementada - 05/01/2026):
+O workflow agora inclui um step dedicado para fazer login no GHCR na VPS:
+
+```yaml
+- name: Login to GHCR on VPS
+  uses: appleboy/ssh-action@v1.0.0
+  with:
+    script: |
+      echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+```
+
+**Solução temporária** (se o problema persistir):
 ```bash
-# Verificar que GHCR_PAT está configurado corretamente
+# Fazer login manual na VPS
+vps-ssh "echo \$GITHUB_TOKEN | docker login ghcr.io -u reisspaulo --password-stdin"
+
+# Forçar pull e update
+vps-ssh "docker service update --force --with-registry-auth --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
+vps-ssh "docker service update --force --with-registry-auth --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker"
+```
+
+**Verificar que GHCR_PAT está configurado**:
+```bash
+# Listar secrets do repositório
 gh secret list --repo reisspaulo/sticker
 
-# Se necessário, atualizar o token
+# Se GHCR_PAT não existir ou estiver expirado, criar novo
 gh secret set GHCR_PAT --repo reisspaulo/sticker
+# Cole o Personal Access Token com scope 'write:packages' e 'read:packages'
 ```
 
 ---
@@ -702,5 +773,49 @@ watch -n 1 'curl -s https://stickers.ytem.com.br/health | jq'
 
 ---
 
+## 🎓 Lições Aprendidas
+
+### 05/01/2026 - Problema de Autenticação GHCR
+
+**Problema**:
+Durante o deploy do sistema de onboarding progressivo, o workflow do GitHub Actions completava com sucesso, mas o código antigo continuava rodando em produção.
+
+**Investigação**:
+1. Backend atualizou corretamente ✅
+2. Worker continuou com código antigo ❌
+3. Arquivo `onboardingService.js` não existia no container do worker
+4. VPS não tinha credenciais Docker configuradas (`~/.docker/config.json` vazio)
+5. Worker estava usando imagem antiga do cache local
+
+**Causa Raiz**:
+O flag `--with-registry-auth` no comando `docker service update` não estava passando as credenciais do GHCR para a VPS no contexto SSH da GitHub Action. A VPS tentava fazer pull da imagem mas falhava silenciosamente, usando cache antigo.
+
+**Solução**:
+Adicionar step dedicado no workflow para fazer login no GHCR diretamente na VPS antes de atualizar os services:
+
+```yaml
+- name: Login to GHCR on VPS
+  uses: appleboy/ssh-action@v1.0.0
+  with:
+    host: ${{ secrets.VPS_HOST }}
+    username: ${{ secrets.VPS_USER }}
+    key: ${{ secrets.VPS_SSH_KEY }}
+    script: |
+      echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+```
+
+**Aprendizados**:
+- ✅ Sempre verificar se o código novo está REALMENTE rodando após deploy
+- ✅ `--with-registry-auth` não é suficiente em contextos SSH remotos
+- ✅ Login explícito no registry é necessário para pulls privados
+- ✅ Verificar conteúdo do container (não só logs) quando suspeitar de código antigo
+
+**Como evitar no futuro**:
+- Workflow agora inclui login explícito no GHCR (implementado)
+- Adicionar verificação de versão/hash do código no health check
+- Documentar processo completo de troubleshooting
+
+---
+
 **Última atualização:** 05/01/2026
-**Testado e validado com:** Zero-downtime deployment test
+**Testado e validado com:** Zero-downtime deployment test + GHCR authentication fix

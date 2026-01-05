@@ -13,7 +13,10 @@ export default async function healthRoutes(fastify: FastifyInstance) {
         health.status === 'degraded' ? 200 :
         503;
 
-      return reply.status(statusCode).send(health);
+      return reply.status(statusCode).send({
+        ...health,
+        version: '1.0.1', // Test zero-downtime deployment
+      });
     } catch (error) {
       fastify.log.error({ msg: 'Health check failed', error });
       return reply.status(503).send({

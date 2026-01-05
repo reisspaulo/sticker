@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { validateApiKey } from '../middleware/auth';
 import { validateMessage, getMessageType } from '../utils/messageValidator';
-import { processStickerQueue, downloadTwitterVideoQueue, activatePixSubscriptionQueue } from '../config/queue';
+import { processStickerQueue, downloadTwitterVideoQueue, activatePixSubscriptionQueue, convertTwitterStickerQueue } from '../config/queue';
 import { extractInteractiveResponse } from '../utils/interactiveMessageDetector';
 import { WebhookPayload, ProcessStickerJobData, TwitterVideoJobData } from '../types/evolution';
 import { getUserOrCreate, getDailyCount } from '../services/userService';
@@ -267,21 +267,7 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             downloadId,
           });
 
-          // Add job to dedicated conversion queue
-          const { Queue } = await import('bullmq');
-
-          const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-          const redisConnection = {
-            host: redisUrl.includes('://') ? new URL(redisUrl).hostname : redisUrl.split(':')[0],
-            port: redisUrl.includes('://')
-              ? parseInt(new URL(redisUrl).port || '6379')
-              : parseInt(redisUrl.split(':')[1] || '6379'),
-          };
-
-          const convertTwitterStickerQueue = new Queue('convert-twitter-sticker', {
-            connection: redisConnection,
-          });
-
+          // Add job to dedicated conversion queue (using exported queue with Redis auth)
           await convertTwitterStickerQueue.add('convert', {
             downloadId,
             userNumber,

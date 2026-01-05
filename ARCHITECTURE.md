@@ -468,7 +468,13 @@ Digite *começar* para usar o plano gratuito.
 
 ---
 
-### **Mensagem de Limite Atingido**
+### **Mensagem de Limite Atingido (Teste A/B com Botões Interativos)**
+
+**Implementação:** Teste A/B entre dois grupos (50/50):
+- **Grupo Controle**: Upsell direto com botões de upgrade
+- **Grupo Bônus**: Oferta de créditos extras + upsell
+
+**Grupo Controle** (apenas upgrade):
 ```
 ⚠️ *Limite Atingido!* {emoji}
 
@@ -476,24 +482,55 @@ Você já usou *{dailyCount}/{dailyLimit} {feature}* hoje.
 
 Seu limite será renovado às *00:00* (horário de Brasília).
 
-💎 *UPGRADE E TENHA MAIS!*
+💎 *FAÇA UPGRADE E TENHA MAIS!*
 
-[1] 💰 *Premium* - R$ 5,00/mês
-    • 20 figurinhas/dia
-    • 15 vídeos Twitter/dia
-    • Suporte prioritário
-    • {benefit}
+💰 *Premium (R$ 5/mês)*
+• 20 figurinhas/dia
+• 15 vídeos Twitter/dia
 
-[2] 🚀 *Ultra* - R$ 9,90/mês
-    • Figurinhas *ILIMITADAS*
-    • Vídeos Twitter *ILIMITADOS*
-    • Processamento prioritário
-    • Suporte VIP
-    • 🔥 *Nunca mais espere!*
+🚀 *Ultra (R$ 9,90/mês)*
+• Figurinhas *ILIMITADAS*
+• Vídeos Twitter *ILIMITADOS*
+• Processamento prioritário
 
-Digite *1* ou *2* para fazer upgrade agora!
+[BOTÃO: 💰 Premium - R$ 5/mês] [BOTÃO: 🚀 Ultra - R$ 9,90/mês] [BOTÃO: ❌ Agora Não]
 ```
-**Arquivo:** `src/services/menuService.ts:52-77`
+
+**Grupo Bônus** (bônus + upgrade):
+```
+⚠️ *Limite Atingido!* {emoji}
+
+Você já usou *{dailyCount}/{dailyLimit} {feature}* hoje.
+
+🎁 *PRESENTE ESPECIAL!*
+Ganhe *+{bonusRemaining} {feature}* extras hoje!
+
+Seu limite será renovado às *00:00*.
+
+💎 *OU FAÇA UPGRADE:*
+
+💰 *Premium (R$ 5/mês)*
+• 20 figurinhas/dia
+• 15 vídeos Twitter/dia
+
+🚀 *Ultra (R$ 9,90/mês)*
+• *ILIMITADO* 🔥
+
+[BOTÃO: 🎁 Usar Bônus (+2)] [BOTÃO: 💰 Premium] [BOTÃO: 🚀 Ultra] [BOTÃO: ❌ Agora Não]
+```
+
+**Lógica de Bônus:**
+- Máximo de 2 créditos extras por dia
+- Cada clique em "Usar Bônus" incrementa `bonus_credits_today`
+- Limite efetivo = limite base + bônus ativados
+- Reset automático à meia-noite
+
+**Tracking A/B:**
+- Atribuição aleatória (50/50) no cadastro em `ab_test_group`
+- Logs de conversão: `ab_test_upgrade_click`, `ab_test_bonus_used`, `ab_test_upgrade_dismissed`
+- Armazenado em: `users.ab_test_group`, `users.bonus_credits_today`
+
+**Arquivo:** `src/services/menuService.ts:61-197` + `src/routes/webhook.ts:301-404`
 
 ---
 

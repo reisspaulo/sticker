@@ -22,7 +22,6 @@ import {
   clearConversationContext,
 } from '../utils/conversationContext';
 import {
-  getLimitReachedMenu,
   getPaymentLinkMessage,
   getSubscriptionActiveMessage,
   getHelpMessage,
@@ -792,22 +791,27 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         });
 
         if (hasReachedTwitterLimit) {
-          // User has reached Twitter download limit - send upgrade menu
+          // User has reached Twitter download limit - send upgrade menu with A/B test
           const currentPlan = await getUserPlan(user.id);
-          await sendText(
-            userNumber,
-            getLimitReachedMenu({
-              currentPlan,
-              dailyCount: currentTwitterCount,
-              dailyLimit: userLimits.daily_twitter_limit,
-              isTwitter: true,
-            })
-          );
+
+          // Import the new interactive menu function
+          const { sendLimitReachedMenu } = await import('../services/menuService');
+
+          await sendLimitReachedMenu(userNumber, {
+            userName,
+            currentPlan,
+            dailyCount: currentTwitterCount,
+            dailyLimit: userLimits.daily_twitter_limit,
+            isTwitter: true,
+            abTestGroup: user.ab_test_group || 'control',
+            bonusCreditsUsed: user.bonus_credits_today || 0,
+          });
 
           fastify.log.info({
             msg: 'Twitter download limit reached',
             userNumber,
             userName,
+            abTestGroup: user.ab_test_group,
           });
 
           return reply.status(200).send({

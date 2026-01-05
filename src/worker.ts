@@ -459,7 +459,7 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
       // Step 4: Send video to user via Evolution API
       logger.info({ msg: 'Step 4: Sending video to user', jobId: job.id });
 
-      const caption = `🐦 Vídeo do Twitter baixado com sucesso!\n\n📊 Informações:\n• Autor: @${downloadedMetadata.username} (${downloadedMetadata.author})\n• Duração: ${downloadedMetadata.durationSec?.toFixed(1)}s\n• Tamanho: ${(buffer.length / 1024 / 1024).toFixed(2)} MB\n• Curtidas: ${downloadedMetadata.likes}`;
+      const caption = `🐦 Vídeo do Twitter baixado com sucesso!`;
 
       await sendVideo(userNumber, url, caption);
 
@@ -527,8 +527,6 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
         await sendButtons({
           number: userNumber,
           title: '🎨 *Quer transformar em figurinha?*',
-          desc: `Posso converter esse vídeo em uma figurinha animada para você!\n\n⏱️ Duração: ${downloadedMetadata.durationSec?.toFixed(1)}s`,
-          footer: 'Grátis e instantâneo!',
           buttons: [
             {
               id: `button_convert_sticker_${downloadId}`,
@@ -625,12 +623,8 @@ interface ConvertTwitterToStickerJobData {
 }
 
 new Worker<ConvertTwitterToStickerJobData>(
-  'process-sticker',
+  'convert-twitter-sticker',
   async (job: Job<ConvertTwitterToStickerJobData>) => {
-    if (job.name !== 'convert-twitter-to-sticker') {
-      return; // Skip non-conversion jobs (handled by main worker)
-    }
-
     const { downloadId, userNumber, userName } = job.data;
     const startTime = Date.now();
 
@@ -759,7 +753,7 @@ new Worker<ConvertTwitterToStickerJobData>(
       // Step 8: Send success message
       await sendText(
         userNumber,
-        `✅ *Figurinha criada com sucesso!*\n\nSua figurinha animada do Twitter está pronta! 🎨\n\n📊 Conversão:\n• Tamanho: ${(result.fileSize / 1024).toFixed(0)} KB\n• Duração: ${result.duration?.toFixed(1)}s`
+        `✅ *Figurinha criada com sucesso!*\n\nSua figurinha animada do Twitter está pronta! 🎨`
       );
 
       const totalTime = Date.now() - startTime;

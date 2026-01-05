@@ -267,8 +267,22 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             downloadId,
           });
 
-          // Add job to convert Twitter video to sticker
-          await processStickerQueue.add('convert-twitter-to-sticker', {
+          // Add job to dedicated conversion queue
+          const { Queue } = await import('bullmq');
+
+          const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+          const redisConnection = {
+            host: redisUrl.includes('://') ? new URL(redisUrl).hostname : redisUrl.split(':')[0],
+            port: redisUrl.includes('://')
+              ? parseInt(new URL(redisUrl).port || '6379')
+              : parseInt(redisUrl.split(':')[1] || '6379'),
+          };
+
+          const convertTwitterStickerQueue = new Queue('convert-twitter-sticker', {
+            connection: redisConnection,
+          });
+
+          await convertTwitterStickerQueue.add('convert', {
             downloadId,
             userNumber,
             userName,

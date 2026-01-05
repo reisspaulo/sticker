@@ -88,7 +88,7 @@ services:
       - traefik-public
       - ytem-backend
     deploy:
-      replicas: 1
+      replicas: 2
       placement:
         constraints:
           - node.role == manager
@@ -96,7 +96,12 @@ services:
         parallelism: 1
         delay: 10s
         failure_action: rollback
+        monitor: 30s
+        max_failure_ratio: 0.3
         order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 5s
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -139,7 +144,7 @@ services:
       - traefik-public
       - ytem-backend
     deploy:
-      replicas: 1
+      replicas: 2
       placement:
         constraints:
           - node.role == manager
@@ -147,6 +152,12 @@ services:
         parallelism: 1
         delay: 10s
         failure_action: rollback
+        monitor: 30s
+        max_failure_ratio: 0.3
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 5s
       restart_policy:
         condition: on-failure
         delay: 5s

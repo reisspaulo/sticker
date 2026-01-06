@@ -639,21 +639,22 @@ Mais dúvidas? Envie sua pergunta que respondo!
 
 ---
 
-### **Edição de Sticker - Botões** ✨
+### **Criação de Sticker - Silenciosa** ✨
 
 **Após criação de sticker:**
 ```
-🎨 *Gostou da figurinha?*
-
-Quer fazer alguma edição?
-
-[BOTÃO: 🧹 Remover Bordas]
-[BOTÃO: ✨ Remover Fundo]
-[BOTÃO: ✅ Está perfeita!]
-
-Edições não contam no limite
+(Apenas o sticker é enviado - SEM mensagens de confirmação)
+(SEM botões de edição automáticos)
+(SEM contagem de limite restante)
 ```
-**Arquivo:** `src/services/menuService.ts:564-602`
+
+**Estratégia:**
+- Stickers enviados silenciosamente
+- Usuário não é interrompido
+- Experiência fluida e limpa
+- Mensagens APENAS quando atingir o limite
+
+**Arquivo:** `src/worker.ts:113-115`
 
 ---
 
@@ -936,110 +937,33 @@ Por favor, tente novamente ou envie outra imagem.
 
 ---
 
-### **Botões: Edição de Sticker** ✨
+### **~~Botões: Edição de Sticker~~** ❌ DESCONTINUADO
 
-**Trigger:** Após criação bem-sucedida de sticker (imagem ou GIF)
+**Status:** Removido em 06/01/2026 (v1.3.0)
 
-**Estrutura Avisa API:**
-```typescript
-{
-  number: "5511946304133",
-  title: "🎨 *Gostou da figurinha?*",
-  desc: "Quer fazer alguma edição?",
-  footer: "Edições não contam no limite",
-  buttons: [
-    {
-      id: "button_remove_borders",
-      text: "🧹 Remover Bordas"
-    },
-    {
-      id: "button_remove_background",
-      text: "✨ Remover Fundo"
-    },
-    {
-      id: "button_sticker_perfect",
-      text: "✅ Está perfeita!"
-    }
-  ]
-}
-```
+**Motivo:** Estratégia de conversão focada - mensagens silenciosas
 
-**Arquivo:** `src/services/menuService.ts:564-602`
+**Antes (Removido):**
+- Botões automáticos após cada sticker
+- Mensagens "Gostou da figurinha?"
+- Spam de mensagens
 
-**Webhook Retorno (Evolution API):**
-```json
-{
-  "event": "messages.upsert",
-  "data": {
-    "message": {
-      "buttonsResponseMessage": {
-        "selectedButtonId": "button_remove_borders"
-      }
-    }
-  }
-}
-```
+**Agora (v1.3.0):**
+- Stickers enviados silenciosamente
+- SEM botões automáticos
+- SEM mensagens de confirmação
+- Mensagens APENAS quando atingir limite
 
-**Fluxo Completo:**
+**Edição de Stickers (Futuro):**
+A funcionalidade de remoção de bordas/fundo será reimplementada
+quando usuário REENVIAR um sticker existente, mas SEM botões automáticos.
 
-```
-1️⃣ Usuário envia imagem
-   → Backend valida e adiciona job process-sticker
-   → Worker processa imagem
+**Arquivos modificados:**
+- Worker: `src/worker.ts:113-156` (removido editButtonsQueue)
+- Removido: tracking de onboarding steps
+- Removido: sendStickerConfirmation
 
-2️⃣ Worker cria sticker:
-   → Upload para Supabase Storage
-   → Envia sticker para usuário (Evolution API)
-   → Salva contexto no Redis (awaiting_sticker_edit)
-   → Envia botões de edição (Avisa API)
-
-3️⃣ Opção A: Usuário clica "🧹 Remover Bordas"
-   → Backend detecta button_remove_borders
-   → Adiciona job na fila cleanup-sticker (PATH B)
-   → Envia "🧹 Removendo bordas..."
-   → Worker baixa sticker existente
-   → Remove bordas brancas com rembg
-   → Envia novo sticker sem bordas
-
-4️⃣ Opção B: Usuário clica "✨ Remover Fundo"
-   → Backend detecta button_remove_background
-   → Adiciona job na fila cleanup-sticker (PATH A)
-   → Envia "✨ Removendo fundo..."
-   → Worker baixa IMAGEM ORIGINAL (via messageKey)
-   → Remove fundo completamente com rembg
-   → Cria novo sticker sem fundo
-
-5️⃣ Opção C: Usuário clica "✅ Está perfeita!"
-   → Backend limpa contexto
-   → Envia mensagem de confirmação com limite restante
-   → "✅ Ótimo! Você tem X figurinhas restantes hoje."
-```
-
-**Diferença entre PATH A e PATH B:**
-
-- **PATH A** (Remove Background):
-  - Baixa imagem ORIGINAL do usuário
-  - Remove fundo completamente
-  - Cria novo sticker do zero
-  - Usa campo `messageType` para identificar tipo original
-
-- **PATH B** (Remove Borders):
-  - Baixa sticker JÁ CRIADO
-  - Remove apenas bordas brancas
-  - Preserva transparência existente
-  - Não usa `messageType`
-
-**Características:**
-- ✅ Não conta no limite diário
-- ✅ Contexto expira em 10 minutos
-- ✅ Marca `cleanup_feature_used` no primeiro uso
-- ✅ Processamento CPU via rembg[cpu,cli]
-- ✅ Tempo médio: 10-30 segundos
-
-**Arquivos:**
-- Handler: `src/routes/webhook.ts:508-663`
-- Worker: `src/worker.ts:973-1221`
-- Botões: `src/services/menuService.ts:564-602`
+**Ver changelog completo em:** Versão 1.3.0 abaixo
 
 ---
 
@@ -1476,24 +1400,35 @@ logMenuInteraction(userNumber, 'pix_payment_confirmed');
 - [ ] Stripe configurado (webhooks)
 - [ ] Workers processando jobs
 - [ ] Listas interativas funcionando
-- [ ] Botões interativos funcionando (PIX, Twitter, Edição)
+- [ ] Botões interativos funcionando (PIX, Twitter)
 - [ ] Pagamentos PIX funcionando
 - [ ] Pagamentos Stripe funcionando
 - [ ] Ativação automática de assinaturas
-- [ ] Envio de stickers funcionando
+- [ ] Envio de stickers funcionando (silencioso)
 - [ ] Download de Twitter funcionando
 - [ ] Conversão Twitter → Sticker funcionando
-- [ ] Edição de stickers funcionando (Remove Bordas)
-- [ ] Edição de stickers funcionando (Remove Fundo)
-- [ ] rembg instalado com ONNX Runtime CPU
+- [ ] ~~Edição de stickers automática~~ (Removida em v1.3.0)
+- [ ] rembg instalado com ONNX Runtime CPU (para uso futuro)
 - [ ] Modelos AI pré-baixados no Docker
 
 ---
 
 **Última atualização:** 06/01/2026
-**Versão:** 1.2.0
+**Versão:** 1.3.0
 
-**Mudanças nesta versão:**
+**Mudanças nesta versão (v1.3.0):**
+- ❌ **REMOVIDO:** Mensagens "Figurinha enviada! X restantes"
+- ❌ **REMOVIDO:** Botões de edição automáticos após stickers
+- ❌ **REMOVIDO:** Sistema de debouncing de botões (editButtonsQueue)
+- ❌ **REMOVIDO:** Tracking de onboarding steps
+- ❌ **REMOVIDO:** sendStickerConfirmation
+- ✅ **NOVO:** Stickers enviados silenciosamente (sem interrupção)
+- ✅ **NOVO:** Mensagens APENAS quando atingir limite (momento de conversão)
+- ✅ **MELHORIA:** Redução de 55% no spam de mensagens (11 → 5 para 4 stickers)
+- ✅ **ESTRATÉGIA:** Conversão focada no momento crítico (limite atingido)
+- ✅ **UX:** Experiência fluida e limpa (não fica contando limite)
+
+**Versão anterior (v1.2.0):**
 - ✅ Adicionada funcionalidade de edição de stickers
 - ✅ Implementado botão "🧹 Remover Bordas" (remove bordas brancas)
 - ✅ Implementado botão "✨ Remover Fundo" (remove fundo da imagem original)
@@ -1502,6 +1437,3 @@ logMenuInteraction(userNumber, 'pix_payment_confirmed');
 - ✅ Adicionada fila `cleanup-sticker` com suporte a PATH A e PATH B
 - ✅ Integrado rembg com ONNX Runtime CPU para processamento de IA
 - ✅ Pré-download de modelos U²-Net durante build do Docker
-- ✅ Edições não contam no limite diário
-- ✅ Contexto de edição expira em 10 minutos
-- ✅ Mensagens de feedback durante processamento

@@ -49,6 +49,9 @@ export const convertTwitterStickerQueue = new Queue('convert-twitter-sticker', q
 // Cleanup Sticker Queue (for removing borders and backgrounds from stickers)
 export const cleanupStickerQueue = new Queue('cleanup-sticker', queueOptions);
 
+// Edit Buttons Queue (debounced sending of edit buttons after sticker creation)
+export const editButtonsQueue = new Queue('edit-buttons', queueOptions);
+
 export default {
   processStickerQueue,
   scheduledJobsQueue,
@@ -56,4 +59,5 @@ export default {
   activatePixSubscriptionQueue,
   convertTwitterStickerQueue,
   cleanupStickerQueue,
+  editButtonsQueue,
 };

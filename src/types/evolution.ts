@@ -83,6 +83,15 @@ export interface CleanupStickerJobData {
   messageType?: 'image' | 'gif'; // If present, remove background from original image
 }
 
+export interface EditButtonsJobData {
+  userNumber: string;
+  stickerUrl: string;
+  stickerPath: string;
+  messageKey: MessageKey;
+  messageType: 'image' | 'gif';
+  tipo: 'estatico' | 'animado';
+}
+
 export interface ValidationError {
   valid: false;
   error: string;

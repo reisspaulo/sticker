@@ -9,7 +9,7 @@ import { processAnimatedSticker, processAnimatedStickerFromBuffer } from './serv
 import { uploadSticker } from './services/supabaseStorage';
 import { sendSticker, sendVideo, sendText } from './services/evolutionApi';
 import { supabase } from './config/supabase';
-import { ProcessStickerJobData } from './types/evolution';
+import { ProcessStickerJobData, EditButtonsJobData } from './types/evolution';
 import { TwitterDownloadJobData } from './types/twitter';
 import { incrementDailyCount, getPendingStickerCount } from './services/userService';
 import { getUserLimits } from './services/subscriptionService';
@@ -114,28 +114,31 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
         logger.info({ msg: 'Step 3: Sending sticker to user', jobId: job.id });
         await sendSticker(userNumber, url);
 
-        // Step 3.5: Send edit buttons and save context for editing
-        logger.info({ msg: 'Step 3.5: Sending edit buttons', jobId: job.id });
+        // Step 3.5: Queue debounced edit buttons (will be sent after 10s of inactivity)
+        logger.info({ msg: 'Step 3.5: Queueing debounced edit buttons', jobId: job.id });
 
-        const { sendStickerEditButtons } = await import('./services/menuService');
-        const { saveConversationContext } = await import('./utils/conversationContext');
+        const { editButtonsQueue } = await import('./config/queue');
 
-        // Save context with sticker URL and original messageKey for editing
-        await saveConversationContext(userNumber, 'awaiting_sticker_edit', {
-          sticker_url: url,
-          sticker_path: path,
-          message_key: messageKey,
-          message_type: messageType,
+        const editButtonsJobData: EditButtonsJobData = {
+          userNumber,
+          stickerUrl: url,
+          stickerPath: path,
+          messageKey,
+          messageType,
           tipo,
+        };
+
+        // Add job with 10s delay and unique jobId per user (replaces previous job)
+        await editButtonsQueue.add('send-edit-buttons', editButtonsJobData, {
+          jobId: `edit-buttons-${userNumber}`, // Same ID = replaces previous job
+          delay: 10000, // 10 seconds
         });
 
-        // Send edit buttons
-        await sendStickerEditButtons(userNumber);
-
         logger.info({
-          msg: 'Edit buttons sent and context saved',
+          msg: 'Edit buttons job queued (debounced)',
           jobId: job.id,
           userNumber,
+          delay: '10s',
         });
       } else {
         logger.info({
@@ -1244,6 +1247,79 @@ cleanupStickerWorker.on('failed', (job, err) => {
   });
 });
 
+// ============================================
+// EDIT BUTTONS WORKER (Debounced)
+// ============================================
+const editButtonsWorker = new Worker<EditButtonsJobData>(
+  'edit-buttons',
+  async (job) => {
+    const { userNumber, stickerUrl, stickerPath, messageKey, messageType, tipo } = job.data;
+
+    logger.info({
+      msg: 'Processing edit buttons job',
+      jobId: job.id,
+      userNumber,
+    });
+
+    try {
+      // Import functions
+      const { sendStickerEditButtons } = await import('./services/menuService');
+      const { saveConversationContext } = await import('./utils/conversationContext');
+
+      // Save context with sticker URL and original messageKey for editing
+      await saveConversationContext(userNumber, 'awaiting_sticker_edit', {
+        sticker_url: stickerUrl,
+        sticker_path: stickerPath,
+        message_key: messageKey,
+        message_type: messageType,
+        tipo,
+      });
+
+      // Send edit buttons
+      await sendStickerEditButtons(userNumber);
+
+      logger.info({
+        msg: 'Edit buttons sent successfully',
+        jobId: job.id,
+        userNumber,
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      logger.error({
+        msg: 'Failed to send edit buttons',
+        jobId: job.id,
+        userNumber,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      throw error;
+    }
+  },
+  {
+    connection: redisConnection,
+    concurrency: 5, // High concurrency since it's just sending messages
+  }
+);
+
+editButtonsWorker.on('completed', (job) => {
+  logger.info({
+    msg: 'Edit buttons job completed',
+    queue: 'edit-buttons',
+    jobId: job.id,
+  });
+});
+
+editButtonsWorker.on('failed', (job, err) => {
+  logger.error({
+    msg: 'Edit buttons job failed',
+    queue: 'edit-buttons',
+    jobId: job?.id,
+    error: err.message,
+  });
+});
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, closing workers...');
@@ -1253,6 +1329,7 @@ process.on('SIGTERM', async () => {
   await convertTwitterStickerWorker.close();
   await activatePixSubscriptionWorker.close();
   await cleanupStickerWorker.close();
+  await editButtonsWorker.close();
   process.exit(0);
 });
 
@@ -1264,6 +1341,7 @@ process.on('SIGINT', async () => {
   await convertTwitterStickerWorker.close();
   await activatePixSubscriptionWorker.close();
   await cleanupStickerWorker.close();
+  await editButtonsWorker.close();
   process.exit(0);
 });
 
@@ -1274,3 +1352,4 @@ logger.info('  - download-twitter-video (concurrency: 3)');
 logger.info('  - convert-twitter-sticker (concurrency: 2)');
 logger.info('  - activate-pix-subscription (concurrency: 2)');
 logger.info('  - cleanup-sticker (concurrency: 2)');
+logger.info('  - edit-buttons (concurrency: 5, debounced 10s)');

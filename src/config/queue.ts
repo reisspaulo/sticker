@@ -38,9 +38,20 @@ export const scheduledJobsQueue = new Queue('scheduled-jobs', queueOptions);
 export const downloadTwitterVideoQueue = new Queue('download-twitter-video', queueOptions);
 
 // Activate PIX Subscription Queue (delayed activation after PIX payment)
+// Uses higher retry count and longer backoff for reliability
 export const activatePixSubscriptionQueue = new Queue<ActivatePixJobData>(
   'activate-pix-subscription',
-  queueOptions
+  {
+    ...queueOptions,
+    defaultJobOptions: {
+      ...queueOptions.defaultJobOptions,
+      attempts: 3, // 3 attempts for PIX activation (more critical)
+      backoff: {
+        type: 'exponential',
+        delay: 5000, // 5s, 25s, 125s between retries
+      },
+    },
+  }
 );
 
 // Convert Twitter Video to Sticker Queue (for converting downloaded Twitter videos to stickers)

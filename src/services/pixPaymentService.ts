@@ -46,7 +46,7 @@ export function generatePixPayment(plan: PlanType): {
 
 /**
  * Create a pending PIX payment
- * Stores in Redis with 30-minute expiration
+ * Stores in BOTH Redis (24h expiration) and Supabase (permanent backup)
  */
 export async function createPendingPixPayment(
   userNumber: string,
@@ -69,12 +69,54 @@ export async function createPendingPixPayment(
     expiresAt: expiresAt.toISOString(),
   };
 
-  // Store in Redis with 30-minute expiration
-  const key = `pending_pix:${userNumber}`;
-  await redis.setex(key, 30 * 60, JSON.stringify(payment));
+  logger.info({
+    msg: '[PIX] Creating pending payment',
+    userNumber,
+    userId,
+    plan,
+    amount: pixData.amount,
+    expiresAt: expiresAt.toISOString(),
+  });
+
+  // Store in Supabase for permanent backup and audit
+  const { data: dbPayment, error: dbError } = await supabase
+    .from('pix_payments')
+    .insert({
+      user_id: userId,
+      user_number: userNumber,
+      user_name: userName,
+      plan,
+      pix_key: pixData.pixKey,
+      amount: pixData.amount,
+      status: 'pending',
+      expires_at: expiresAt.toISOString(),
+    })
+    .select()
+    .single();
+
+  if (dbError) {
+    logger.error({
+      msg: '[PIX] Failed to create payment in Supabase',
+      error: dbError,
+      userNumber,
+      userId,
+    });
+    throw dbError;
+  }
 
   logger.info({
-    msg: 'Pending PIX payment created',
+    msg: '[PIX] Payment saved to Supabase',
+    paymentId: dbPayment.id,
+    userNumber,
+  });
+
+  // Store in Redis with 24-hour expiration (safety buffer)
+  const key = `pending_pix:${userNumber}`;
+  await redis.setex(key, 24 * 60 * 60, JSON.stringify(payment));
+
+  logger.info({
+    msg: '[PIX] Pending PIX payment created successfully',
+    paymentId: dbPayment.id,
     userNumber,
     plan,
     amount: pixData.amount,
@@ -86,22 +128,80 @@ export async function createPendingPixPayment(
 
 /**
  * Get pending PIX payment
+ * Tries Redis first, falls back to Supabase if not found
  */
 export async function getPendingPixPayment(
   userNumber: string
 ): Promise<PendingPixPayment | null> {
   try {
+    // Try Redis first (fast)
     const key = `pending_pix:${userNumber}`;
     const data = await redis.get(key);
 
-    if (!data) {
+    if (data) {
+      logger.debug({
+        msg: '[PIX] Payment found in Redis',
+        userNumber,
+      });
+      return JSON.parse(data) as PendingPixPayment;
+    }
+
+    logger.info({
+      msg: '[PIX] Payment not in Redis, checking Supabase',
+      userNumber,
+    });
+
+    // Fallback to Supabase (permanent backup)
+    const { data: dbPayment, error } = await supabase
+      .from('pix_payments')
+      .select('*')
+      .eq('user_number', userNumber)
+      .in('status', ['pending', 'confirmed'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows found
+        logger.info({
+          msg: '[PIX] No pending payment found',
+          userNumber,
+        });
+        return null;
+      }
+      throw error;
+    }
+
+    if (!dbPayment) {
       return null;
     }
 
-    return JSON.parse(data) as PendingPixPayment;
+    // Convert DB format to PendingPixPayment
+    const payment: PendingPixPayment = {
+      userNumber: dbPayment.user_number,
+      userName: dbPayment.user_name,
+      userId: dbPayment.user_id,
+      plan: dbPayment.plan as PlanType,
+      pixKey: dbPayment.pix_key,
+      amount: parseFloat(dbPayment.amount),
+      createdAt: dbPayment.created_at,
+      expiresAt: dbPayment.expires_at,
+    };
+
+    // Restore to Redis for future fast access
+    await redis.setex(key, 24 * 60 * 60, JSON.stringify(payment));
+
+    logger.info({
+      msg: '[PIX] Payment restored from Supabase to Redis',
+      userNumber,
+      paymentId: dbPayment.id,
+    });
+
+    return payment;
   } catch (error) {
     logger.error({
-      msg: 'Error getting pending PIX payment',
+      msg: '[PIX] Error getting pending PIX payment',
       error: error instanceof Error ? error.message : 'Unknown error',
       userNumber,
     });
@@ -111,7 +211,7 @@ export async function getPendingPixPayment(
 
 /**
  * Confirm PIX payment (user clicked "Já Paguei")
- * This marks the payment as confirmed and ready for activation after delay
+ * This marks the payment as confirmed in BOTH Redis and Supabase
  */
 export async function confirmPixPayment(userNumber: string): Promise<boolean> {
   try {
@@ -119,34 +219,64 @@ export async function confirmPixPayment(userNumber: string): Promise<boolean> {
 
     if (!pending) {
       logger.warn({
-        msg: 'No pending PIX payment found',
+        msg: '[PIX] No pending PIX payment found for confirmation',
         userNumber,
       });
       return false;
+    }
+
+    const confirmedAt = new Date().toISOString();
+
+    logger.info({
+      msg: '[PIX] Confirming payment',
+      userNumber,
+      plan: pending.plan,
+      amount: pending.amount,
+    });
+
+    // Update Supabase first (permanent record)
+    const { error: dbError } = await supabase
+      .from('pix_payments')
+      .update({
+        status: 'confirmed',
+        confirmed_at: confirmedAt,
+        updated_at: confirmedAt,
+      })
+      .eq('user_number', userNumber)
+      .eq('status', 'pending');
+
+    if (dbError) {
+      logger.error({
+        msg: '[PIX] Failed to confirm payment in Supabase',
+        error: dbError,
+        userNumber,
+      });
+      throw dbError;
     }
 
     // Update Redis with confirmation flag
     const key = `pending_pix:${userNumber}`;
     const confirmed = {
       ...pending,
-      confirmedAt: new Date().toISOString(),
+      confirmedAt,
       status: 'confirmed',
     };
 
-    // Keep for 10 minutes more (time for job to process)
-    await redis.setex(key, 10 * 60, JSON.stringify(confirmed));
+    // Keep for 24 hours (plenty of time for job to process)
+    await redis.setex(key, 24 * 60 * 60, JSON.stringify(confirmed));
 
     logger.info({
-      msg: 'PIX payment confirmed by user',
+      msg: '[PIX] Payment confirmed successfully',
       userNumber,
       plan: pending.plan,
       amount: pending.amount,
+      confirmedAt,
     });
 
     return true;
   } catch (error) {
     logger.error({
-      msg: 'Error confirming PIX payment',
+      msg: '[PIX] Error confirming PIX payment',
       error: error instanceof Error ? error.message : 'Unknown error',
       userNumber,
     });
@@ -181,23 +311,82 @@ export async function cancelPixPayment(userNumber: string): Promise<void> {
  */
 export async function activatePixSubscription(userNumber: string): Promise<boolean> {
   try {
-    const pending = await getPendingPixPayment(userNumber);
+    logger.info({
+      msg: '[PIX] Starting subscription activation',
+      userNumber,
+    });
+
+    let pending = await getPendingPixPayment(userNumber);
+    let paymentData: PendingPixPayment;
 
     if (!pending) {
       logger.warn({
-        msg: 'No pending PIX payment to activate',
+        msg: '[PIX] No pending PIX payment to activate',
         userNumber,
       });
-      return false;
+
+      // Check Supabase for any confirmed payments that haven't been activated
+      const { data: dbPayment } = await supabase
+        .from('pix_payments')
+        .select('*')
+        .eq('user_number', userNumber)
+        .eq('status', 'confirmed')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!dbPayment) {
+        logger.error({
+          msg: '[PIX] No confirmed payment found in Supabase either',
+          userNumber,
+        });
+        return false;
+      }
+
+      logger.info({
+        msg: '[PIX] Found confirmed payment in Supabase, proceeding with activation',
+        userNumber,
+        paymentId: dbPayment.id,
+      });
+
+      // Reconstruct pending object from DB
+      paymentData = {
+        userNumber: dbPayment.user_number,
+        userName: dbPayment.user_name,
+        userId: dbPayment.user_id,
+        plan: dbPayment.plan as PlanType,
+        pixKey: dbPayment.pix_key,
+        amount: parseFloat(dbPayment.amount),
+        createdAt: dbPayment.created_at,
+        expiresAt: dbPayment.expires_at,
+      };
+
+      // Mark as confirmed for later check
+      (paymentData as any).status = 'confirmed';
+    } else {
+      paymentData = pending;
     }
 
     // Check if it was confirmed
-    const confirmedData = pending as any;
+    const confirmedData = paymentData as any;
     if (confirmedData.status !== 'confirmed') {
       logger.warn({
-        msg: 'PIX payment was not confirmed by user',
+        msg: '[PIX] Payment was not confirmed by user',
         userNumber,
+        status: confirmedData.status,
       });
+
+      // Update payment status to failed
+      await supabase
+        .from('pix_payments')
+        .update({
+          status: 'failed',
+          error_message: 'User did not confirm payment',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_number', userNumber)
+        .eq('status', 'pending');
+
       return false;
     }
 
@@ -206,30 +395,75 @@ export async function activatePixSubscription(userNumber: string): Promise<boole
     const endsAt = new Date();
     endsAt.setMonth(endsAt.getMonth() + 1); // 1 month subscription
 
+    logger.info({
+      msg: '[PIX] Activating subscription in users table',
+      userNumber,
+      userId: paymentData.userId,
+      plan: paymentData.plan,
+    });
+
     // Update user subscription in database
-    const { error } = await supabase
+    const { error: userError } = await supabase
       .from('users')
       .update({
-        subscription_plan: pending.plan,
+        subscription_plan: paymentData.plan,
         subscription_status: 'active',
         subscription_starts_at: now.toISOString(),
         subscription_ends_at: endsAt.toISOString(),
         updated_at: now.toISOString(),
       })
-      .eq('id', pending.userId);
+      .eq('id', paymentData.userId);
 
-    if (error) {
-      throw error;
+    if (userError) {
+      logger.error({
+        msg: '[PIX] Failed to update user subscription',
+        error: userError,
+        userNumber,
+        userId: paymentData.userId,
+      });
+
+      // Update payment status to failed
+      await supabase
+        .from('pix_payments')
+        .update({
+          status: 'failed',
+          error_message: `Failed to update user: ${userError.message}`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_number', userNumber)
+        .eq('status', 'confirmed');
+
+      throw userError;
+    }
+
+    // Update payment status to activated
+    const { error: paymentError } = await supabase
+      .from('pix_payments')
+      .update({
+        status: 'activated',
+        activated_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      })
+      .eq('user_number', userNumber)
+      .eq('status', 'confirmed');
+
+    if (paymentError) {
+      logger.error({
+        msg: '[PIX] Failed to update payment status (but subscription WAS activated)',
+        error: paymentError,
+        userNumber,
+      });
+      // Don't throw - subscription was activated successfully
     }
 
     // Remove pending payment from Redis
     await cancelPixPayment(userNumber);
 
     logger.info({
-      msg: 'PIX subscription activated',
+      msg: '[PIX] Subscription activated successfully',
       userNumber,
-      userId: pending.userId,
-      plan: pending.plan,
+      userId: paymentData.userId,
+      plan: paymentData.plan,
       startsAt: now.toISOString(),
       endsAt: endsAt.toISOString(),
     });
@@ -237,10 +471,29 @@ export async function activatePixSubscription(userNumber: string): Promise<boole
     return true;
   } catch (error) {
     logger.error({
-      msg: 'Error activating PIX subscription',
+      msg: '[PIX] Error activating PIX subscription',
       error: error instanceof Error ? error.message : 'Unknown error',
       userNumber,
     });
+
+    // Try to update payment with error
+    try {
+      await supabase
+        .from('pix_payments')
+        .update({
+          status: 'failed',
+          error_message: error instanceof Error ? error.message : 'Unknown error',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_number', userNumber)
+        .in('status', ['pending', 'confirmed']);
+    } catch (updateError) {
+      logger.error({
+        msg: '[PIX] Failed to update payment error status',
+        error: updateError instanceof Error ? updateError.message : 'Unknown error',
+      });
+    }
+
     return false;
   }
 }

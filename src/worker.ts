@@ -111,35 +111,8 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
 
       // Step 3: Send sticker to user OR save as pending
       if (status === 'enviado') {
-        logger.info({ msg: 'Step 3: Sending sticker to user', jobId: job.id });
+        logger.info({ msg: 'Step 3: Sending sticker to user (silently)', jobId: job.id });
         await sendSticker(userNumber, url);
-
-        // Step 3.5: Queue debounced edit buttons (will be sent after 10s of inactivity)
-        logger.info({ msg: 'Step 3.5: Queueing debounced edit buttons', jobId: job.id });
-
-        const { editButtonsQueue } = await import('./config/queue');
-
-        const editButtonsJobData: EditButtonsJobData = {
-          userNumber,
-          stickerUrl: url,
-          stickerPath: path,
-          messageKey,
-          messageType,
-          tipo,
-        };
-
-        // Add job with 10s delay and unique jobId per user (replaces previous job)
-        await editButtonsQueue.add('send-edit-buttons', editButtonsJobData, {
-          jobId: `edit-buttons-${userNumber}`, // Same ID = replaces previous job
-          delay: 10000, // 10 seconds
-        });
-
-        logger.info({
-          msg: 'Edit buttons job queued (debounced)',
-          jobId: job.id,
-          userNumber,
-          delay: '10s',
-        });
       } else {
         logger.info({
           msg: 'Step 3: Sticker marked as pending (daily limit reached)',
@@ -173,37 +146,14 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
       // Step 5: Update user's daily count (only if sent)
       if (status === 'enviado' && userId) {
         logger.info({ msg: 'Step 5: Incrementing daily count', jobId: job.id });
-        const newCount = await incrementDailyCount(userId);
+        await incrementDailyCount(userId);
 
-        // Get user's actual limits based on subscription
-        const userLimits = await getUserLimits(userId);
-        const actualLimit = userLimits.daily_sticker_limit;
-        const remainingToday = Math.max(0, actualLimit - newCount);
-
-        // Onboarding: Update step and send personalized confirmation
-        const {
-          updateOnboardingStep,
-          getOnboardingStatus,
-          sendStickerConfirmation,
-          checkTwitterFeaturePresentation,
-        } = await import('./services/onboardingService');
-
-        const onboardingStatus = await getOnboardingStatus(userNumber);
-        let currentStep = onboardingStatus?.step || 0;
-
-        // Update step based on daily count (only for first 3 stickers)
-        if (currentStep < 3) {
-          currentStep = Math.min(newCount, 3);
-          await updateOnboardingStep(userNumber, currentStep);
-        }
-
-        // Send personalized confirmation message
-        await sendStickerConfirmation(userNumber, userName, remainingToday, currentStep);
-
-        // Check if should present Twitter feature (after 3rd sticker)
-        if (currentStep === 3) {
-          await checkTwitterFeaturePresentation(userNumber, userName, currentStep);
-        }
+        // Sticker sent silently - no confirmation message
+        logger.info({
+          msg: 'Sticker sent silently (no confirmation)',
+          jobId: job.id,
+          userNumber,
+        });
       } else if (status === 'pendente') {
         // User hit limit - send limit reached message
         const pendingCount = await getPendingStickerCount(userNumber);

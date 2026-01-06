@@ -110,11 +110,13 @@ export async function sendLimitReachedMenu(
   // Add upgrade buttons
   buttons.push(...availableUpgrades);
 
-  // Add dismiss button
-  buttons.push({
-    id: 'button_dismiss_upgrade',
-    text: '❌ Agora Não',
-  });
+  // Add dismiss button only if we have space (max 3 buttons allowed by Avisa API)
+  if (buttons.length < 3) {
+    buttons.push({
+      id: 'button_dismiss_upgrade',
+      text: '❌ Agora Não',
+    });
+  }
 
   // Build message text based on A/B group
   let messageDesc = '';

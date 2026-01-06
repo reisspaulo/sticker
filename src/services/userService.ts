@@ -13,6 +13,7 @@ export interface User {
   ab_test_group?: 'control' | 'bonus';
   bonus_credits_today?: number;
   limit_notified_at?: string;
+  onboarding_step?: number;
 }
 
 /**

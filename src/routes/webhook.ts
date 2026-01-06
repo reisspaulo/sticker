@@ -4,7 +4,7 @@ import { validateMessage, getMessageType } from '../utils/messageValidator';
 import { processStickerQueue, downloadTwitterVideoQueue, activatePixSubscriptionQueue, convertTwitterStickerQueue, cleanupStickerQueue } from '../config/queue';
 import { extractInteractiveResponse } from '../utils/interactiveMessageDetector';
 import { WebhookPayload, ProcessStickerJobData, TwitterVideoJobData, CleanupStickerJobData } from '../types/evolution';
-import { getUserOrCreate, getDailyCount } from '../services/userService';
+import { getUserOrCreate } from '../services/userService';
 import { getTwitterDownloadCount } from '../services/twitterLimits';
 import { getUserLimits } from '../services/subscriptionService';
 import { sendWelcomeMessage } from '../services/messageService';
@@ -265,6 +265,33 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             userName,
             downloadId,
           });
+
+          // ATOMIC: Check and increment daily limit before converting
+          const { checkAndIncrementDailyLimitAtomic, setLimitNotifiedAtomic } = await import(
+            '../services/atomicLimitService'
+          );
+
+          const limitCheck = await checkAndIncrementDailyLimitAtomic(user.id);
+
+          if (!limitCheck.allowed) {
+            // User reached limit - send notification atomically
+            const wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
+
+            if (!wasAlreadyNotified) {
+              const { sendText } = await import('../services/evolutionApi');
+              await sendText(
+                userNumber,
+                `❌ *Limite Diário Atingido*\n\nVocê já usou todas as suas figurinhas de hoje!\n\n💎 Faça upgrade para continuar criando.`
+              );
+            }
+
+            return reply.status(200).send({
+              status: 'blocked',
+              reason: 'daily_limit_reached',
+              dailyCount: limitCheck.daily_count,
+              dailyLimit: limitCheck.effective_limit,
+            });
+          }
 
           // Add job to dedicated conversion queue (using exported queue with Redis auth)
           await convertTwitterStickerQueue.add('convert', {
@@ -908,13 +935,31 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
       // User was already created at the top of the handler
 
-      // Check if this is a new user (created just now)
-      const isNewUser = new Date(user.created_at).getTime() > Date.now() - 5000; // Created within last 5 seconds
+      // Check if this is a new user who hasn't received welcome message yet
+      // Use onboarding_step to prevent duplicate welcome messages when multiple images are sent
+      if (user.onboarding_step === 0) {
+        // Atomically update onboarding_step to prevent duplicate welcomes
+        const { data: updated } = await supabase
+          .from('users')
+          .update({
+            onboarding_step: 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id)
+          .eq('onboarding_step', 0) // Only update if still 0 (prevents race condition)
+          .select()
+          .single();
 
-      if (isNewUser) {
-        // Send welcome message to new users
-        await sendWelcomeMessage(userNumber, userName);
-        fastify.log.info({ userNumber, userName }, 'Welcome message sent to new user');
+        // Only send welcome if we successfully updated (prevents duplicates)
+        if (updated) {
+          await sendWelcomeMessage(userNumber, userName);
+          fastify.log.info({ userNumber, userName }, 'Welcome message sent to new user');
+        } else {
+          fastify.log.info(
+            { userNumber, userName },
+            'Welcome message skipped (already sent by another request)'
+          );
+        }
       }
 
       // Handle Twitter video messages differently
@@ -1006,45 +1051,40 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Get user limits based on subscription
-      const userLimits = await getUserLimits(user.id);
-      const currentDailyCount = await getDailyCount(user.id);
-      const hasReachedLimit = currentDailyCount >= userLimits.daily_sticker_limit;
+      // ATOMIC: Check and increment daily limit in single transaction
+      // This prevents race conditions when multiple images are sent simultaneously
+      const { checkAndIncrementDailyLimitAtomic, setLimitNotifiedAtomic } = await import(
+        '../services/atomicLimitService'
+      );
+
+      const limitCheck = await checkAndIncrementDailyLimitAtomic(user.id);
 
       fastify.log.info({
-        msg: 'User limits check',
+        msg: 'Atomic limit check completed',
         userId: user.id,
-        currentDailyCount,
-        dailyStickerLimit: userLimits.daily_sticker_limit,
-        hasReachedLimit,
+        allowed: limitCheck.allowed,
+        dailyCount: limitCheck.daily_count,
+        effectiveLimit: limitCheck.effective_limit,
+        pendingCount: limitCheck.pending_count,
         abTestGroup: user.ab_test_group,
       });
 
       // A/B Test: Handle limit reached based on test group
-      if (hasReachedLimit) {
-        const { isSameDay } = await import('../utils/dateUtils');
-        const notifiedToday =
-          user.limit_notified_at && isSameDay(new Date(user.limit_notified_at), new Date());
-
+      if (!limitCheck.allowed) {
         if (user.ab_test_group === 'control') {
           // CONTROL GROUP: Block completely, no pending stickers
           fastify.log.info({
             msg: 'User reached limit - CONTROL group - blocking',
             userNumber,
             abTestGroup: 'control',
-            notifiedToday,
           });
 
-          // Send limit message ONLY if not notified today
-          if (!notifiedToday) {
+          // Atomically check and set notification to prevent duplicate messages
+          const wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
+
+          if (!wasAlreadyNotified) {
             const { sendLimitReachedMessage } = await import('../services/messageService');
             await sendLimitReachedMessage(userNumber, userName, 0);
-
-            // Mark as notified
-            await supabase
-              .from('users')
-              .update({ limit_notified_at: new Date().toISOString() })
-              .eq('whatsapp_number', userNumber);
 
             fastify.log.info({
               msg: 'Limit reached message sent - CONTROL group',
@@ -1061,13 +1101,12 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             status: 'blocked',
             reason: 'daily_limit_reached_control',
             abTestGroup: 'control',
-            currentDailyCount,
-            dailyLimit: userLimits.daily_sticker_limit,
+            currentDailyCount: limitCheck.daily_count,
+            dailyLimit: limitCheck.effective_limit,
           });
         } else {
           // BONUS GROUP: Allow up to 2 pending stickers
-          const { getPendingStickerCount } = await import('../services/userService');
-          const pendingCount = await getPendingStickerCount(userNumber);
+          const pendingCount = limitCheck.pending_count;
 
           if (pendingCount >= 2) {
             // Already has 2 pending - block
@@ -1076,22 +1115,17 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
               userNumber,
               abTestGroup: 'bonus',
               pendingCount,
-              notifiedToday,
             });
 
-            // Send message ONLY if not notified today
-            if (!notifiedToday) {
+            // Atomically check and set notification to prevent duplicate messages
+            const wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
+
+            if (!wasAlreadyNotified) {
               const { sendText } = await import('../services/evolutionApi');
               await sendText(
                 userNumber,
                 `❌ *Limite de Figurinhas Guardadas*\n\nVocê já tem *2 figurinhas* guardadas para amanhã!\n\n💎 Faça upgrade para criar mais agora.`
               );
-
-              // Mark as notified
-              await supabase
-                .from('users')
-                .update({ limit_notified_at: new Date().toISOString() })
-                .eq('whatsapp_number', userNumber);
 
               fastify.log.info({
                 msg: 'Max pending message sent - BONUS group',
@@ -1109,8 +1143,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
               reason: 'max_pending_reached',
               abTestGroup: 'bonus',
               pendingCount: 2,
-              currentDailyCount,
-              dailyLimit: userLimits.daily_sticker_limit,
+              currentDailyCount: limitCheck.daily_count,
+              dailyLimit: limitCheck.effective_limit,
             });
           }
 
@@ -1135,7 +1169,7 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         fileLength: validation.fileLength,
         duration: validation.duration,
         userId: user.id,
-        status: hasReachedLimit ? 'pendente' : 'enviado',
+        status: !limitCheck.allowed ? 'pendente' : 'enviado',
       };
 
       // Add job to queue

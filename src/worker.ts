@@ -11,20 +11,9 @@ import { sendSticker, sendVideo, sendText } from './services/evolutionApi';
 import { supabase } from './config/supabase';
 import { ProcessStickerJobData, EditButtonsJobData } from './types/evolution';
 import { TwitterDownloadJobData } from './types/twitter';
-import { incrementDailyCount, getPendingStickerCount } from './services/userService';
+import { sendErrorMessage, sendVideoSelectionMessage } from './services/messageService';
+import { logProcessingStarted, logStickerCreated, logProcessingFailed, logError } from './services/usageLogs';
 import { getUserLimits } from './services/subscriptionService';
-import {
-  sendLimitReachedMessage,
-  sendErrorMessage,
-  sendVideoSelectionMessage,
-} from './services/messageService';
-import {
-  logProcessingStarted,
-  logStickerCreated,
-  logProcessingFailed,
-  logLimitReached,
-  logError,
-} from './services/usageLogs';
 import { downloadTwitterVideo, getVideoMetadata } from './services/twitterService';
 import { uploadTwitterVideo } from './services/twitterStorage';
 import { incrementTwitterDownloadCount, getRemainingTwitterDownloads } from './services/twitterLimits';
@@ -50,7 +39,7 @@ const redisConnection = {
 const processStickerWorker = new Worker<ProcessStickerJobData>(
   'process-sticker',
   async (job: Job<ProcessStickerJobData>) => {
-    const { userNumber, userName, messageType, messageKey, status = 'enviado', userId } = job.data;
+    const { userNumber, userName, messageType, messageKey, status = 'enviado' } = job.data;
     const startTime = Date.now();
 
     logger.info({
@@ -143,11 +132,12 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
         // Don't throw - sticker was already processed
       }
 
-      // Step 5: Update user's daily count (ALWAYS - sticker was created)
-      if (userId) {
-        logger.info({ msg: 'Step 5: Incrementing daily count', jobId: job.id });
-        await incrementDailyCount(userId);
-      }
+      // Step 5: REMOVED - daily count is now incremented atomically in webhook
+      // This prevents race conditions when multiple images are sent simultaneously
+      logger.info({
+        msg: 'Step 5: Daily count already incremented atomically in webhook',
+        jobId: job.id,
+      });
 
       // Step 6: Handle status-specific actions
       if (status === 'enviado') {
@@ -158,50 +148,12 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
           userNumber,
         });
       } else if (status === 'pendente') {
-        // User hit limit - check if already notified today
-        const { getUserByNumber } = await import('./services/userService');
-        const { isSameDay } = await import('./utils/dateUtils');
-
-        const user = await getUserByNumber(userNumber);
-        const notifiedToday =
-          user?.limit_notified_at && isSameDay(new Date(user.limit_notified_at), new Date());
-
-        if (!notifiedToday) {
-          // First time hitting limit today - send message
-          const pendingCount = await getPendingStickerCount(userNumber);
-          await sendLimitReachedMessage(userNumber, userName, pendingCount);
-
-          // Mark as notified
-          await supabase
-            .from('users')
-            .update({ limit_notified_at: new Date().toISOString() })
-            .eq('whatsapp_number', userNumber);
-
-          logger.info({
-            msg: 'Limit reached message sent (first time today)',
-            jobId: job.id,
-            userNumber,
-            pendingCount,
-          });
-
-          // Log limit reached (get actual limit)
-          if (userId) {
-            const userLimits = await getUserLimits(userId);
-            await logLimitReached({
-              userNumber,
-              userName,
-              dailyCount: userLimits.daily_sticker_limit,
-              limit: userLimits.daily_sticker_limit,
-            });
-          }
-        } else {
-          // Already notified today - skip message
-          logger.info({
-            msg: 'User already notified of limit today, skipping message',
-            jobId: job.id,
-            userNumber,
-          });
-        }
+        // User hit limit - notification already handled atomically in webhook
+        logger.info({
+          msg: 'Sticker saved as pending (limit notification already sent in webhook)',
+          jobId: job.id,
+          userNumber,
+        });
       }
 
       const totalTime = Date.now() - startTime;
@@ -787,17 +739,12 @@ const convertTwitterStickerWorker = new Worker<ConvertTwitterToStickerJobData>(
         userNumber,
       });
 
-      // Step 6: Get user ID and increment sticker count (not Twitter count!)
-      const { data: user } = await supabase
-        .from('users')
-        .select('id')
-        .eq('whatsapp_number', userNumber)
-        .single();
-
-      if (user?.id) {
-        logger.info({ msg: 'Step 6: Incrementing daily sticker count', jobId: job.id });
-        await incrementDailyCount(user.id);
-      }
+      // Step 6: REMOVED - daily count is now incremented atomically in webhook
+      // when user clicks "Convert to Sticker" button
+      logger.info({
+        msg: 'Step 6: Daily count already incremented atomically in webhook',
+        jobId: job.id,
+      });
 
       // Step 7: Update download record
       logger.info({ msg: 'Step 7: Updating download record', jobId: job.id });

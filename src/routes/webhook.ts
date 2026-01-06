@@ -1022,17 +1022,40 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
       // A/B Test: Handle limit reached based on test group
       if (hasReachedLimit) {
+        const { isSameDay } = await import('../utils/dateUtils');
+        const notifiedToday =
+          user.limit_notified_at && isSameDay(new Date(user.limit_notified_at), new Date());
+
         if (user.ab_test_group === 'control') {
           // CONTROL GROUP: Block completely, no pending stickers
           fastify.log.info({
             msg: 'User reached limit - CONTROL group - blocking',
             userNumber,
             abTestGroup: 'control',
+            notifiedToday,
           });
 
-          // Send limit message (will be sent by worker, but we return early)
-          const { sendLimitReachedMessage } = await import('../services/messageService');
-          await sendLimitReachedMessage(userNumber, userName, 0);
+          // Send limit message ONLY if not notified today
+          if (!notifiedToday) {
+            const { sendLimitReachedMessage } = await import('../services/messageService');
+            await sendLimitReachedMessage(userNumber, userName, 0);
+
+            // Mark as notified
+            await supabase
+              .from('users')
+              .update({ limit_notified_at: new Date().toISOString() })
+              .eq('whatsapp_number', userNumber);
+
+            fastify.log.info({
+              msg: 'Limit reached message sent - CONTROL group',
+              userNumber,
+            });
+          } else {
+            fastify.log.info({
+              msg: 'User already notified today - skipping message - CONTROL group',
+              userNumber,
+            });
+          }
 
           return reply.status(200).send({
             status: 'blocked',
@@ -1053,13 +1076,33 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
               userNumber,
               abTestGroup: 'bonus',
               pendingCount,
+              notifiedToday,
             });
 
-            const { sendText } = await import('../services/evolutionApi');
-            await sendText(
-              userNumber,
-              `❌ *Limite de Figurinhas Guardadas*\n\nVocê já tem *2 figurinhas* guardadas para amanhã!\n\n💎 Faça upgrade para criar mais agora.`
-            );
+            // Send message ONLY if not notified today
+            if (!notifiedToday) {
+              const { sendText } = await import('../services/evolutionApi');
+              await sendText(
+                userNumber,
+                `❌ *Limite de Figurinhas Guardadas*\n\nVocê já tem *2 figurinhas* guardadas para amanhã!\n\n💎 Faça upgrade para criar mais agora.`
+              );
+
+              // Mark as notified
+              await supabase
+                .from('users')
+                .update({ limit_notified_at: new Date().toISOString() })
+                .eq('whatsapp_number', userNumber);
+
+              fastify.log.info({
+                msg: 'Max pending message sent - BONUS group',
+                userNumber,
+              });
+            } else {
+              fastify.log.info({
+                msg: 'User already notified today - skipping message - BONUS group',
+                userNumber,
+              });
+            }
 
             return reply.status(200).send({
               status: 'blocked',

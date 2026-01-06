@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import logger from '../config/logger';
+import { alertRpcFailure } from './alertService';
 
 export interface AtomicLimitCheckResult {
   allowed: boolean;
@@ -32,6 +33,20 @@ export async function checkAndIncrementDailyLimitAtomic(
         error,
         userId,
       });
+
+      // 🚨 Send critical alert
+      await alertRpcFailure({
+        service: 'atomicLimitService',
+        errorType: 'check_and_increment_daily_limit',
+        errorMessage: error.message || 'Unknown RPC error',
+        errorCode: error.code,
+        userId,
+        additionalInfo: {
+          hint: error.hint,
+          details: error.details,
+        },
+      });
+
       throw error;
     }
 
@@ -85,6 +100,20 @@ export async function setLimitNotifiedAtomic(userId: string): Promise<boolean> {
         error,
         userId,
       });
+
+      // 🚨 Send critical alert
+      await alertRpcFailure({
+        service: 'atomicLimitService',
+        errorType: 'set_limit_notified_atomic',
+        errorMessage: error.message || 'Unknown RPC error',
+        errorCode: error.code,
+        userId,
+        additionalInfo: {
+          hint: error.hint,
+          details: error.details,
+        },
+      });
+
       throw error;
     }
 

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { performHealthCheck, quickHealthCheck } from '../services/healthCheck';
 import { runAllAlertChecks } from '../services/alerting';
+import { getErrorStats, clearErrorCounters } from '../services/alertService';
 
 export default async function healthRoutes(fastify: FastifyInstance) {
   // Comprehensive health check endpoint
@@ -53,6 +54,58 @@ export default async function healthRoutes(fastify: FastifyInstance) {
       return reply.status(500).send({
         error: 'Failed to run alert checks',
         message: (error as Error).message,
+      });
+    }
+  });
+
+  // RPC Error Statistics endpoint (new monitoring)
+  fastify.get('/health/errors', async (_request, reply) => {
+    try {
+      const stats = getErrorStats();
+
+      return reply.status(200).send({
+        timestamp: new Date().toISOString(),
+        errorStats: stats,
+        totalErrorTypes: Object.keys(stats).length,
+        summary: {
+          activeErrors: Object.values(stats).reduce((sum: number, stat: any) => sum + stat.count, 0),
+          errorTypes: Object.keys(stats),
+        },
+      });
+    } catch (error) {
+      return reply.status(500).send({
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
+  // Clear error counters endpoint (admin only)
+  fastify.post('/health/errors/clear', async (request, reply) => {
+    try {
+      const adminToken = request.headers['x-admin-token'];
+      const expectedToken = process.env.ADMIN_TOKEN || 'change-me-in-production';
+
+      if (adminToken !== expectedToken) {
+        return reply.status(401).send({
+          error: 'Unauthorized',
+          message: 'Invalid admin token',
+        });
+      }
+
+      clearErrorCounters();
+
+      fastify.log.info({ msg: 'Error counters manually cleared by admin' });
+
+      return reply.status(200).send({
+        status: 'ok',
+        message: 'Error counters cleared successfully',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      return reply.status(500).send({
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   });

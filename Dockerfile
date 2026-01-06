@@ -20,10 +20,23 @@ COPY src ./src
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine
+FROM node:20-slim
 
-# Install ffmpeg for GIF processing
-RUN apk add --no-cache ffmpeg
+# Install ffmpeg for GIF processing and Python for rembg
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install rembg with CPU backend and CLI
+RUN pip3 install --no-cache-dir --break-system-packages "rembg[cpu,cli]"
+
+# Pre-download AI models during build (as root, before USER switch)
+RUN mkdir -p /tmp/rembg-test && \
+    echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" | base64 -d > /tmp/rembg-test/test.png && \
+    rembg i /tmp/rembg-test/test.png /tmp/rembg-test/output.png || true && \
+    rm -rf /tmp/rembg-test
 
 WORKDIR /app
 
@@ -36,9 +49,11 @@ RUN npm install --production
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+# Create non-root user (Debian syntax)
+RUN groupadd -g 1001 nodejs && \
+    useradd -r -u 1001 -g nodejs nodejs && \
+    mkdir -p /home/nodejs/.u2net && \
+    chown -R nodejs:nodejs /home/nodejs
 
 USER nodejs
 

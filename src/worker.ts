@@ -970,6 +970,256 @@ activatePixSubscriptionWorker.on('failed', (job, err) => {
   });
 });
 
+// Cleanup Sticker Worker (Remove Borders/Background)
+const cleanupStickerWorker = new Worker<any>(
+  'cleanup-sticker',
+  async (job: Job<any>) => {
+    const { userNumber, userName, messageKey, isAnimated, userId, messageType } = job.data;
+    const startTime = Date.now();
+
+    // Detect job type:
+    // - If messageType exists → remove background from original image (reprocess)
+    // - If messageType doesn't exist → cleanup sticker (remove borders)
+    const isBackgroundRemoval = !!messageType;
+
+    logger.info({
+      msg: isBackgroundRemoval ? 'Processing remove background job' : 'Processing cleanup sticker job',
+      jobId: job.id,
+      jobName: job.name,
+      userNumber,
+      userName,
+      isBackgroundRemoval,
+    });
+
+    try {
+      // Step 1: Download media from Evolution API
+      logger.info({
+        msg: `Step 1: Downloading ${isBackgroundRemoval ? 'original image' : 'sticker'}`,
+        jobId: job.id,
+      });
+
+      const { downloadMedia } = await import('./services/evolutionApi');
+      const mediaBuffer = await downloadMedia(messageKey);
+
+      logger.info({
+        msg: isBackgroundRemoval ? 'Original image downloaded' : 'Sticker downloaded',
+        jobId: job.id,
+        bufferSize: mediaBuffer.length,
+      });
+
+      let finalBuffer: Buffer;
+      let tipo: 'estatico' | 'animado';
+      let rembgTime = 0;
+
+      // Import modules for rembg execution
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+      const fs = await import('fs');
+      const path = await import('path');
+      const { tmpdir } = await import('os');
+
+      if (isBackgroundRemoval) {
+        // PATH A: Remove background from ORIGINAL image, then create sticker
+        logger.info({ msg: 'Step 2: Removing background from original image', jobId: job.id });
+
+        const tempDir = tmpdir();
+        const inputExt = messageType === 'gif' ? '.mp4' : '.jpg';
+        const inputPath = path.join(tempDir, `bg-input-${job.id}${inputExt}`);
+        const outputPath = path.join(tempDir, `bg-output-${job.id}.png`);
+
+        fs.writeFileSync(inputPath, mediaBuffer);
+
+        // Run rembg with stderr capture
+        const rembgStartTime = Date.now();
+        try {
+          const { stdout, stderr } = await execAsync(`rembg i "${inputPath}" "${outputPath}"`);
+          rembgTime = Date.now() - rembgStartTime;
+
+          if (stderr) {
+            logger.warn({ msg: 'rembg stderr output', jobId: job.id, stderr });
+          }
+          if (stdout) {
+            logger.debug({ msg: 'rembg stdout output', jobId: job.id, stdout });
+          }
+        } catch (error: any) {
+          logger.error({
+            msg: 'rembg command failed',
+            jobId: job.id,
+            error: error.message,
+            stdout: error.stdout,
+            stderr: error.stderr,
+            code: error.code,
+          });
+          throw new Error(`rembg failed: ${error.stderr || error.message}`);
+        }
+
+        logger.info({
+          msg: 'Background removed successfully',
+          jobId: job.id,
+          rembgTime,
+        });
+
+        const cleanedBuffer = fs.readFileSync(outputPath);
+        fs.unlinkSync(inputPath);
+        fs.unlinkSync(outputPath);
+
+        logger.info({ msg: 'Step 3: Converting to sticker format', jobId: job.id });
+
+        if (messageType === 'gif') {
+          const result = await processAnimatedStickerFromBuffer(cleanedBuffer);
+          finalBuffer = result.buffer;
+          tipo = 'animado';
+        } else {
+          const sharp = (await import('sharp')).default;
+          finalBuffer = await sharp(cleanedBuffer)
+            .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .webp({ quality: 95 })
+            .toBuffer();
+          tipo = 'estatico';
+        }
+      } else {
+        // PATH B: Remove borders from existing STICKER
+        logger.info({ msg: 'Step 2: Removing borders from sticker', jobId: job.id });
+
+        const tempDir = tmpdir();
+        const inputPath = path.join(tempDir, `cleanup-input-${job.id}.webp`);
+        const outputPath = path.join(tempDir, `cleanup-output-${job.id}.png`);
+
+        fs.writeFileSync(inputPath, mediaBuffer);
+
+        // Run rembg with stderr capture
+        const rembgStartTime = Date.now();
+        try {
+          const { stdout, stderr } = await execAsync(`rembg i "${inputPath}" "${outputPath}"`);
+          rembgTime = Date.now() - rembgStartTime;
+
+          if (stderr) {
+            logger.warn({ msg: 'rembg stderr output', jobId: job.id, stderr });
+          }
+          if (stdout) {
+            logger.debug({ msg: 'rembg stdout output', jobId: job.id, stdout });
+          }
+        } catch (error: any) {
+          logger.error({
+            msg: 'rembg command failed',
+            jobId: job.id,
+            error: error.message,
+            stdout: error.stdout,
+            stderr: error.stderr,
+            code: error.code,
+          });
+          throw new Error(`rembg failed: ${error.stderr || error.message}`);
+        }
+
+        logger.info({
+          msg: 'Borders removed successfully',
+          jobId: job.id,
+          rembgTime,
+        });
+
+        const cleanedBuffer = fs.readFileSync(outputPath);
+        fs.unlinkSync(inputPath);
+        fs.unlinkSync(outputPath);
+
+        logger.info({ msg: 'Step 3: Converting to sticker format', jobId: job.id });
+
+        if (isAnimated) {
+          const result = await processAnimatedStickerFromBuffer(cleanedBuffer);
+          finalBuffer = result.buffer;
+          tipo = 'animado';
+        } else {
+          const cleanedPath = path.join(tempDir, `cleaned-${job.id}.png`);
+          fs.writeFileSync(cleanedPath, cleanedBuffer);
+
+          const sharp = (await import('sharp')).default;
+          finalBuffer = await sharp(cleanedPath)
+            .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .webp({ quality: 95 })
+            .toBuffer();
+
+          fs.unlinkSync(cleanedPath);
+          tipo = 'estatico';
+        }
+      }
+
+      // Step 4: Send sticker back to user
+      logger.info({ msg: 'Step 4: Sending cleaned sticker', jobId: job.id });
+
+      const uploadResult = await uploadSticker(finalBuffer, userNumber, tipo);
+      await sendSticker(userNumber, uploadResult.url);
+
+      // Step 5: Get remaining count (DON'T increment - editing doesn't count)
+      const userLimits = await getUserLimits(userId!);
+      const { data: userData } = await supabase
+        .from('users')
+        .select('daily_count')
+        .eq('id', userId)
+        .single();
+
+      const remaining = Math.max(0, userLimits.daily_sticker_limit - (userData?.daily_count || 0));
+
+      const processingTime = Date.now() - startTime;
+
+      // Send success message
+      const successMessage = isBackgroundRemoval
+        ? `✅ *Pronto, ${userName}!*\n\n✨ Sua figurinha sem fundo está pronta!\n\nFundo 100% transparente! 🎨\n\n🎁 *${remaining} figurinha${remaining !== 1 ? 's' : ''} restante${remaining !== 1 ? 's' : ''}* hoje.\n\n💡 *Essa edição não contou no seu limite!*`
+        : `✅ *Pronto, ${userName}!*\n\n🧹 Sua figurinha está limpinha!\n\nSem bordas brancas! 🎨\n\n🎁 *${remaining} figurinha${remaining !== 1 ? 's' : ''} restante${remaining !== 1 ? 's' : ''}* hoje.\n\n💡 *Essa edição não contou no seu limite!*`;
+
+      await sendText(userNumber, successMessage);
+
+      logger.info({
+        msg: isBackgroundRemoval ? 'Remove background job completed' : 'Cleanup sticker job completed',
+        jobId: job.id,
+        userNumber,
+        processingTime,
+        rembgTime,
+        fileSize: finalBuffer.length,
+      });
+
+      return { success: true, tipo, fileSize: finalBuffer.length, processingTime, rembgTime };
+    } catch (error: any) {
+      logger.error({
+        msg: isBackgroundRemoval ? 'Remove background job failed' : 'Cleanup sticker job failed',
+        jobId: job.id,
+        userNumber,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      // Send error message to user
+      const errorMessage = isBackgroundRemoval
+        ? `❌ *Erro ao remover fundo*\n\n😔 Ocorreu um erro ao processar sua imagem.\n\nPor favor, tente novamente ou digite *ajuda* para suporte.`
+        : `❌ *Erro ao remover bordas*\n\n😔 Ocorreu um erro ao processar sua figurinha.\n\nPor favor, tente novamente ou digite *ajuda* para suporte.`;
+
+      await sendText(userNumber, errorMessage);
+
+      throw error;
+    }
+  },
+  {
+    connection: redisConnection,
+    concurrency: 2,
+  }
+);
+
+cleanupStickerWorker.on('completed', (job) => {
+  logger.info({
+    msg: 'Cleanup sticker job completed',
+    queue: 'cleanup-sticker',
+    jobId: job.id,
+  });
+});
+
+cleanupStickerWorker.on('failed', (job, err) => {
+  logger.error({
+    msg: 'Cleanup sticker job failed',
+    queue: 'cleanup-sticker',
+    jobId: job?.id,
+    error: err.message,
+  });
+});
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, closing workers...');
@@ -978,6 +1228,7 @@ process.on('SIGTERM', async () => {
   await downloadTwitterVideoWorker.close();
   await convertTwitterStickerWorker.close();
   await activatePixSubscriptionWorker.close();
+  await cleanupStickerWorker.close();
   process.exit(0);
 });
 
@@ -988,6 +1239,7 @@ process.on('SIGINT', async () => {
   await downloadTwitterVideoWorker.close();
   await convertTwitterStickerWorker.close();
   await activatePixSubscriptionWorker.close();
+  await cleanupStickerWorker.close();
   process.exit(0);
 });
 
@@ -997,3 +1249,4 @@ logger.info('  - scheduled-jobs (concurrency: 1)');
 logger.info('  - download-twitter-video (concurrency: 3)');
 logger.info('  - convert-twitter-sticker (concurrency: 2)');
 logger.info('  - activate-pix-subscription (concurrency: 2)');
+logger.info('  - cleanup-sticker (concurrency: 2)');

@@ -72,6 +72,17 @@ export interface ProcessStickerJobData {
   status?: 'enviado' | 'pendente'; // Status for daily limit tracking
 }
 
+export interface CleanupStickerJobData {
+  userNumber: string;
+  userName: string;
+  messageKey: MessageKey; // For downloading media via Evolution API
+  fileUrl?: string; // Optional - for backward compatibility
+  mimetype: string;
+  isAnimated: boolean;
+  userId: string;
+  messageType?: 'image' | 'gif'; // If present, remove background from original image
+}
+
 export interface ValidationError {
   valid: false;
   error: string;

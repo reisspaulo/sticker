@@ -560,3 +560,43 @@ export async function sendPixPaymentWithButton(
     throw error;
   }
 }
+
+/**
+ * Send sticker edit buttons (Remove Borders, Remove Background, Perfect)
+ */
+export async function sendStickerEditButtons(userNumber: string): Promise<void> {
+  try {
+    await sendButtons({
+      number: userNumber,
+      title: '🎨 *Gostou da figurinha?*',
+      desc: `Quer fazer alguma edição?`,
+      footer: 'Edições não contam no limite',
+      buttons: [
+        {
+          id: 'button_remove_borders',
+          text: '🧹 Remover Bordas',
+        },
+        {
+          id: 'button_remove_background',
+          text: '✨ Remover Fundo',
+        },
+        {
+          id: 'button_sticker_perfect',
+          text: '✅ Está perfeita!',
+        },
+      ],
+    });
+
+    logger.info({
+      msg: 'Sticker edit buttons sent via Avisa API',
+      userNumber,
+    });
+  } catch (error) {
+    logger.error({
+      msg: 'Error sending sticker edit buttons',
+      userNumber,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw error;
+  }
+}

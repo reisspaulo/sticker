@@ -3,6 +3,7 @@ import logger from '../config/logger';
 
 export type ConversationState =
   | 'awaiting_payment_method'
+  | 'awaiting_sticker_edit'
   | 'none';
 
 export interface ConversationContext {
@@ -12,6 +13,11 @@ export interface ConversationContext {
     selected_plan?: 'premium' | 'ultra';
     payment_link?: string;
     timestamp?: string;
+    sticker_url?: string;
+    sticker_path?: string;
+    message_key?: any; // MessageKey type from evolution.ts
+    message_type?: 'image' | 'gif';
+    tipo?: 'estatico' | 'animado';
   };
   created_at: string;
   expires_at: string;

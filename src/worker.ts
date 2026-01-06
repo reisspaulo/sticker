@@ -113,6 +113,30 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
       if (status === 'enviado') {
         logger.info({ msg: 'Step 3: Sending sticker to user', jobId: job.id });
         await sendSticker(userNumber, url);
+
+        // Step 3.5: Send edit buttons and save context for editing
+        logger.info({ msg: 'Step 3.5: Sending edit buttons', jobId: job.id });
+
+        const { sendStickerEditButtons } = await import('./services/menuService');
+        const { saveConversationContext } = await import('./utils/conversationContext');
+
+        // Save context with sticker URL and original messageKey for editing
+        await saveConversationContext(userNumber, 'awaiting_sticker_edit', {
+          sticker_url: url,
+          sticker_path: path,
+          message_key: messageKey,
+          message_type: messageType,
+          tipo,
+        });
+
+        // Send edit buttons
+        await sendStickerEditButtons(userNumber);
+
+        logger.info({
+          msg: 'Edit buttons sent and context saved',
+          jobId: job.id,
+          userNumber,
+        });
       } else {
         logger.info({
           msg: 'Step 3: Sticker marked as pending (daily limit reached)',

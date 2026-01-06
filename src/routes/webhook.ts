@@ -1,9 +1,9 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { validateApiKey } from '../middleware/auth';
 import { validateMessage, getMessageType } from '../utils/messageValidator';
-import { processStickerQueue, downloadTwitterVideoQueue, activatePixSubscriptionQueue, convertTwitterStickerQueue } from '../config/queue';
+import { processStickerQueue, downloadTwitterVideoQueue, activatePixSubscriptionQueue, convertTwitterStickerQueue, cleanupStickerQueue } from '../config/queue';
 import { extractInteractiveResponse } from '../utils/interactiveMessageDetector';
-import { WebhookPayload, ProcessStickerJobData, TwitterVideoJobData } from '../types/evolution';
+import { WebhookPayload, ProcessStickerJobData, TwitterVideoJobData, CleanupStickerJobData } from '../types/evolution';
 import { getUserOrCreate, getDailyCount } from '../services/userService';
 import { getTwitterDownloadCount } from '../services/twitterLimits';
 import { getUserLimits } from '../services/subscriptionService';
@@ -503,6 +503,163 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           }
 
           return reply.status(200).send({ status: 'payment_method_handled' });
+        }
+
+        // Handle sticker edit buttons - Remove Borders
+        if (interactive.id === 'button_remove_borders') {
+          fastify.log.info({
+            msg: 'User requested to remove borders from sticker',
+            userNumber,
+            userId: user.id,
+          });
+
+          // Get conversation context
+          const context = await getConversationContext(userNumber);
+
+          if (!context || context.state !== 'awaiting_sticker_edit') {
+            await sendText(
+              userNumber,
+              `❌ *Contexto expirado*\n\nEssa edição não está mais disponível.\n\nEnvie uma nova imagem para criar outra figurinha!`
+            );
+            return reply.status(200).send({ status: 'context_expired' });
+          }
+
+          // Clear context
+          await clearConversationContext(userNumber);
+
+          // Mark cleanup feature as used (first time)
+          if (!(user as any).cleanup_feature_used) {
+            await supabase
+              .from('users')
+              .update({
+                cleanup_feature_used: true,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', user.id);
+          }
+
+          // Queue cleanup job to remove borders from the created sticker
+          const cleanupJobData: CleanupStickerJobData = {
+            userNumber,
+            userName,
+            messageKey: context.metadata.message_key,
+            fileUrl: context.metadata.sticker_url!,
+            mimetype: 'image/webp',
+            isAnimated: context.metadata.tipo === 'animado',
+            userId: user.id,
+          };
+
+          const cleanupJob = await cleanupStickerQueue.add('cleanup-sticker', cleanupJobData, {
+            jobId: `borders-${userNumber}-${Date.now()}`,
+          });
+
+          fastify.log.info({
+            msg: 'Remove borders job queued',
+            jobId: cleanupJob.id,
+            userNumber,
+          });
+
+          // Send feedback
+          await sendText(
+            userNumber,
+            `🧹 *Removendo bordas...*\n\n✨ Estou limpando as bordas brancas da sua figurinha!\n\nAguarde alguns segundos... ⏳`
+          );
+
+          return reply.status(200).send({ status: 'borders_removal_started' });
+        }
+
+        // Handle sticker edit buttons - Remove Background
+        if (interactive.id === 'button_remove_background') {
+          fastify.log.info({
+            msg: 'User requested to remove background from image',
+            userNumber,
+            userId: user.id,
+          });
+
+          // Get conversation context
+          const context = await getConversationContext(userNumber);
+
+          if (!context || context.state !== 'awaiting_sticker_edit') {
+            await sendText(
+              userNumber,
+              `❌ *Contexto expirado*\n\nEssa edição não está mais disponível.\n\nEnvie uma nova imagem para criar outra figurinha!`
+            );
+            return reply.status(200).send({ status: 'context_expired' });
+          }
+
+          // Clear context
+          await clearConversationContext(userNumber);
+
+          // Mark cleanup feature as used (first time)
+          if (!(user as any).cleanup_feature_used) {
+            await supabase
+              .from('users')
+              .update({
+                cleanup_feature_used: true,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', user.id);
+          }
+
+          // Queue job to remove background from ORIGINAL image and create new sticker
+          const removeBackgroundJobData: CleanupStickerJobData = {
+            userNumber,
+            userName,
+            messageKey: context.metadata.message_key,
+            fileUrl: context.metadata.sticker_url!,
+            mimetype: context.metadata.message_type === 'gif' ? 'video/mp4' : 'image/jpeg',
+            isAnimated: context.metadata.tipo === 'animado',
+            userId: user.id,
+            messageType: context.metadata.message_type, // This triggers PATH A in worker
+          };
+
+          const bgJob = await cleanupStickerQueue.add('remove-background', removeBackgroundJobData, {
+            jobId: `background-${userNumber}-${Date.now()}`,
+          });
+
+          fastify.log.info({
+            msg: 'Remove background job queued',
+            jobId: bgJob.id,
+            userNumber,
+          });
+
+          // Send feedback
+          await sendText(
+            userNumber,
+            `✨ *Removendo fundo...*\n\n🎨 Estou criando uma versão sem fundo da sua imagem!\n\nAguarde alguns segundos... ⏳`
+          );
+
+          return reply.status(200).send({ status: 'background_removal_started' });
+        }
+
+        // Handle sticker edit buttons - Perfect (no changes)
+        if (interactive.id === 'button_sticker_perfect') {
+          fastify.log.info({
+            msg: 'User confirmed sticker is perfect (no edits)',
+            userNumber,
+            userId: user.id,
+          });
+
+          // Clear conversation context
+          await clearConversationContext(userNumber);
+
+          // Get remaining stickers count
+          const userLimits = await getUserLimits(user.id);
+          const { data: userData } = await supabase
+            .from('users')
+            .select('daily_count')
+            .eq('id', user.id)
+            .single();
+
+          const remaining = Math.max(0, userLimits.daily_sticker_limit - (userData?.daily_count || 0));
+
+          // Send confirmation
+          await sendText(
+            userNumber,
+            `✅ *Ótimo!*\n\n🎁 Você tem *${remaining} figurinha${remaining !== 1 ? 's' : ''} restante${remaining !== 1 ? 's' : ''}* hoje.\n\nEnvie outra imagem quando quiser! 🎨`
+          );
+
+          return reply.status(200).send({ status: 'sticker_confirmed_perfect' });
         }
 
         // Unknown interactive response

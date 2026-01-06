@@ -46,10 +46,14 @@ export const activatePixSubscriptionQueue = new Queue<ActivatePixJobData>(
 // Convert Twitter Video to Sticker Queue (for converting downloaded Twitter videos to stickers)
 export const convertTwitterStickerQueue = new Queue('convert-twitter-sticker', queueOptions);
 
+// Cleanup Sticker Queue (for removing borders and backgrounds from stickers)
+export const cleanupStickerQueue = new Queue('cleanup-sticker', queueOptions);
+
 export default {
   processStickerQueue,
   scheduledJobsQueue,
   downloadTwitterVideoQueue,
   activatePixSubscriptionQueue,
   convertTwitterStickerQueue,
+  cleanupStickerQueue,
 };

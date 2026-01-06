@@ -143,11 +143,14 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
         // Don't throw - sticker was already processed
       }
 
-      // Step 5: Update user's daily count (only if sent)
-      if (status === 'enviado' && userId) {
+      // Step 5: Update user's daily count (ALWAYS - sticker was created)
+      if (userId) {
         logger.info({ msg: 'Step 5: Incrementing daily count', jobId: job.id });
         await incrementDailyCount(userId);
+      }
 
+      // Step 6: Handle status-specific actions
+      if (status === 'enviado') {
         // Sticker sent silently - no confirmation message
         logger.info({
           msg: 'Sticker sent silently (no confirmation)',
@@ -155,18 +158,48 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
           userNumber,
         });
       } else if (status === 'pendente') {
-        // User hit limit - send limit reached message
-        const pendingCount = await getPendingStickerCount(userNumber);
-        await sendLimitReachedMessage(userNumber, userName, pendingCount);
+        // User hit limit - check if already notified today
+        const { getUserByNumber } = await import('./services/userService');
+        const { isSameDay } = await import('./utils/dateUtils');
 
-        // Log limit reached (get actual limit)
-        if (userId) {
-          const userLimits = await getUserLimits(userId);
-          await logLimitReached({
+        const user = await getUserByNumber(userNumber);
+        const notifiedToday =
+          user?.limit_notified_at && isSameDay(new Date(user.limit_notified_at), new Date());
+
+        if (!notifiedToday) {
+          // First time hitting limit today - send message
+          const pendingCount = await getPendingStickerCount(userNumber);
+          await sendLimitReachedMessage(userNumber, userName, pendingCount);
+
+          // Mark as notified
+          await supabase
+            .from('users')
+            .update({ limit_notified_at: new Date().toISOString() })
+            .eq('whatsapp_number', userNumber);
+
+          logger.info({
+            msg: 'Limit reached message sent (first time today)',
+            jobId: job.id,
             userNumber,
-            userName,
-            dailyCount: userLimits.daily_sticker_limit, // They hit the limit
-            limit: userLimits.daily_sticker_limit,
+            pendingCount,
+          });
+
+          // Log limit reached (get actual limit)
+          if (userId) {
+            const userLimits = await getUserLimits(userId);
+            await logLimitReached({
+              userNumber,
+              userName,
+              dailyCount: userLimits.daily_sticker_limit,
+              limit: userLimits.daily_sticker_limit,
+            });
+          }
+        } else {
+          // Already notified today - skip message
+          logger.info({
+            msg: 'User already notified of limit today, skipping message',
+            jobId: job.id,
+            userNumber,
           });
         }
       }

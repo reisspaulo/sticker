@@ -1017,7 +1017,69 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         currentDailyCount,
         dailyStickerLimit: userLimits.daily_sticker_limit,
         hasReachedLimit,
+        abTestGroup: user.ab_test_group,
       });
+
+      // A/B Test: Handle limit reached based on test group
+      if (hasReachedLimit) {
+        if (user.ab_test_group === 'control') {
+          // CONTROL GROUP: Block completely, no pending stickers
+          fastify.log.info({
+            msg: 'User reached limit - CONTROL group - blocking',
+            userNumber,
+            abTestGroup: 'control',
+          });
+
+          // Send limit message (will be sent by worker, but we return early)
+          const { sendLimitReachedMessage } = await import('../services/messageService');
+          await sendLimitReachedMessage(userNumber, userName, 0);
+
+          return reply.status(200).send({
+            status: 'blocked',
+            reason: 'daily_limit_reached_control',
+            abTestGroup: 'control',
+            currentDailyCount,
+            dailyLimit: userLimits.daily_sticker_limit,
+          });
+        } else {
+          // BONUS GROUP: Allow up to 2 pending stickers
+          const { getPendingStickerCount } = await import('../services/userService');
+          const pendingCount = await getPendingStickerCount(userNumber);
+
+          if (pendingCount >= 2) {
+            // Already has 2 pending - block
+            fastify.log.info({
+              msg: 'User reached limit - BONUS group - max pending reached',
+              userNumber,
+              abTestGroup: 'bonus',
+              pendingCount,
+            });
+
+            const { sendText } = await import('../services/evolutionApi');
+            await sendText(
+              userNumber,
+              `❌ *Limite de Figurinhas Guardadas*\n\nVocê já tem *2 figurinhas* guardadas para amanhã!\n\n💎 Faça upgrade para criar mais agora.`
+            );
+
+            return reply.status(200).send({
+              status: 'blocked',
+              reason: 'max_pending_reached',
+              abTestGroup: 'bonus',
+              pendingCount: 2,
+              currentDailyCount,
+              dailyLimit: userLimits.daily_sticker_limit,
+            });
+          }
+
+          // Has less than 2 pending - allow and save as pending
+          fastify.log.info({
+            msg: 'User reached limit - BONUS group - saving as pending',
+            userNumber,
+            abTestGroup: 'bonus',
+            pendingCount,
+          });
+        }
+      }
 
       // Message is valid - create job data for images/GIFs
       const jobData: ProcessStickerJobData = {

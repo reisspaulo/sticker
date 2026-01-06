@@ -459,14 +459,12 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
         videoAlreadySent = true;
         existingDownloadId = existingDownload.id;
       } else {
-        logger.info({ msg: 'Sending video to user', jobId: job.id });
+        logger.info({ msg: 'Sending video to user (silently)', jobId: job.id });
 
-        const caption = `🐦 Vídeo do Twitter baixado com sucesso!`;
-
-        await sendVideo(userNumber, url, caption);
+        await sendVideo(userNumber, url);
 
         logger.info({
-          msg: 'Video sent to user successfully',
+          msg: 'Video sent to user successfully (silent)',
           jobId: job.id,
           userNumber,
         });
@@ -778,12 +776,6 @@ const convertTwitterStickerWorker = new Worker<ConvertTwitterToStickerJobData>(
           updated_at: new Date().toISOString(),
         })
         .eq('id', downloadId);
-
-      // Step 8: Send success message
-      await sendText(
-        userNumber,
-        `✅ *Figurinha criada com sucesso!*\n\nSua figurinha animada do Twitter está pronta! 🎨`
-      );
 
       const totalTime = Date.now() - startTime;
 

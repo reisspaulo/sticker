@@ -273,12 +273,6 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             userName,
           });
 
-          // Send immediate feedback
-          await sendText(
-            userNumber,
-            `🎨 *Processando conversão...*\n\nEstou transformando o vídeo em uma figurinha animada!\n\nAguarde alguns segundos... ⏳`
-          );
-
           return reply.status(200).send({ status: 'conversion_started', downloadId });
         }
 

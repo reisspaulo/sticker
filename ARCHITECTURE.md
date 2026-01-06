@@ -639,6 +639,81 @@ Mais dúvidas? Envie sua pergunta que respondo!
 
 ---
 
+### **Edição de Sticker - Botões** ✨
+
+**Após criação de sticker:**
+```
+🎨 *Gostou da figurinha?*
+
+Quer fazer alguma edição?
+
+[BOTÃO: 🧹 Remover Bordas]
+[BOTÃO: ✨ Remover Fundo]
+[BOTÃO: ✅ Está perfeita!]
+
+Edições não contam no limite
+```
+**Arquivo:** `src/services/menuService.ts:564-602`
+
+---
+
+### **Edição de Sticker - Processamento**
+
+**Removendo bordas:**
+```
+🧹 *Removendo bordas...*
+
+✨ Estou limpando as bordas brancas da sua figurinha!
+
+Aguarde alguns segundos... ⏳
+```
+
+**Removendo fundo:**
+```
+✨ *Removendo fundo...*
+
+🎨 Estou criando uma versão sem fundo da sua imagem!
+
+Aguarde alguns segundos... ⏳
+```
+
+**Sticker perfeita (confirmação):**
+```
+✅ *Ótimo!*
+
+🎁 Você tem *{remaining} figurinha{s} restante{s}* hoje.
+
+Envie outra imagem quando quiser! 🎨
+```
+
+**Arquivo:** `src/routes/webhook.ts:508-663`
+
+---
+
+### **Edição de Sticker - Erro/Expiração**
+
+**Contexto expirado (após 10 minutos):**
+```
+❌ *Contexto expirado*
+
+Essa edição não está mais disponível.
+
+Envie uma nova imagem para criar outra figurinha!
+```
+
+**Erro no processamento:**
+```
+❌ *Erro ao remover {tipo}*
+
+Houve um problema ao processar sua imagem.
+
+Por favor, tente novamente ou envie outra imagem.
+```
+
+**Arquivo:** `src/routes/webhook.ts:514-517`, `src/worker.ts:1203-1218`
+
+---
+
 ## 🎛️ Listas e Botões Interativos
 
 ### **Lista 1: Planos Disponíveis**
@@ -861,6 +936,113 @@ Mais dúvidas? Envie sua pergunta que respondo!
 
 ---
 
+### **Botões: Edição de Sticker** ✨
+
+**Trigger:** Após criação bem-sucedida de sticker (imagem ou GIF)
+
+**Estrutura Avisa API:**
+```typescript
+{
+  number: "5511946304133",
+  title: "🎨 *Gostou da figurinha?*",
+  desc: "Quer fazer alguma edição?",
+  footer: "Edições não contam no limite",
+  buttons: [
+    {
+      id: "button_remove_borders",
+      text: "🧹 Remover Bordas"
+    },
+    {
+      id: "button_remove_background",
+      text: "✨ Remover Fundo"
+    },
+    {
+      id: "button_sticker_perfect",
+      text: "✅ Está perfeita!"
+    }
+  ]
+}
+```
+
+**Arquivo:** `src/services/menuService.ts:564-602`
+
+**Webhook Retorno (Evolution API):**
+```json
+{
+  "event": "messages.upsert",
+  "data": {
+    "message": {
+      "buttonsResponseMessage": {
+        "selectedButtonId": "button_remove_borders"
+      }
+    }
+  }
+}
+```
+
+**Fluxo Completo:**
+
+```
+1️⃣ Usuário envia imagem
+   → Backend valida e adiciona job process-sticker
+   → Worker processa imagem
+
+2️⃣ Worker cria sticker:
+   → Upload para Supabase Storage
+   → Envia sticker para usuário (Evolution API)
+   → Salva contexto no Redis (awaiting_sticker_edit)
+   → Envia botões de edição (Avisa API)
+
+3️⃣ Opção A: Usuário clica "🧹 Remover Bordas"
+   → Backend detecta button_remove_borders
+   → Adiciona job na fila cleanup-sticker (PATH B)
+   → Envia "🧹 Removendo bordas..."
+   → Worker baixa sticker existente
+   → Remove bordas brancas com rembg
+   → Envia novo sticker sem bordas
+
+4️⃣ Opção B: Usuário clica "✨ Remover Fundo"
+   → Backend detecta button_remove_background
+   → Adiciona job na fila cleanup-sticker (PATH A)
+   → Envia "✨ Removendo fundo..."
+   → Worker baixa IMAGEM ORIGINAL (via messageKey)
+   → Remove fundo completamente com rembg
+   → Cria novo sticker sem fundo
+
+5️⃣ Opção C: Usuário clica "✅ Está perfeita!"
+   → Backend limpa contexto
+   → Envia mensagem de confirmação com limite restante
+   → "✅ Ótimo! Você tem X figurinhas restantes hoje."
+```
+
+**Diferença entre PATH A e PATH B:**
+
+- **PATH A** (Remove Background):
+  - Baixa imagem ORIGINAL do usuário
+  - Remove fundo completamente
+  - Cria novo sticker do zero
+  - Usa campo `messageType` para identificar tipo original
+
+- **PATH B** (Remove Borders):
+  - Baixa sticker JÁ CRIADO
+  - Remove apenas bordas brancas
+  - Preserva transparência existente
+  - Não usa `messageType`
+
+**Características:**
+- ✅ Não conta no limite diário
+- ✅ Contexto expira em 10 minutos
+- ✅ Marca `cleanup_feature_used` no primeiro uso
+- ✅ Processamento CPU via rembg[cpu,cli]
+- ✅ Tempo médio: 10-30 segundos
+
+**Arquivos:**
+- Handler: `src/routes/webhook.ts:508-663`
+- Worker: `src/worker.ts:973-1221`
+- Botões: `src/services/menuService.ts:564-602`
+
+---
+
 ## 🔧 Detalhamento Técnico
 
 ### **Mapeamento API por Tipo de Mensagem**
@@ -909,14 +1091,24 @@ Mais dúvidas? Envie sua pergunta que respondo!
 ```typescript
 type ConversationState =
   | 'awaiting_payment_method'  // Após selecionar plano
+  | 'awaiting_sticker_edit'    // Após criar sticker, aguardando edição
   | 'none'                     // Estado padrão
 
 interface ConversationContext {
   user_number: string;
   state: ConversationState;
   metadata: {
+    // Metadata para pagamento
     selected_plan?: 'premium' | 'ultra';
     payment_link?: string;
+
+    // Metadata para edição de sticker
+    sticker_url?: string;           // URL do sticker criado
+    sticker_path?: string;          // Path do sticker no storage
+    message_key?: MessageKey;       // MessageKey original para download
+    message_type?: 'image' | 'gif'; // Tipo da mídia original
+    tipo?: 'estatico' | 'animado';  // Tipo do sticker criado
+
     timestamp?: string;
   };
   created_at: string;
@@ -959,12 +1151,21 @@ context:5511946304133 = {
 - Envia vídeo para usuário
 - Envia botões de conversão
 
-**Queue: convert-twitter-sticker** (NOVO ✨)
+**Queue: convert-twitter-sticker**
 - Converte vídeos Twitter em figurinhas
 - Busca vídeo do Storage pelo download_id
 - Processa com FFmpeg (auto-trim, resize)
 - Verifica limite de Sticker (separado do Twitter!)
 - Envia figurinha animada
+
+**Queue: cleanup-sticker** ✨
+- Remove bordas brancas de stickers (PATH B)
+- Remove fundo de imagens originais (PATH A)
+- Usa rembg com modelo U²-Net AI
+- Processa com ONNX Runtime CPU
+- Não conta no limite diário
+- PATH A: Se `messageType` presente → remove fundo da imagem original
+- PATH B: Se `messageType` ausente → remove bordas do sticker criado
 
 **Queue: activate-pix-subscription**
 - Aguarda 5 minutos (delay)
@@ -1110,6 +1311,46 @@ Preciso enviar mensagem ao usuário
 
 ---
 
+**Cenário 2:** Paulo quer remover o fundo de uma foto ✨
+
+```
+1️⃣ Paulo envia uma foto
+   → Evolution API recebe
+   → Backend adiciona job process-sticker
+   → Worker processa imagem
+   → Evolution API envia STICKER
+   → Avisa API envia BOTÕES de edição
+   → Paulo vê 3 opções: Remover Bordas, Remover Fundo, Está Perfeita
+
+2️⃣ Paulo clica: "✨ Remover Fundo"
+   → Evolution API envia webhook (buttonsResponseMessage)
+   → Backend processa (selectedButtonId: "button_remove_background")
+   → Salva contexto: awaiting_sticker_edit
+   → Adiciona job cleanup-sticker (PATH A)
+   → Evolution API envia TEXTO: "✨ Removendo fundo..."
+
+3️⃣ Worker processa remoção de fundo:
+   → Busca contexto no Redis (messageKey, messageType)
+   → Baixa IMAGEM ORIGINAL via Evolution API
+   → Salva em /tmp/bg-input-{id}.jpg
+   → Executa: rembg i input.jpg output.png
+   → Modelo U²-Net remove fundo (10-30s)
+   → Converte para WebP
+   → Upload para Supabase Storage
+   → Evolution API envia NOVO STICKER (sem fundo)
+   → Paulo recebe figurinha sem fundo ✅
+
+4️⃣ Paulo envia outra imagem
+   → Mesmo fluxo, mas agora clica "🧹 Remover Bordas"
+   → Worker processa (PATH B):
+     → Baixa STICKER JÁ CRIADO
+     → Remove apenas bordas brancas
+     → Preserva transparência existente
+   → Paulo recebe sticker limpo ✅
+```
+
+---
+
 ## 🔐 Segurança e Validações
 
 ### **Validação de Webhooks**
@@ -1193,7 +1434,20 @@ logMenuInteraction(userNumber, 'pix_payment_confirmed');
 - Redis: Docker Compose
 - PostgreSQL: Docker Compose
 
-**IMPORTANTE:** Nunca rodar local e VPS ao mesmo tempo com mesma conta WhatsApp!
+**Dependências Docker:**
+- Base: `node:20-slim` (Debian)
+- FFmpeg: Processamento de vídeos e GIFs
+- Python 3: Runtime para rembg
+- pip3: Gerenciador de pacotes Python
+- rembg[cpu,cli]: Remoção de fundo com IA
+  - ONNX Runtime CPU: Backend para inferência
+  - U²-Net Model: Modelo pré-treinado (auto-download)
+  - Cache: `/home/nodejs/.u2net`
+
+**IMPORTANTE:**
+- Nunca rodar local e VPS ao mesmo tempo com mesma conta WhatsApp!
+- Modelos AI são baixados durante o build (~200MB)
+- Primeira execução do rembg é mais rápida (modelos em cache)
 
 ---
 
@@ -1222,22 +1476,32 @@ logMenuInteraction(userNumber, 'pix_payment_confirmed');
 - [ ] Stripe configurado (webhooks)
 - [ ] Workers processando jobs
 - [ ] Listas interativas funcionando
-- [ ] Botões interativos funcionando (PIX, Twitter)
+- [ ] Botões interativos funcionando (PIX, Twitter, Edição)
 - [ ] Pagamentos PIX funcionando
 - [ ] Pagamentos Stripe funcionando
 - [ ] Ativação automática de assinaturas
 - [ ] Envio de stickers funcionando
 - [ ] Download de Twitter funcionando
 - [ ] Conversão Twitter → Sticker funcionando
+- [ ] Edição de stickers funcionando (Remove Bordas)
+- [ ] Edição de stickers funcionando (Remove Fundo)
+- [ ] rembg instalado com ONNX Runtime CPU
+- [ ] Modelos AI pré-baixados no Docker
 
 ---
 
-**Última atualização:** 05/01/2026
-**Versão:** 1.1.0
+**Última atualização:** 06/01/2026
+**Versão:** 1.2.0
 
 **Mudanças nesta versão:**
-- ✅ Removidas referências a "marca d'água" (feature descontinuada)
-- ✅ Adicionados botões de conversão Twitter → Sticker
-- ✅ Documentado fluxo completo de conversão interativa
-- ✅ Adicionada fila `convert-twitter-sticker`
-- ✅ Mensagens simplificadas (sem stats técnicos)
+- ✅ Adicionada funcionalidade de edição de stickers
+- ✅ Implementado botão "🧹 Remover Bordas" (remove bordas brancas)
+- ✅ Implementado botão "✨ Remover Fundo" (remove fundo da imagem original)
+- ✅ Implementado botão "✅ Está perfeita!" (confirmação sem edição)
+- ✅ Adicionado estado `awaiting_sticker_edit` no ConversationContext
+- ✅ Adicionada fila `cleanup-sticker` com suporte a PATH A e PATH B
+- ✅ Integrado rembg com ONNX Runtime CPU para processamento de IA
+- ✅ Pré-download de modelos U²-Net durante build do Docker
+- ✅ Edições não contam no limite diário
+- ✅ Contexto de edição expira em 10 minutos
+- ✅ Mensagens de feedback durante processamento

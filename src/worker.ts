@@ -810,6 +810,224 @@ const convertTwitterStickerWorker = new Worker<ConvertTwitterToStickerJobData>(
   }
 );
 
+/**
+ * Send all pending stickers (those marked as 'pendente' due to daily limit)
+ * Includes comprehensive logging to pending_sticker_sends table for full traceability
+ *
+ * @returns Object with statistics about sent, failed, and total stickers processed
+ */
+async function sendPendingStickerWorker(): Promise<{
+  totalProcessed: number;
+  sent: number;
+  failed: number;
+  errors: Array<{ stickerId: string; error: string }>;
+}> {
+  const startTime = Date.now();
+  const workerId = process.env.HOSTNAME || process.env.CONTAINER_ID || 'local';
+
+  logger.info({
+    msg: '[PENDING-WORKER] Starting pending sticker worker',
+    workerId,
+  });
+
+  let totalProcessed = 0;
+  let sent = 0;
+  let failed = 0;
+  const errors: Array<{ stickerId: string; error: string }> = [];
+
+  try {
+    // Step 1: Query all pending stickers
+    const { data: pendingStickers, error: queryError } = await supabase
+      .from('stickers')
+      .select('id, user_id, user_number, url, tipo, created_at')
+      .eq('status', 'pendente')
+      .order('created_at', { ascending: true }); // Send oldest first (FIFO)
+
+    if (queryError) {
+      logger.error({
+        msg: '[PENDING-WORKER] Error querying pending stickers',
+        error: queryError,
+      });
+      throw queryError;
+    }
+
+    if (!pendingStickers || pendingStickers.length === 0) {
+      logger.info({
+        msg: '[PENDING-WORKER] No pending stickers to send',
+        workerId,
+      });
+      return { totalProcessed: 0, sent: 0, failed: 0, errors: [] };
+    }
+
+    logger.info({
+      msg: '[PENDING-WORKER] Found pending stickers',
+      count: pendingStickers.length,
+      workerId,
+    });
+
+    // Step 2: Process each pending sticker
+    for (const sticker of pendingStickers) {
+      totalProcessed++;
+      const stickerStartTime = Date.now();
+
+      logger.info({
+        msg: '[PENDING-WORKER] Processing pending sticker',
+        stickerId: sticker.id,
+        userNumber: sticker.user_number,
+        createdAt: sticker.created_at,
+        position: `${totalProcessed}/${pendingStickers.length}`,
+      });
+
+      try {
+        // Get attempt number (check if we've tried this sticker before)
+        const { data: previousAttempts } = await supabase
+          .from('pending_sticker_sends')
+          .select('attempt_number')
+          .eq('sticker_id', sticker.id)
+          .order('attempt_number', { ascending: false })
+          .limit(1);
+
+        const attemptNumber = previousAttempts && previousAttempts.length > 0
+          ? (previousAttempts[0].attempt_number || 0) + 1
+          : 1;
+
+        // Create log entry BEFORE sending (status: 'attempting')
+        const { data: logEntry, error: logError } = await supabase
+          .from('pending_sticker_sends')
+          .insert({
+            sticker_id: sticker.id,
+            user_id: sticker.user_id,
+            user_number: sticker.user_number,
+            attempt_number: attemptNumber,
+            status: 'attempting',
+            worker_id: workerId,
+          })
+          .select()
+          .single();
+
+        if (logError) {
+          logger.error({
+            msg: '[PENDING-WORKER] Error creating log entry',
+            stickerId: sticker.id,
+            error: logError,
+          });
+          // Continue anyway - logging failure shouldn't block sending
+        }
+
+        // Attempt to send sticker
+        await sendSticker(sticker.user_number, sticker.url);
+
+        const processingTimeMs = Date.now() - stickerStartTime;
+
+        // Success! Update sticker status to 'enviado'
+        const { error: updateStickerError } = await supabase
+          .from('stickers')
+          .update({ status: 'enviado' })
+          .eq('id', sticker.id);
+
+        if (updateStickerError) {
+          logger.error({
+            msg: '[PENDING-WORKER] Error updating sticker status',
+            stickerId: sticker.id,
+            error: updateStickerError,
+          });
+        }
+
+        // Update log entry to 'sent'
+        if (logEntry) {
+          await supabase
+            .from('pending_sticker_sends')
+            .update({
+              status: 'sent',
+              sent_at: new Date().toISOString(),
+              processing_time_ms: processingTimeMs,
+            })
+            .eq('id', logEntry.id);
+        }
+
+        sent++;
+
+        logger.info({
+          msg: '[PENDING-WORKER] Sticker sent successfully',
+          stickerId: sticker.id,
+          userNumber: sticker.user_number,
+          attemptNumber,
+          processingTimeMs,
+        });
+
+      } catch (error) {
+        const processingTimeMs = Date.now() - stickerStartTime;
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorCode = (error as any)?.code || 'UNKNOWN';
+
+        failed++;
+        errors.push({
+          stickerId: sticker.id,
+          error: errorMessage,
+        });
+
+        logger.error({
+          msg: '[PENDING-WORKER] Failed to send sticker',
+          stickerId: sticker.id,
+          userNumber: sticker.user_number,
+          error: errorMessage,
+          errorCode,
+        });
+
+        // Update log entry to 'failed'
+        const { data: failedLogEntry } = await supabase
+          .from('pending_sticker_sends')
+          .select('id')
+          .eq('sticker_id', sticker.id)
+          .eq('status', 'attempting')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (failedLogEntry) {
+          await supabase
+            .from('pending_sticker_sends')
+            .update({
+              status: 'failed',
+              error_message: errorMessage,
+              error_code: errorCode,
+              processing_time_ms: processingTimeMs,
+            })
+            .eq('id', failedLogEntry.id);
+        }
+
+        // Don't throw - continue with other stickers
+      }
+
+      // Small delay between sends to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    const totalTimeMs = Date.now() - startTime;
+
+    logger.info({
+      msg: '[PENDING-WORKER] Pending sticker worker completed',
+      workerId,
+      totalProcessed,
+      sent,
+      failed,
+      totalTimeMs,
+      successRate: totalProcessed > 0 ? `${((sent / totalProcessed) * 100).toFixed(1)}%` : '0%',
+    });
+
+    return { totalProcessed, sent, failed, errors };
+
+  } catch (error) {
+    logger.error({
+      msg: '[PENDING-WORKER] Fatal error in pending sticker worker',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      workerId,
+    });
+
+    throw error;
+  }
+}
+
 // Scheduled Jobs Worker
 const scheduledJobsWorker = new Worker<ScheduledJob>(
   'scheduled-jobs',
@@ -822,16 +1040,48 @@ const scheduledJobsWorker = new Worker<ScheduledJob>(
       type,
     });
 
-    // TODO: Sprint 6 - Implement scheduled jobs
     switch (type) {
       case 'reset-counters':
         // Reset daily_count for all users
         logger.info('Reset daily counters (TODO - Sprint 6)');
         break;
+
       case 'send-pending':
-        // Send pending stickers
-        logger.info('Send pending stickers (TODO - Sprint 6)');
-        break;
+        // Send pending stickers with comprehensive logging
+        try {
+          const result = await sendPendingStickerWorker();
+
+          logger.info({
+            msg: '[SCHEDULED-JOB] send-pending completed',
+            jobId: job.id,
+            result,
+          });
+
+          return {
+            success: true,
+            type,
+            stats: result,
+          };
+        } catch (error) {
+          logger.error({
+            msg: '[SCHEDULED-JOB] send-pending failed',
+            jobId: job.id,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+
+          // Alert on failure
+          const { alertWorkerFailure } = await import('./services/alertService');
+          await alertWorkerFailure({
+            service: 'scheduled-jobs',
+            errorType: 'send-pending',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            additionalInfo: {
+              jobId: job.id,
+            },
+          });
+
+          throw error;
+        }
     }
 
     return { success: true, type };

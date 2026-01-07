@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import logger from '../config/logger';
+import { logMenuSent, logPixButtonSent } from './usageLogs';
 
 // Avisa API configuration
 const avisaApiUrl = process.env.AVISA_API_URL || 'https://www.avisaapi.com.br/api';
@@ -113,8 +114,35 @@ export async function sendButtons(request: SendButtonsRequest): Promise<AvisaApi
       response: response.data,
     });
 
+    // Log menu sent to database
+    let menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other' = 'other';
+    if (request.title.includes('Limite')) menuType = 'limit_reached';
+    else if (request.title.includes('Upgrade') || request.title.includes('upgrade')) menuType = 'upgrade';
+    else if (request.title.includes('Plano') || request.title.includes('plano')) menuType = 'plans';
+    else if (request.title.includes('Bem-vindo') || request.title.includes('bem-vindo')) menuType = 'welcome';
+    else if (request.title.includes('PIX') || request.title.includes('pix')) menuType = 'pix_options';
+
+    await logMenuSent({
+      userNumber: sanitizedNumber,
+      menuType,
+      buttonCount: request.buttons.length,
+      title: request.title,
+      success: true,
+    });
+
     return response.data;
   } catch (error) {
+    // Log failed menu send to database
+    const sanitizedNumber = request.number.replace(/\D/g, '');
+    await logMenuSent({
+      userNumber: sanitizedNumber,
+      menuType: 'other',
+      buttonCount: request.buttons?.length || 0,
+      title: request.title,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    }).catch(() => {}); // Don't fail if logging fails
+
     if (axios.isAxiosError(error)) {
       logger.error({
         msg: 'Avisa API error (sendButtons)',
@@ -171,8 +199,29 @@ export async function sendPixButton(request: SendPixButtonRequest): Promise<Avis
       response: response.data,
     });
 
+    // Log PIX button sent to database
+    // Note: We don't have plan/amount info here, so we use defaults
+    await logPixButtonSent({
+      userNumber: sanitizedNumber,
+      plan: 'premium', // Default, actual plan determined by context
+      amount: 0, // Amount not available at this level
+      pixCode: request.pix,
+      success: true,
+    });
+
     return response.data;
   } catch (error) {
+    // Log failed PIX button send to database
+    const sanitizedNumber = request.number.replace(/\D/g, '');
+    await logPixButtonSent({
+      userNumber: sanitizedNumber,
+      plan: 'premium',
+      amount: 0,
+      pixCode: request.pix,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    }).catch(() => {}); // Don't fail if logging fails
+
     if (axios.isAxiosError(error)) {
       logger.error({
         msg: 'Avisa API error (sendPixButton)',
@@ -243,8 +292,34 @@ export async function sendList(request: SendListRequest): Promise<AvisaApiRespon
       response: response.data,
     });
 
+    // Log menu sent to database (lists are also menus)
+    let menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other' = 'other';
+    const buttonTextLower = request.buttontext.toLowerCase();
+    const descLower = (request.desc || '').toLowerCase();
+    if (buttonTextLower.includes('plano') || descLower.includes('plano')) menuType = 'plans';
+    else if (buttonTextLower.includes('pagamento') || descLower.includes('pagamento')) menuType = 'pix_options';
+
+    await logMenuSent({
+      userNumber: sanitizedNumber,
+      menuType,
+      buttonCount: request.list.length,
+      title: request.buttontext,
+      success: true,
+    });
+
     return response.data;
   } catch (error) {
+    // Log failed list send to database
+    const sanitizedNumber = request.number.replace(/\D/g, '');
+    await logMenuSent({
+      userNumber: sanitizedNumber,
+      menuType: 'other',
+      buttonCount: request.list?.length || 0,
+      title: request.buttontext,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    }).catch(() => {}); // Don't fail if logging fails
+
     if (axios.isAxiosError(error)) {
       logger.error({
         msg: 'Avisa API error (sendList)',

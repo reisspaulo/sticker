@@ -9,7 +9,7 @@ import { getTwitterDownloadCount } from '../services/twitterLimits';
 import { getUserLimits } from '../services/subscriptionService';
 import { sendWelcomeMessage } from '../services/messageService';
 import { sendText, sendVideo } from '../services/evolutionApi';
-import { logWebhookReceived, logMessageReceived, logTextMessageReceived, logError } from '../services/usageLogs';
+import { logWebhookReceived, logMessageReceived, logTextMessageReceived, logError, logButtonClicked } from '../services/usageLogs';
 import { extractTweetInfo } from '../utils/urlDetector';
 import {
   getVideoSelectionContext,
@@ -185,6 +185,25 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           userNumber,
           type: interactive.type,
           id: interactive.id,
+        });
+
+        // Log button click to database
+        let buttonText = interactive.id;
+        if ('displayText' in interactive) {
+          buttonText = interactive.displayText;
+        } else if ('title' in interactive) {
+          buttonText = interactive.title;
+        }
+
+        await logButtonClicked({
+          userNumber,
+          userName,
+          buttonId: interactive.id,
+          buttonText: buttonText || interactive.id,
+          menuType: interactive.type,
+          context: {
+            detected_type: detectedType,
+          },
         });
 
         // Handle PIX payment confirmation button

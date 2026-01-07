@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import logger from '../config/logger';
+import { logStickerSent, logMessageSent } from './usageLogs';
 
 // Evolution API configuration
 const evolutionApiUrl = process.env.EVOLUTION_API_URL;
@@ -61,7 +62,25 @@ export async function sendSticker(userNumber: string, stickerUrl: string): Promi
       messageId: response.data.key?.id,
       status: response.data.status,
     });
+
+    // Log sticker sent to database
+    await logStickerSent({
+      userNumber: sanitizedNumber,
+      stickerPath: stickerUrl,
+      tipo: stickerUrl.includes('animado') ? 'animado' : 'estatico',
+      success: true,
+    });
   } catch (error) {
+    // Log failed sticker send to database
+    const sanitizedNumber = userNumber.replace('@s.whatsapp.net', '');
+    await logStickerSent({
+      userNumber: sanitizedNumber,
+      stickerPath: stickerUrl,
+      tipo: stickerUrl.includes('animado') ? 'animado' : 'estatico',
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    }).catch(() => {}); // Don't fail if logging fails
+
     if (axios.isAxiosError(error)) {
       logger.error({
         msg: 'Evolution API error',
@@ -110,7 +129,33 @@ export async function sendText(userNumber: string, text: string): Promise<void> 
       remoteJid,
       messageId: response.data.key?.id,
     });
+
+    // Log message sent to database (determine type from content)
+    let messageType: 'text' | 'welcome' | 'limit' | 'error' | 'help' | 'plans' | 'status' | 'other' = 'text';
+    if (text.includes('Bem-vindo') || text.includes('bem-vindo')) messageType = 'welcome';
+    else if (text.includes('Limite') || text.includes('limite')) messageType = 'limit';
+    else if (text.includes('Erro') || text.includes('❌')) messageType = 'error';
+    else if (text.includes('Ajuda') || text.includes('ajuda')) messageType = 'help';
+    else if (text.includes('Plano') || text.includes('plano')) messageType = 'plans';
+    else if (text.includes('Status') || text.includes('Assinatura')) messageType = 'status';
+
+    await logMessageSent({
+      userNumber: sanitizedNumber,
+      messageType,
+      messagePreview: text.substring(0, 100),
+      success: true,
+    });
   } catch (error) {
+    // Log failed message send to database
+    const sanitizedNumber = userNumber.replace('@s.whatsapp.net', '');
+    await logMessageSent({
+      userNumber: sanitizedNumber,
+      messageType: 'other',
+      messagePreview: text.substring(0, 100),
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    }).catch(() => {}); // Don't fail if logging fails
+
     if (axios.isAxiosError(error)) {
       logger.error({
         msg: 'Evolution API error',

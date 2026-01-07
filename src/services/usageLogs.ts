@@ -18,7 +18,11 @@ export type UsageAction =
   | 'twitter_conversion_started'
   | 'twitter_conversion_completed'
   | 'twitter_conversion_failed'
-  | 'twitter_limit_reached';
+  | 'twitter_limit_reached'
+  | 'button_clicked'
+  | 'message_sent'
+  | 'menu_sent'
+  | 'pix_button_sent';
 
 interface LogUsageParams {
   userNumber: string;
@@ -374,6 +378,126 @@ export async function logTextMessageReceived(params: {
       text_content: params.textContent,
       is_command: params.isCommand || false,
       command_type: params.commandType,
+    },
+  });
+}
+
+// ========================================
+// BUTTON & INTERACTION LOGGING
+// ========================================
+
+/**
+ * Log when user clicks a button (interactive buttons, quick replies, etc.)
+ */
+export async function logButtonClicked(params: {
+  userNumber: string;
+  userName?: string;
+  buttonId: string;
+  buttonText: string;
+  menuType?: string;
+  context?: Record<string, any>;
+}): Promise<void> {
+  await logUsage({
+    userNumber: params.userNumber,
+    action: 'button_clicked',
+    details: {
+      user_name: params.userName,
+      button_id: params.buttonId,
+      button_text: params.buttonText,
+      menu_type: params.menuType,
+      context: params.context,
+    },
+  });
+}
+
+/**
+ * Log when a sticker is successfully sent to user
+ */
+export async function logStickerSent(params: {
+  userNumber: string;
+  stickerPath: string;
+  tipo: 'estatico' | 'animado';
+  success: boolean;
+  errorMessage?: string;
+}): Promise<void> {
+  await logUsage({
+    userNumber: params.userNumber,
+    action: 'sticker_sent',
+    details: {
+      sticker_path: params.stickerPath,
+      tipo: params.tipo,
+      success: params.success,
+      error_message: params.errorMessage,
+    },
+  });
+}
+
+/**
+ * Log when a text message is sent to user
+ */
+export async function logMessageSent(params: {
+  userNumber: string;
+  messageType: 'text' | 'welcome' | 'limit' | 'error' | 'help' | 'plans' | 'status' | 'other';
+  messagePreview?: string;
+  success: boolean;
+  errorMessage?: string;
+}): Promise<void> {
+  await logUsage({
+    userNumber: params.userNumber,
+    action: 'message_sent',
+    details: {
+      message_type: params.messageType,
+      message_preview: params.messagePreview?.substring(0, 100),
+      success: params.success,
+      error_message: params.errorMessage,
+    },
+  });
+}
+
+/**
+ * Log when a menu (interactive buttons/list) is sent to user
+ */
+export async function logMenuSent(params: {
+  userNumber: string;
+  menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other';
+  buttonCount: number;
+  title?: string;
+  success: boolean;
+  errorMessage?: string;
+}): Promise<void> {
+  await logUsage({
+    userNumber: params.userNumber,
+    action: 'menu_sent',
+    details: {
+      menu_type: params.menuType,
+      button_count: params.buttonCount,
+      title: params.title,
+      success: params.success,
+      error_message: params.errorMessage,
+    },
+  });
+}
+
+/**
+ * Log when PIX payment button is sent to user
+ */
+export async function logPixButtonSent(params: {
+  userNumber: string;
+  plan: 'premium' | 'ultra';
+  amount: number;
+  pixCode?: string;
+  success: boolean;
+  errorMessage?: string;
+}): Promise<void> {
+  await logUsage({
+    userNumber: params.userNumber,
+    action: 'pix_button_sent',
+    details: {
+      plan: params.plan,
+      amount: params.amount,
+      pix_code_preview: params.pixCode?.substring(0, 20),
+      success: params.success,
+      error_message: params.errorMessage,
     },
   });
 }

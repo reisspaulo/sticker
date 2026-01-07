@@ -524,6 +524,11 @@ export async function sendPaymentMethodList(
 
 /**
  * Send PIX payment instructions with confirmation button via Avisa API
+ *
+ * Flow:
+ * 1. Send instructions message (text)
+ * 2. Send PIX key via Avisa API /buttons/pix (easy copy)
+ * 3. Send confirmation button
  */
 export async function sendPixPaymentWithButton(
   userNumber: string,
@@ -534,11 +539,33 @@ export async function sendPixPaymentWithButton(
   const price = plan === 'premium' ? 'R$ 5,00' : 'R$ 9,90';
 
   try {
-    // First send the PIX payment message with instructions
+    // Import sendText from evolutionApi
+    const { sendText } = await import('./evolutionApi');
+    const { sendPixButton } = await import('./avisaApi');
+
+    // Message 1: Instructions
+    await sendText(
+      userNumber,
+      `💰 *Pagamento via PIX*\n\n📋 *Plano:* ${planName}\n💵 *Valor:* ${price}\n\n📝 *COMO PAGAR:*\n\n1️⃣ Copie a chave PIX que vou enviar agora\n2️⃣ Abra seu app de pagamento\n3️⃣ Cole a chave e pague *${price}*\n4️⃣ Após pagar, clique em "✅ Já Paguei"\n\n⏱️ *Importante:*\n• Você tem 30 minutos para pagar\n• Ativação em até 5 minutos após confirmação\n\nEnviando chave PIX... ⬇️`
+    );
+
+    // Small delay to ensure messages arrive in order
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Message 2: PIX key via Avisa API (easy to copy)
+    await sendPixButton({
+      number: userNumber,
+      pix: pixKey,
+    });
+
+    // Small delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Message 3: Confirmation button
     await sendButtons({
       number: userNumber,
-      title: '💰 *Pagamento via PIX*',
-      desc: `📋 *Plano:* ${planName}\n💵 *Valor:* ${price}\n\n🔑 *Chave PIX (Aleatória):*\n\`\`\`${pixKey}\`\`\`\n\n📝 *Instruções:*\n1. Copie a chave PIX acima\n2. Abra seu app de pagamento\n3. Faça o PIX no valor exato\n4. Após pagar, clique em "Já Paguei"\n\n⏱️ Seu plano será ativado em até 5 minutos após a confirmação.\n\n⚠️ *Importante:* Você tem 30 minutos para concluir o pagamento.`,
+      title: '✅ *Pagou?*',
+      desc: 'Clique no botão abaixo após fazer o PIX:',
       footer: 'Pagamento seguro',
       buttons: [
         {
@@ -549,13 +576,14 @@ export async function sendPixPaymentWithButton(
     });
 
     logger.info({
-      msg: 'PIX payment button sent via Avisa API',
+      msg: 'PIX payment flow sent (3 messages: instructions + PIX key + button)',
       userNumber,
       plan,
+      pixKey,
     });
   } catch (error) {
     logger.error({
-      msg: 'Error sending PIX payment button',
+      msg: 'Error sending PIX payment flow',
       userNumber,
       error: error instanceof Error ? error.message : 'Unknown error',
     });

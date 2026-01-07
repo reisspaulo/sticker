@@ -1142,23 +1142,61 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             dailyLimit: limitCheck.effective_limit,
           });
         } else {
-          // BONUS GROUP: Allow up to 2 pending stickers
+          // BONUS GROUP: Check bonus availability
           const pendingCount = limitCheck.pending_count;
+          const bonusUsed = user.bonus_credits_today || 0;
+          const hasBonusAvailable = bonusUsed < 2;
 
-          if (pendingCount >= 2) {
-            // Already has 2 pending - block
-            fastify.log.info({
-              msg: 'User reached limit - BONUS group - max pending reached',
-              userNumber,
+          fastify.log.info({
+            msg: 'User reached limit - BONUS group',
+            userNumber,
+            abTestGroup: 'bonus',
+            pendingCount,
+            bonusUsed,
+            hasBonusAvailable,
+          });
+
+          // If user has bonus available, ALWAYS send menu (no notification throttle)
+          // This reminds them they can click "Usar Bônus" to get more credits
+          if (hasBonusAvailable) {
+            const { sendLimitReachedMenu } = await import('../services/menuService');
+            const currentPlan = await getUserPlan(user.id);
+
+            await sendLimitReachedMenu(userNumber, {
+              userName,
+              currentPlan,
+              dailyCount: limitCheck.daily_count,
+              dailyLimit: limitCheck.effective_limit,
+              isTwitter: false,
               abTestGroup: 'bonus',
-              pendingCount,
+              bonusCreditsUsed: bonusUsed,
             });
 
-            // Atomically check and set notification to prevent duplicate messages
+            fastify.log.info({
+              msg: 'Bonus available - menu sent with bonus button',
+              userNumber,
+              currentPlan,
+              bonusUsed,
+              bonusRemaining: 2 - bonusUsed,
+            });
+
+            return reply.status(200).send({
+              status: 'blocked',
+              reason: 'limit_reached_bonus_available',
+              abTestGroup: 'bonus',
+              bonusUsed,
+              bonusRemaining: 2 - bonusUsed,
+              currentDailyCount: limitCheck.daily_count,
+              dailyLimit: limitCheck.effective_limit,
+            });
+          }
+
+          // No bonus available - check pending stickers
+          if (pendingCount >= 2) {
+            // Already has 2 pending AND no bonus - block with notification throttle
             const wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
 
             if (!wasAlreadyNotified) {
-              // Send limit reached menu with upgrade buttons (same as control group)
               const { sendLimitReachedMenu } = await import('../services/menuService');
               const currentPlan = await getUserPlan(user.id);
 
@@ -1169,26 +1207,27 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
                 dailyLimit: limitCheck.effective_limit,
                 isTwitter: false,
                 abTestGroup: 'bonus',
-                bonusCreditsUsed: user.bonus_credits_today || 0,
+                bonusCreditsUsed: bonusUsed,
               });
 
               fastify.log.info({
-                msg: 'Max pending menu sent with buttons - BONUS group',
+                msg: 'Max pending + no bonus - menu sent once',
                 userNumber,
                 currentPlan,
               });
             } else {
               fastify.log.info({
-                msg: 'User already notified today - skipping message - BONUS group',
+                msg: 'User already notified today - skipping (no bonus left)',
                 userNumber,
               });
             }
 
             return reply.status(200).send({
               status: 'blocked',
-              reason: 'max_pending_reached',
+              reason: 'max_pending_no_bonus',
               abTestGroup: 'bonus',
               pendingCount: 2,
+              bonusUsed,
               currentDailyCount: limitCheck.daily_count,
               dailyLimit: limitCheck.effective_limit,
             });

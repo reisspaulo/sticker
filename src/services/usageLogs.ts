@@ -7,6 +7,7 @@ export type UsageAction =
   | 'limit_reached'
   | 'error'
   | 'message_received'
+  | 'text_message_received'
   | 'webhook_received'
   | 'processing_started'
   | 'processing_completed'
@@ -344,6 +345,35 @@ export async function logTwitterLimitReached(params: {
       user_name: params.userName,
       twitter_download_count: params.twitterDownloadCount,
       limit: params.limit,
+    },
+  });
+}
+
+// ========================================
+// TEXT MESSAGE LOGGING
+// ========================================
+
+/**
+ * Log text messages received from users
+ * Saves the content for analysis and debugging
+ */
+export async function logTextMessageReceived(params: {
+  userNumber: string;
+  userName?: string;
+  messageId: string;
+  textContent: string;
+  isCommand?: boolean;
+  commandType?: string;
+}): Promise<void> {
+  await logUsage({
+    userNumber: params.userNumber,
+    action: 'text_message_received',
+    details: {
+      user_name: params.userName,
+      message_id: params.messageId,
+      text_content: params.textContent,
+      is_command: params.isCommand || false,
+      command_type: params.commandType,
     },
   });
 }

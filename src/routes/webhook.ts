@@ -9,7 +9,7 @@ import { getTwitterDownloadCount } from '../services/twitterLimits';
 import { getUserLimits } from '../services/subscriptionService';
 import { sendWelcomeMessage } from '../services/messageService';
 import { sendText, sendVideo } from '../services/evolutionApi';
-import { logWebhookReceived, logMessageReceived, logError } from '../services/usageLogs';
+import { logWebhookReceived, logMessageReceived, logTextMessageReceived, logError } from '../services/usageLogs';
 import { extractTweetInfo } from '../utils/urlDetector';
 import {
   getVideoSelectionContext,
@@ -151,6 +151,24 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
       // Get or create user first for menu interactions
       const user = await getUserOrCreate(userNumber, userName);
+
+      // Log text messages for analysis and debugging
+      if (textMessage && textMessage.trim().length > 0) {
+        // Determine if it's a command
+        const commands = ['planos', 'plans', 'status', 'assinatura', 'ajuda', 'help', 'começar'];
+        const isCommand = commands.includes(normalizedText);
+        const commandType = isCommand ? normalizedText : undefined;
+
+        // Save text message to usage_logs
+        await logTextMessageReceived({
+          userNumber,
+          userName,
+          messageId: body.data.key?.id || 'unknown',
+          textContent: textMessage.substring(0, 500), // Limit to 500 chars
+          isCommand,
+          commandType,
+        });
+      }
 
       // Handle interactive message responses (buttons and lists from Avisa API)
       if (detectedType === 'button_response' || detectedType === 'list_response') {

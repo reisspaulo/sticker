@@ -1,18 +1,135 @@
 # 🚀 Guia de Mudanças Rápidas - Sticker Bot
 
-> Documentação atualizada em: 28/12/2024
+> Documentação atualizada em: 07/01/2026
 > Ambiente: Produção em https://stickers.ytem.com.br
+
+> **📚 Documentos relacionados:**
+> - [CI/CD Workflow (Deploy Automatizado)](../setup/CI-CD-WORKFLOW.md) - Como fazer deploy via git push
+> - [Deploy Manual (Emergência)](../setup/DEPLOYMENT-PROCESS.md)
+> - [Configuração do Doppler](../setup/DOPPLER-SETUP.md)
 
 ---
 
 ## 📋 Índice
 
-1. [Arquitetura em Produção](#arquitetura-em-produção)
-2. [Processo de Deploy](#processo-de-deploy)
-3. [Mudanças Rápidas Comuns](#mudanças-rápidas-comuns)
-4. [QR Code e WhatsApp](#qr-code-e-whatsapp)
-5. [Domínios e Subdomínios](#domínios-e-subdomínios)
-6. [Troubleshooting](#troubleshooting)
+1. [Como Acessar a VPS](#como-acessar-a-vps)
+2. [Arquitetura em Produção](#arquitetura-em-produção)
+3. [Processo de Deploy](#processo-de-deploy)
+4. [Mudanças Rápidas Comuns](#mudanças-rápidas-comuns)
+5. [QR Code e WhatsApp](#qr-code-e-whatsapp)
+6. [Domínios e Subdomínios](#domínios-e-subdomínios)
+7. [Troubleshooting](#troubleshooting)
+8. [Logs do Supabase](#logs-do-supabase)
+
+---
+
+## 🔐 Como Acessar a VPS
+
+### **Pré-requisitos**
+
+Antes de acessar a VPS, você precisa instalar e configurar:
+
+#### 1. Instalar Doppler CLI
+
+```bash
+# macOS
+brew install dopplerhq/cli/doppler
+
+# Linux
+curl -sLf https://cli.doppler.com/install.sh | sudo bash
+```
+
+#### 2. Instalar sshpass
+
+```bash
+# macOS (tap especial necessário)
+brew install hudochenkov/sshpass/sshpass
+
+# Linux (Ubuntu/Debian)
+sudo apt-get install sshpass
+```
+
+#### 3. Fazer login no Doppler
+
+```bash
+doppler login
+```
+
+Isso abre o navegador para autenticar. Você precisa ter acesso ao projeto **brazyl** na organização YTEM.
+
+#### 4. Criar o script vps-ssh
+
+Crie o arquivo `~/bin/vps-ssh`:
+
+```bash
+mkdir -p ~/bin
+cat > ~/bin/vps-ssh << 'EOF'
+#!/bin/bash
+# VPS SSH Wrapper - Usa Doppler para injetar credenciais
+
+set -e
+
+if ! command -v doppler &> /dev/null; then
+    echo "❌ Doppler CLI não encontrado. Instale com: brew install dopplerhq/cli/doppler"
+    exit 1
+fi
+
+VPS_HOST=$(doppler secrets get VPS_HOST --plain --config prd --project brazyl 2>/dev/null)
+VPS_USER=$(doppler secrets get VPS_USER --plain --config prd --project brazyl 2>/dev/null)
+VPS_PASSWORD=$(doppler secrets get VPS_PASSWORD --plain --config prd --project brazyl 2>/dev/null)
+
+if [ -z "$VPS_HOST" ] || [ -z "$VPS_USER" ] || [ -z "$VPS_PASSWORD" ]; then
+    echo "❌ Credenciais não encontradas no Doppler (projeto brazyl, config prd)"
+    exit 1
+fi
+
+if ! command -v sshpass &> /dev/null; then
+    echo "❌ sshpass não encontrado. Instale com: brew install hudochenkov/sshpass/sshpass"
+    exit 1
+fi
+
+if [ -z "$1" ]; then
+    echo "🔐 Conectando à VPS ${VPS_HOST}..."
+    SSHPASS="$VPS_PASSWORD" sshpass -e ssh -o StrictHostKeyChecking=no "${VPS_USER}@${VPS_HOST}"
+else
+    SSHPASS="$VPS_PASSWORD" sshpass -e ssh -o StrictHostKeyChecking=no "${VPS_USER}@${VPS_HOST}" "$@"
+fi
+EOF
+
+chmod +x ~/bin/vps-ssh
+```
+
+#### 5. Adicionar ao PATH
+
+Adicione ao seu `~/.zshrc` ou `~/.bashrc`:
+
+```bash
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+### **Usando o vps-ssh**
+
+```bash
+# Abrir shell interativo na VPS
+vps-ssh
+
+# Executar comando único
+vps-ssh "docker ps"
+
+# Ver logs do backend
+vps-ssh "docker service logs sticker_backend --tail 50"
+
+# Ver status dos serviços
+vps-ssh "docker service ls | grep sticker"
+```
+
+### **Verificar se está funcionando**
+
+```bash
+vps-ssh "echo 'Conexão OK' && hostname"
+# Deve retornar: Conexão OK + nome do servidor
+```
 
 ---
 
@@ -583,6 +700,63 @@ curl https://stickers.ytem.com.br/health | jq '.services.supabase'
 vps-ssh "docker service update --force --with-registry-auth \
   --image ghcr.io/reisspaulo/sticker-bot-backend:latest sticker_backend"
 ```
+
+---
+
+## 📊 Logs do Supabase
+
+O Supabase tem logs separados por serviço. Acesse pelo dashboard:
+
+**URL Base:** https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/logs
+
+### **Tipos de Logs**
+
+| Tipo | URL | O que mostra |
+|------|-----|--------------|
+| **API Logs** | [/logs/edge-logs](https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/logs/edge-logs) | Requisições HTTP à API REST |
+| **Postgres Logs** | [/logs/postgres-logs](https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/logs/postgres-logs) | Queries SQL, erros de banco |
+| **Auth Logs** | [/logs/auth-logs](https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/logs/auth-logs) | Login, signup, tokens |
+| **Storage Logs** | [/logs/storage-logs](https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/logs/storage-logs) | Upload/download de arquivos |
+
+### **Queries Úteis no Log Explorer**
+
+```sql
+-- Erros nas últimas 24h
+select * from edge_logs
+where status_code >= 400
+order by timestamp desc
+limit 100
+
+-- Requests lentos (>1s)
+select * from edge_logs
+where request_time > 1000
+order by timestamp desc
+
+-- Erros de insert em stickers
+select * from postgres_logs
+where error_message ilike '%stickers%'
+order by timestamp desc
+```
+
+### **Acessar via CLI (opcional)**
+
+```bash
+# Instalar Supabase CLI
+brew install supabase/tap/supabase
+
+# Login
+supabase login
+
+# Ver logs do projeto
+supabase logs --project-ref ludlztjdvwsrwlsczoje
+```
+
+### **Dicas de Debug**
+
+1. **Sticker não salva?** → Verificar Postgres Logs por erros de INSERT
+2. **Imagem não carrega?** → Verificar Storage Logs por erros de upload
+3. **API lenta?** → Verificar Edge Logs por requests com alto `request_time`
+4. **Erro 500?** → Filtrar Edge Logs por `status_code = 500`
 
 ---
 

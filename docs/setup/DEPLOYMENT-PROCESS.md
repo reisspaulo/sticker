@@ -5,6 +5,10 @@
 **VPS:** srv1007351 (69.62.100.250)
 **Arquitetura:** x86_64 (Ubuntu 22.04)
 
+> **📚 Documentos relacionados:**
+> - [CI/CD Workflow (Deploy Automatizado)](./CI-CD-WORKFLOW.md) - Método recomendado
+> - [Guia de Operações (VPS, Logs, Troubleshooting)](../operations/QUICK-CHANGES-GUIDE.md)
+
 ---
 
 ## 📋 Visão Geral

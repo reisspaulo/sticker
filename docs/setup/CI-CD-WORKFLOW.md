@@ -3,6 +3,11 @@
 **Última atualização:** 2026-01-05
 **Status:** ✅ Implementado e testado com sucesso
 
+> **📚 Documentos relacionados:**
+> - [Guia de Operações (VPS, Logs, Troubleshooting)](../operations/QUICK-CHANGES-GUIDE.md)
+> - [Deploy Manual (Emergência)](./DEPLOYMENT-PROCESS.md)
+> - [Logs do Supabase](../operations/QUICK-CHANGES-GUIDE.md#logs-do-supabase)
+
 ---
 
 ## 📋 Visão Geral

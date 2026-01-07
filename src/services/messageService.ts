@@ -61,11 +61,14 @@ export async function sendLimitReachedMessage(
     const { getUserPlan } = await import('./subscriptionService');
     const userPlan = await getUserPlan(user.id);
 
-    // First send the pending sticker confirmation
-    await sendText(
-      userNumber,
-      `📦 *Seu sticker foi salvo!*\n\nEle será enviado amanhã às 8h da manhã junto com ${pendingCount > 1 ? `os outros ${pendingCount - 1} stickers pendentes` : 'os outros stickers pendentes'}.`
-    );
+    // Only send pending sticker confirmation if there are actually pending stickers
+    // Control group users have pendingCount=0 and should NOT receive this message
+    if (pendingCount > 0) {
+      await sendText(
+        userNumber,
+        `📦 *Seu sticker foi salvo!*\n\nEle será enviado amanhã às 8h da manhã junto com ${pendingCount > 1 ? `os outros ${pendingCount - 1} stickers pendentes` : 'os outros stickers pendentes'}.`
+      );
+    }
 
     // Then send the limit reached menu with interactive buttons (A/B test)
     await sendLimitReachedMenu(userNumber, {

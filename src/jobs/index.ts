@@ -71,11 +71,45 @@ export function initializeScheduledJobs(): void {
 }
 
 /**
- * Run a job manually (useful for testing)
+ * Run a job manually (useful for testing/emergency)
+ *
+ * ⚠️ WARNING: Only use this for testing in development or emergency situations!
+ *
+ * - send-pending: Normally runs at 8:00 AM São Paulo time
+ *   Running manually outside this time will send stickers to users unexpectedly!
+ *
+ * - reset-counters: Normally runs at midnight São Paulo time
+ *   Running manually will reset all user daily counts immediately!
+ *
  * @param jobName Name of the job to run
+ * @param options Options for manual execution
  */
-export async function runJobManually(jobName: 'reset-counters' | 'send-pending'): Promise<void> {
+export async function runJobManually(
+  jobName: 'reset-counters' | 'send-pending',
+  options?: { skipTimeWarning?: boolean }
+): Promise<void> {
   logger.info({ msg: 'Running job manually', jobName });
+
+  // Time check warning for send-pending job
+  if (jobName === 'send-pending' && !options?.skipTimeWarning) {
+    const now = new Date();
+    const saoPauloTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const hour = saoPauloTime.getHours();
+
+    if (hour !== 8) {
+      logger.warn({
+        msg: '⚠️  WARNING: Running send-pending job outside scheduled time (8:00 AM)!',
+        currentHour: hour,
+        scheduledHour: 8,
+        timezone: 'America/Sao_Paulo',
+        warning: 'Users will receive stickers at unexpected time!',
+      });
+
+      logger.info({
+        msg: 'To bypass this warning, pass { skipTimeWarning: true } option',
+      });
+    }
+  }
 
   try {
     switch (jobName) {

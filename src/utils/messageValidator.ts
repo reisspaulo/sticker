@@ -152,6 +152,11 @@ export function getMessageType(message: any): MessageType {
     return 'button_response';
   }
 
+  // Avisa API uses templateButtonReplyMessage format
+  if (message.templateButtonReplyMessage) {
+    return 'button_response';
+  }
+
   if (message.listResponseMessage) {
     return 'list_response';
   }

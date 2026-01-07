@@ -28,12 +28,12 @@ export type InteractiveResponse = ButtonResponse | ListResponse | { type: 'none'
  * @returns Structured interactive response data
  */
 export function extractInteractiveResponse(message: any): InteractiveResponse {
-  // Button response
+  // Button response (Evolution API format)
   if (message.buttonsResponseMessage) {
     const buttonData = message.buttonsResponseMessage;
 
     logger.debug({
-      msg: 'Detected button response',
+      msg: 'Detected button response (Evolution API)',
       selectedButtonId: buttonData.selectedButtonId,
       selectedDisplayText: buttonData.selectedDisplayText,
     });
@@ -41,6 +41,24 @@ export function extractInteractiveResponse(message: any): InteractiveResponse {
     return {
       type: 'button',
       id: buttonData.selectedButtonId,
+      displayText: buttonData.selectedDisplayText,
+      originalMessageId: buttonData.contextInfo?.stanzaId,
+    };
+  }
+
+  // Button response (Avisa API format)
+  if (message.templateButtonReplyMessage) {
+    const buttonData = message.templateButtonReplyMessage;
+
+    logger.debug({
+      msg: 'Detected button response (Avisa API)',
+      selectedId: buttonData.selectedId,
+      selectedDisplayText: buttonData.selectedDisplayText,
+    });
+
+    return {
+      type: 'button',
+      id: buttonData.selectedId,
       displayText: buttonData.selectedDisplayText,
       originalMessageId: buttonData.contextInfo?.stanzaId,
     };
@@ -72,7 +90,11 @@ export function extractInteractiveResponse(message: any): InteractiveResponse {
  * Check if message is an interactive response
  */
 export function isInteractiveResponse(message: any): boolean {
-  return !!(message.buttonsResponseMessage || message.listResponseMessage);
+  return !!(
+    message.buttonsResponseMessage ||
+    message.templateButtonReplyMessage ||
+    message.listResponseMessage
+  );
 }
 
 /**
@@ -80,6 +102,7 @@ export function isInteractiveResponse(message: any): boolean {
  */
 export function getInteractiveType(message: any): InteractiveResponseType {
   if (message.buttonsResponseMessage) return 'button';
+  if (message.templateButtonReplyMessage) return 'button';
   if (message.listResponseMessage) return 'list';
   return 'none';
 }

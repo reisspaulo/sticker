@@ -301,7 +301,7 @@ Envia mensagem de confirmação
 
 ---
 
-### **4b. Opção: PIX - Botão Interativo**
+### **4b. Opção: PIX - Fluxo em 3 Mensagens** ✨
 
 ```
 Usuário clica: "🔑 PIX"
@@ -309,35 +309,55 @@ Usuário clica: "🔑 PIX"
 ┌─────────────────────────────────────────┐
 │ Backend processa:                       │
 │ interactive.id === "payment_pix"        │
-│ Gera chave PIX aleatória                │
+│ Gera chave PIX aleatória (UUID)         │
 │ Cria registro pending no Supabase       │
+│ Envia 3 mensagens sequenciais:          │
 └────────────┬────────────────────────────┘
              ↓
-      ┌──────────────┐
-      │  Avisa API   │
-      │ sendButtons()│
-      └──────┬───────┘
-             ↓
+```
+
+**Mensagem 1: Instruções** (Evolution API - sendText)
+```
 ┌─────────────────────────────────────────────────┐
 │        💰 *Pagamento via PIX*                   │
 │                                                 │
 │ 📋 *Plano:* Premium                            │
 │ 💵 *Valor:* R$ 5,00                            │
 │                                                 │
-│ 🔑 *Chave PIX (Aleatória):*                    │
-│ ```a1b2c3d4-e5f6-7890-abcd-ef1234567890```    │
+│ 📝 *COMO PAGAR:*                               │
 │                                                 │
-│ 📝 *Instruções:*                               │
-│ 1. Copie a chave PIX acima                     │
-│ 2. Abra seu app de pagamento                   │
-│ 3. Faça o PIX no valor exato                   │
-│ 4. Após pagar, clique em "Já Paguei"          │
+│ 1️⃣ Copie a chave PIX que vou enviar agora     │
+│ 2️⃣ Abra seu app de pagamento                  │
+│ 3️⃣ Cole a chave e pague *R$ 5,00*             │
+│ 4️⃣ Após pagar, clique em "✅ Já Paguei"       │
 │                                                 │
-│ ⏱️ Seu plano será ativado em até 5 minutos    │
-│ após a confirmação.                            │
+│ ⏱️ *Importante:*                               │
+│ • Você tem 30 minutos para pagar               │
+│ • Ativação em até 5 minutos após confirmação  │
 │                                                 │
-│ ⚠️ *Importante:* Você tem 30 minutos para      │
-│ concluir o pagamento.                          │
+│ Enviando chave PIX... ⬇️                       │
+└─────────────────────────────────────────────────┘
+```
+
+**Delay: 500ms**
+
+**Mensagem 2: Chave PIX** (Avisa API - sendPixButton)
+```
+┌─────────────────────────────────────────────────┐
+│ a1b2c3d4-e5f6-7890-abcd-ef1234567890           │
+│                                                 │
+│ [Botão nativo WhatsApp para copiar facilmente] │
+└─────────────────────────────────────────────────┘
+```
+
+**Delay: 500ms**
+
+**Mensagem 3: Confirmação** (Avisa API - sendButtons)
+```
+┌─────────────────────────────────────────────────┐
+│              ✅ *Pagou?*                        │
+│                                                 │
+│ Clique no botão abaixo após fazer o PIX:      │
 │                                                 │
 │ ┌─────────────────────────────────────────┐   │
 │ │         ✅ Já Paguei                     │   │
@@ -347,9 +367,14 @@ Usuário clica: "🔑 PIX"
 └─────────────────────────────────────────────────┘
 ```
 
-**API Usada:** Avisa API (sendButtons) - Botões interativos
+**APIs Usadas:**
+- Evolution API (sendText) - Instruções
+- Avisa API (sendPixButton) - Chave PIX com botão de copiar
+- Avisa API (sendButtons) - Botão de confirmação
+
 **Arquivo:** `src/services/menuService.ts` → `sendPixPaymentWithButton()`
 **Button ID:** `button_confirm_pix`
+**Endpoint PIX:** `POST /buttons/pix` (Avisa API)
 
 ---
 
@@ -839,7 +864,9 @@ Por favor, tente novamente ou envie outra imagem.
 
 **Arquivo:** `src/services/menuService.ts:342-372`
 
-**Webhook Retorno (Evolution API):**
+**Webhook Retorno (Evolution API ou Avisa API):**
+
+Evolution API format:
 ```json
 {
   "event": "messages.upsert",
@@ -852,6 +879,23 @@ Por favor, tente novamente ou envie outra imagem.
   }
 }
 ```
+
+Avisa API format (templateButtonReplyMessage):
+```json
+{
+  "event": "messages.upsert",
+  "data": {
+    "message": {
+      "templateButtonReplyMessage": {
+        "selectedId": "button_confirm_pix",
+        "selectedDisplayText": "✅ Já Paguei"
+      }
+    }
+  }
+}
+```
+
+**Bug Fix v1.4.0:** Sistema agora detecta ambos os formatos de botão! ✅
 
 ---
 
@@ -976,6 +1020,7 @@ quando usuário REENVIAR um sticker existente, mas SEM botões automáticos.
 | Texto simples | Evolution API | `sendText()` | `src/services/evolutionApi.ts` |
 | Lista interativa | Avisa API | `sendList()` | `src/services/avisaApi.ts` |
 | Botões interativos | Avisa API | `sendButtons()` | `src/services/avisaApi.ts` |
+| **Botão PIX copia e cola** | **Avisa API** | **`sendPixButton()`** | **`src/services/avisaApi.ts`** |
 | Mídia (sticker, imagem, vídeo) | Evolution API | `sendSticker()`, `sendMedia()` | `src/services/evolutionApi.ts` |
 
 ---
@@ -993,7 +1038,8 @@ quando usuário REENVIAR um sticker existente, mas SEM botões automáticos.
    ├─ Imagem/GIF → Cria job process-sticker
    ├─ Link Twitter → Cria job download-twitter-video
    ├─ listResponseMessage → Processa seleção de lista
-   └─ buttonsResponseMessage → Processa clique em botão
+   ├─ buttonsResponseMessage → Processa clique em botão (Evolution)
+   └─ templateButtonReplyMessage → Processa clique em botão (Avisa) ✨
 
 2. messages.update (Atualização de status)
    ↓
@@ -1007,6 +1053,14 @@ quando usuário REENVIAR um sticker existente, mas SEM botões automáticos.
    ↓
    Log informativo
 ```
+
+**Nota v1.4.0:** Sistema agora detecta 2 formatos de botões:
+- `buttonsResponseMessage` (Evolution API)
+- `templateButtonReplyMessage` (Avisa API) ← **NOVO!**
+
+Arquivos:
+- Detecção: `src/utils/messageValidator.ts:getMessageType()`
+- Extração: `src/utils/interactiveMessageDetector.ts:extractInteractiveResponse()`
 
 ---
 
@@ -1096,10 +1150,13 @@ context:5511946304133 = {
 - Ativa assinatura no Supabase
 - Envia mensagem de confirmação
 
-**Queue: scheduled-jobs**
-- Roda todo dia às 8h (cron)
-- Envia stickers pendentes
-- Reseta contadores diários
+**Queue: scheduled-jobs** ✨
+- **send-pending-stickers**: Roda todo dia às 8:00 AM (São Paulo timezone)
+  - Envia stickers que não foram enviados por limite atingido
+  - Log completo na tabela `pending_sticker_sends`
+  - Ver documentação completa: `PENDING_STICKERS.md`
+- **reset-daily-counters**: Roda todo dia à meia-noite (São Paulo timezone)
+  - Reseta contadores diários de todos os usuários
 
 ---
 
@@ -1413,20 +1470,40 @@ logMenuInteraction(userNumber, 'pix_payment_confirmed');
 
 ---
 
-**Última atualização:** 06/01/2026
-**Versão:** 1.3.0
+**Última atualização:** 07/01/2026
+**Versão:** 1.4.0
 
-**Mudanças nesta versão (v1.3.0):**
-- ❌ **REMOVIDO:** Mensagens "Figurinha enviada! X restantes"
-- ❌ **REMOVIDO:** Botões de edição automáticos após stickers
-- ❌ **REMOVIDO:** Sistema de debouncing de botões (editButtonsQueue)
-- ❌ **REMOVIDO:** Tracking de onboarding steps
-- ❌ **REMOVIDO:** sendStickerConfirmation
-- ✅ **NOVO:** Stickers enviados silenciosamente (sem interrupção)
-- ✅ **NOVO:** Mensagens APENAS quando atingir limite (momento de conversão)
-- ✅ **MELHORIA:** Redução de 55% no spam de mensagens (11 → 5 para 4 stickers)
-- ✅ **ESTRATÉGIA:** Conversão focada no momento crítico (limite atingido)
-- ✅ **UX:** Experiência fluida e limpa (não fica contando limite)
+**Mudanças nesta versão (v1.4.0):** 🎉
+
+**🐛 BUG FIX CRÍTICO:**
+- ✅ **CORRIGIDO:** Sistema agora detecta `templateButtonReplyMessage` da Avisa API
+- ✅ **CORRIGIDO:** Botões Premium/Ultra agora funcionam corretamente
+- ✅ **CORRIGIDO:** Fluxo de upgrade completo funcionando
+- 📁 **Arquivos:** `src/utils/messageValidator.ts`, `src/utils/interactiveMessageDetector.ts`
+- 🔍 **Impacto:** Usuários que clicavam em botões de upgrade não recebiam resposta (CRÍTICO)
+
+**💳 MELHORIA NO FLUXO PIX:**
+- ✅ **NOVO:** Fluxo PIX em 3 mensagens separadas
+  1. Instruções claras (Evolution API - sendText)
+  2. Chave PIX com botão de copiar (Avisa API - sendPixButton)
+  3. Botão de confirmação (Avisa API - sendButtons)
+- ✅ **MELHORIA UX:** Chave PIX agora usa endpoint dedicado `/buttons/pix`
+- ✅ **MELHORIA UX:** Botão nativo WhatsApp para copiar facilmente
+- ✅ **DELAY:** 500ms entre mensagens para garantir ordem
+- 📁 **Arquivo:** `src/services/menuService.ts:sendPixPaymentWithButton()`
+
+**📦 SISTEMA DE PENDING STICKERS:**
+- ✅ **NOVO:** Stickers que excedem limite são salvos e enviados às 8h
+- ✅ **NOVO:** Job automático `send-pending-stickers` (cron: 0 8 * * *)
+- ✅ **NOVO:** Tabela `pending_sticker_sends` com log completo
+- ✅ **NOVO:** Warning ao executar job fora de horário
+- 📄 **Documentação:** Ver `PENDING_STICKERS.md` para detalhes completos
+
+**📊 MELHORIAS TÉCNICAS:**
+- ✅ **NOVO:** Suporte dual para formatos de botão (Evolution + Avisa)
+- ✅ **NOVO:** Função `sendPixButton()` implementada
+- ✅ **NOVO:** Logging detalhado de tentativas de envio pendentes
+- ✅ **MELHORIA:** Arquitetura mais robusta para interações de botões
 
 **Versão anterior (v1.2.0):**
 - ✅ Adicionada funcionalidade de edição de stickers

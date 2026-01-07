@@ -1158,15 +1158,24 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             const wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
 
             if (!wasAlreadyNotified) {
-              const { sendText } = await import('../services/evolutionApi');
-              await sendText(
-                userNumber,
-                `❌ *Limite de Figurinhas Guardadas*\n\nVocê já tem *2 figurinhas* guardadas para amanhã!\n\n💎 Faça upgrade para criar mais agora.`
-              );
+              // Send limit reached menu with upgrade buttons (same as control group)
+              const { sendLimitReachedMenu } = await import('../services/menuService');
+              const currentPlan = await getUserPlan(user.id);
+
+              await sendLimitReachedMenu(userNumber, {
+                userName,
+                currentPlan,
+                dailyCount: limitCheck.daily_count,
+                dailyLimit: limitCheck.effective_limit,
+                isTwitter: false,
+                abTestGroup: 'bonus',
+                bonusCreditsUsed: user.bonus_credits_today || 0,
+              });
 
               fastify.log.info({
-                msg: 'Max pending message sent - BONUS group',
+                msg: 'Max pending menu sent with buttons - BONUS group',
                 userNumber,
+                currentPlan,
               });
             } else {
               fastify.log.info({

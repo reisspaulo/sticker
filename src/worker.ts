@@ -839,7 +839,7 @@ async function sendPendingStickerWorker(): Promise<{
     // Step 1: Query all pending stickers
     const { data: pendingStickers, error: queryError } = await supabase
       .from('stickers')
-      .select('id, user_id, user_number, url, tipo, created_at')
+      .select('id, user_number, processed_url, tipo, created_at')
       .eq('status', 'pendente')
       .order('created_at', { ascending: true }); // Send oldest first (FIFO)
 
@@ -879,6 +879,15 @@ async function sendPendingStickerWorker(): Promise<{
       });
 
       try {
+        // Get user_id from users table
+        const { data: userData } = await supabase
+          .from('users')
+          .select('id')
+          .eq('whatsapp_number', sticker.user_number)
+          .single();
+
+        const userId = userData?.id || null;
+
         // Get attempt number (check if we've tried this sticker before)
         const { data: previousAttempts } = await supabase
           .from('pending_sticker_sends')
@@ -896,7 +905,7 @@ async function sendPendingStickerWorker(): Promise<{
           .from('pending_sticker_sends')
           .insert({
             sticker_id: sticker.id,
-            user_id: sticker.user_id,
+            user_id: userId,
             user_number: sticker.user_number,
             attempt_number: attemptNumber,
             status: 'attempting',
@@ -915,7 +924,7 @@ async function sendPendingStickerWorker(): Promise<{
         }
 
         // Attempt to send sticker
-        await sendSticker(sticker.user_number, sticker.url);
+        await sendSticker(sticker.user_number, sticker.processed_url);
 
         const processingTimeMs = Date.now() - stickerStartTime;
 

@@ -30,7 +30,6 @@ import {
   sendPaymentMethodList,
   sendPixPaymentWithButton,
   getWelcomeMessageForNewUser,
-  getReminderMessage,
 } from '../services/menuService';
 import { getUserPlan, hasActiveSubscription } from '../services/subscriptionService';
 import { uploadTwitterVideo } from '../services/twitterStorage';
@@ -1002,33 +1001,69 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // No pending video selection - send greeting/reminder based on user status
-        const isNewUser = !user.first_sticker_at;
+        // No pending video selection - handle based on user status
+        // Strategy: Convert every touchpoint into conversion opportunity
 
-        if (isNewUser) {
-          // NEW USER: Send full welcome message
+        // 1. NEW USER (never used bot) → Welcome message
+        if (user.onboarding_step === 0) {
           await sendText(userNumber, getWelcomeMessageForNewUser(userName));
           fastify.log.info({
-            msg: 'Sent welcome message to new user',
+            msg: 'Sent welcome message to new user (text input)',
             userNumber,
             userName,
           });
           return reply.status(200).send({
             status: 'welcome_sent',
-            isNewUser: true,
-          });
-        } else {
-          // EXISTING USER: Send short reminder
-          await sendText(userNumber, getReminderMessage());
-          fastify.log.info({
-            msg: 'Sent reminder message to existing user',
-            userNumber,
-          });
-          return reply.status(200).send({
-            status: 'reminder_sent',
-            isNewUser: false,
+            trigger: 'text_input',
           });
         }
+
+        // 2. EXISTING USER WHO HIT LIMIT → Upgrade menu (conversion opportunity!)
+        const userLimits = await getUserLimits(user.id);
+        const effectiveLimit = userLimits.daily_sticker_limit + (user.bonus_credits_today || 0);
+        const hasReachedLimit = (user.daily_count || 0) >= effectiveLimit;
+
+        if (hasReachedLimit) {
+          const currentPlan = await getUserPlan(user.id);
+          const { sendLimitReachedMenu } = await import('../services/menuService');
+
+          await sendLimitReachedMenu(userNumber, {
+            userName,
+            currentPlan,
+            dailyCount: user.daily_count || 0,
+            dailyLimit: effectiveLimit,
+            isTwitter: false,
+            abTestGroup: user.ab_test_group || 'control',
+            bonusCreditsUsed: user.bonus_credits_today || 0,
+          });
+
+          fastify.log.info({
+            msg: 'Sent upgrade menu to user who hit limit (text input)',
+            userNumber,
+            dailyCount: user.daily_count,
+            effectiveLimit,
+            abTestGroup: user.ab_test_group,
+          });
+
+          return reply.status(200).send({
+            status: 'limit_menu_sent',
+            trigger: 'text_input',
+            dailyCount: user.daily_count,
+            effectiveLimit,
+          });
+        }
+
+        // 3. EXISTING USER WITH QUOTA → Silent ignore (no spam)
+        fastify.log.debug({
+          msg: 'Ignoring text message (user has quota available)',
+          userNumber,
+          dailyCount: user.daily_count,
+          effectiveLimit,
+        });
+        return reply.status(200).send({
+          status: 'ignored',
+          reason: 'user_has_quota',
+        });
       }
 
       // Validate the message

@@ -649,6 +649,10 @@ export function getWelcomeMessageForNewUser(userName: string): string {
 
 /**
  * Get reminder message for EXISTING users (already created stickers before)
+ * @deprecated Replaced by strategic flow in webhook.ts (2026-01-08)
+ * - User with quota available → Silent ignore (no spam)
+ * - User who hit limit → Upgrade menu (conversion opportunity)
+ * Keeping for backwards compatibility but should not be used.
  */
 export function getReminderMessage(): string {
   return `📸 Envie uma *imagem* ou *GIF* para criar figurinha!

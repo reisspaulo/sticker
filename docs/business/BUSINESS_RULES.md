@@ -731,7 +731,20 @@ Ao receber primeira mensagem:
 - Mensagens com `fromMe: true` sao **ignoradas**
 - Evita loops infinitos
 
-**Fonte:** `src/routes/webhook.ts:94-100`
+**Fonte:** `src/routes/webhook.ts:94-102`
+
+### BR-1704: Grupos WhatsApp (Fase 1)
+- Mensagens de grupos (`@g.us` no remoteJid) sao **ignoradas**
+- Bot nao processa nem responde mensagens em grupos
+- Log registra groupId e participant para futura Fase 2
+
+**Fase 2 (planejado):**
+- Suporte a grupos com rastreamento individual por participante
+- Cada pessoa tem seu proprio limite (mesmo em grupos)
+- Modo silencioso (so envia sticker, sem mensagens extras)
+- Upgrade/pagamento redireciona para chat privado
+
+**Fonte:** `src/routes/webhook.ts:105-119`
 
 ---
 
@@ -939,6 +952,7 @@ Step 3: Figurinha enviada
 
 | Data | Regra | Mudanca |
 |------|-------|---------|
+| 2026-01-08 | BR-1704 | Adicionada regra de ignorar grupos (Fase 1) |
 | 2026-01-08 | BR-1602-1603 | Adicionadas regras de resposta a textos nao reconhecidos (saudacoes) |
 | 2026-01-08 | BR-505-507 | Adicionadas regras de botoes em erros PIX |
 | 2026-01-07 | BR-403 | Corrigido bug: mensagem "sticker salvo" nao enviada para grupo control |

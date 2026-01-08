@@ -1,6 +1,21 @@
 import axios, { AxiosInstance } from 'axios';
 import logger from '../config/logger';
 import { logMenuSent, logPixButtonSent } from './usageLogs';
+import { sendText } from './evolutionApi';
+
+// ============================================
+// INTERNATIONAL NUMBER DETECTION
+// ============================================
+
+/**
+ * Check if a phone number is Brazilian (starts with 55)
+ * @param phoneNumber - Phone number (with or without formatting)
+ * @returns true if Brazilian number
+ */
+export function isBrazilianNumber(phoneNumber: string): boolean {
+  const sanitized = phoneNumber.replace(/\D/g, '');
+  return sanitized.startsWith('55');
+}
 
 // Avisa API configuration
 const avisaApiUrl = process.env.AVISA_API_URL || 'https://www.avisaapi.com.br/api';
@@ -77,22 +92,64 @@ export interface ShowWebhookResponse {
 
 /**
  * Send an interactive message with buttons via Avisa API
+ * Falls back to plain text for international (non-Brazilian) numbers
  * @param request - Button message data
  */
 export async function sendButtons(request: SendButtonsRequest): Promise<AvisaApiResponse> {
+  // Ensure number is in correct format (only digits with DDI)
+  const sanitizedNumber = request.number.replace(/\D/g, '');
+
+  // Validate buttons
+  if (!request.buttons || request.buttons.length === 0) {
+    throw new Error('At least one button is required');
+  }
+
+  if (request.buttons.length > 3) {
+    throw new Error('Maximum 3 buttons allowed');
+  }
+
+  // Check if international number - use text fallback
+  if (!isBrazilianNumber(sanitizedNumber)) {
+    logger.info({
+      msg: 'International number detected - using text fallback instead of Avisa buttons',
+      number: sanitizedNumber,
+      title: request.title,
+    });
+
+    // Build text message from button data
+    let textMessage = '';
+    if (request.title) textMessage += `${request.title}\n\n`;
+    if (request.desc) textMessage += `${request.desc}\n\n`;
+
+    // Add button options as text
+    textMessage += `📋 *Opções:*\n`;
+    request.buttons.forEach((btn, index) => {
+      textMessage += `${index + 1}. ${btn.text}\n`;
+    });
+
+    if (request.footer) textMessage += `\n_${request.footer}_`;
+
+    await sendText(sanitizedNumber, textMessage);
+
+    // Log as successful (text fallback)
+    let menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other' = 'other';
+    if (request.title.includes('Limite')) menuType = 'limit_reached';
+    else if (request.title.includes('Upgrade') || request.title.includes('upgrade')) menuType = 'upgrade';
+    else if (request.title.includes('Plano') || request.title.includes('plano')) menuType = 'plans';
+
+    await logMenuSent({
+      userNumber: sanitizedNumber,
+      menuType,
+      buttonCount: request.buttons.length,
+      title: request.title + ' (text fallback)',
+      success: true,
+    }).catch(() => {});
+
+    return { status: 'sent_as_text', message: 'International number - sent as plain text' };
+  }
+
+  // Brazilian number - use Avisa API with interactive buttons
   try {
-    // Ensure number is in correct format (only digits with DDI)
-    const sanitizedNumber = request.number.replace(/\D/g, '');
-
-    // Validate buttons
-    if (!request.buttons || request.buttons.length === 0) {
-      throw new Error('At least one button is required');
-    }
-
-    if (request.buttons.length > 3) {
-      throw new Error('Maximum 3 buttons allowed');
-    }
-
     logger.info({
       msg: 'Sending interactive buttons via Avisa API',
       number: sanitizedNumber,
@@ -133,7 +190,6 @@ export async function sendButtons(request: SendButtonsRequest): Promise<AvisaApi
     return response.data;
   } catch (error) {
     // Log failed menu send to database
-    const sanitizedNumber = request.number.replace(/\D/g, '');
     await logMenuSent({
       userNumber: sanitizedNumber,
       menuType: 'other',
@@ -174,14 +230,43 @@ export async function sendButtons(request: SendButtonsRequest): Promise<AvisaApi
  * @param request - PIX button data
  */
 export async function sendPixButton(request: SendPixButtonRequest): Promise<AvisaApiResponse> {
+  // Ensure number is in correct format (only digits with DDI)
+  const sanitizedNumber = request.number.replace(/\D/g, '');
+
+  if (!request.pix || request.pix.trim().length === 0) {
+    throw new Error('PIX code is required');
+  }
+
+  // Check if international number - send PIX code as text
+  if (!isBrazilianNumber(sanitizedNumber)) {
+    logger.info({
+      msg: 'International number detected - sending PIX code as text instead of button',
+      number: sanitizedNumber,
+      pixLength: request.pix.length,
+    });
+
+    // Build text message with PIX code
+    const textMessage = `💰 *Código PIX para pagamento:*\n\n` +
+      `Copie o código abaixo e cole no seu app de banco:\n\n` +
+      `\`\`\`\n${request.pix}\n\`\`\`\n\n` +
+      `_O código expira em 30 minutos_`;
+
+    await sendText(sanitizedNumber, textMessage);
+
+    // Log as successful (text fallback)
+    await logPixButtonSent({
+      userNumber: sanitizedNumber,
+      plan: 'premium',
+      amount: 0,
+      pixCode: request.pix,
+      success: true,
+    }).catch(() => {});
+
+    return { status: 'sent_as_text', message: 'International number - PIX code sent as plain text' };
+  }
+
+  // Brazilian number - use Avisa API with PIX button
   try {
-    // Ensure number is in correct format (only digits with DDI)
-    const sanitizedNumber = request.number.replace(/\D/g, '');
-
-    if (!request.pix || request.pix.trim().length === 0) {
-      throw new Error('PIX code is required');
-    }
-
     logger.info({
       msg: 'Sending PIX button via Avisa API',
       number: sanitizedNumber,
@@ -253,24 +338,66 @@ export async function sendPixButton(request: SendPixButtonRequest): Promise<Avis
  * @param request - List message data
  */
 export async function sendList(request: SendListRequest): Promise<AvisaApiResponse> {
+  // Ensure number is in correct format (only digits with DDI)
+  const sanitizedNumber = request.number.replace(/\D/g, '');
+
+  // Validate list
+  if (!request.list || request.list.length === 0) {
+    throw new Error('At least one list item is required');
+  }
+
+  if (request.list.length > 10) {
+    throw new Error('Maximum 10 list items allowed');
+  }
+
+  // Validate buttontext
+  if (!request.buttontext || request.buttontext.trim().length === 0) {
+    throw new Error('Button text is required');
+  }
+
+  // Check if international number - use text fallback
+  if (!isBrazilianNumber(sanitizedNumber)) {
+    logger.info({
+      msg: 'International number detected - using text fallback instead of Avisa list',
+      number: sanitizedNumber,
+      buttontext: request.buttontext,
+    });
+
+    // Build text message from list data
+    let textMessage = '';
+    if (request.toptext) textMessage += `${request.toptext}\n\n`;
+    if (request.desc) textMessage += `${request.desc}\n\n`;
+
+    // Add list items as numbered options
+    textMessage += `📋 *${request.buttontext}:*\n`;
+    request.list.forEach((item, index) => {
+      textMessage += `${index + 1}. *${item.title}*`;
+      if (item.desc) textMessage += ` - ${item.desc}`;
+      textMessage += `\n`;
+    });
+
+    await sendText(sanitizedNumber, textMessage);
+
+    // Log as successful (text fallback)
+    let menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other' = 'other';
+    const buttonTextLower = request.buttontext.toLowerCase();
+    const descLower = (request.desc || '').toLowerCase();
+    if (buttonTextLower.includes('plano') || descLower.includes('plano')) menuType = 'plans';
+    else if (buttonTextLower.includes('pagamento') || descLower.includes('pagamento')) menuType = 'pix_options';
+
+    await logMenuSent({
+      userNumber: sanitizedNumber,
+      menuType,
+      buttonCount: request.list.length,
+      title: request.buttontext + ' (text fallback)',
+      success: true,
+    }).catch(() => {});
+
+    return { status: 'sent_as_text', message: 'International number - sent as plain text' };
+  }
+
+  // Brazilian number - use Avisa API with interactive list
   try {
-    // Ensure number is in correct format (only digits with DDI)
-    const sanitizedNumber = request.number.replace(/\D/g, '');
-
-    // Validate list
-    if (!request.list || request.list.length === 0) {
-      throw new Error('At least one list item is required');
-    }
-
-    if (request.list.length > 10) {
-      throw new Error('Maximum 10 list items allowed');
-    }
-
-    // Validate buttontext
-    if (!request.buttontext || request.buttontext.trim().length === 0) {
-      throw new Error('Button text is required');
-    }
-
     logger.info({
       msg: 'Sending interactive list via Avisa API',
       number: sanitizedNumber,

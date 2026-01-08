@@ -1,6 +1,6 @@
 # 🚀 Guia de Mudanças Rápidas - Sticker Bot
 
-> Documentação atualizada em: 07/01/2026
+> Documentação atualizada em: 08/01/2026
 > Ambiente: Produção em https://stickers.ytem.com.br
 
 > **📚 Documentos relacionados:**
@@ -153,6 +153,11 @@ vps-ssh "echo 'Conexão OK' && hostname"
 │         ┌──────────▼────────────┐                          │
 │         │  Redis (ytem-redis)   │                          │
 │         └───────────────────────┘                          │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │              Admin Panel (Next.js)                    │  │
+│  │           admin-stickers.ytem.com.br                  │  │
+│  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                            │
                            ▼
@@ -160,6 +165,7 @@ vps-ssh "echo 'Conexão OK' && hostname"
               │  Supabase (Cloud)      │
               │  - PostgreSQL          │
               │  - Storage (S3)        │
+              │  - Auth (usuarios)     │
               └────────────────────────┘
 ```
 
@@ -169,15 +175,17 @@ vps-ssh "echo 'Conexão OK' && hostname"
 |---------|-----|-------|--------|
 | **Backend** | https://stickers.ytem.com.br | 3000 | API REST + Webhooks |
 | **Worker** | - | - | Processa filas BullMQ |
+| **Admin Panel** | https://admin-stickers.ytem.com.br | 3000 | Gestao de stickers/emocoes |
 | **Evolution API** | https://wa.ytem.com.br | 8080 | Integração WhatsApp |
 | **Redis** | ytem-databases_redis:6379 | 6379 | Filas + Cache |
-| **Supabase** | ludlztjdvwsrwlsczoje.supabase.co | 443 | Banco + Storage |
+| **Supabase** | ludlztjdvwsrwlsczoje.supabase.co | 443 | Banco + Storage + Auth |
 
 ### **Imagens Docker**
 
 ```bash
 ghcr.io/reisspaulo/sticker-bot-backend:latest  # Backend + Worker (mesma imagem)
 ghcr.io/reisspaulo/sticker-bot-worker:latest   # Worker (mesma imagem)
+ghcr.io/reisspaulo/sticker-admin:latest        # Admin Panel (Next.js)
 ```
 
 ---
@@ -488,6 +496,64 @@ const targetFps = 15;  // ← ALTERE
 
 ---
 
+### **6. Alterar Admin Panel**
+
+O Admin Panel é uma aplicação Next.js separada para gerenciar stickers e classificação de emoções.
+
+#### **Arquivos Principais**
+
+| Arquivo | Função |
+|---------|--------|
+| `admin-panel/src/app/page.tsx` | Página principal (listagem de stickers) |
+| `admin-panel/src/app/login/page.tsx` | Página de login |
+| `admin-panel/src/lib/auth.tsx` | Contexto de autenticação |
+| `admin-panel/src/lib/supabase.ts` | Cliente Supabase |
+
+#### **Deploy do Admin Panel**
+
+```bash
+# 1. Fazer alterações
+cd admin-panel
+code src/app/page.tsx
+
+# 2. Commit e push (deploy automático)
+git add .
+git commit -m "feat: melhora UI do admin"
+git push origin main
+
+# 3. Acompanhar em:
+# https://github.com/reisspaulo/sticker/actions
+```
+
+**Workflow**: `.github/workflows/deploy-admin.yml`
+
+#### **Autenticação**
+
+O admin usa Supabase Auth com verificação de role:
+- Apenas usuários com `role = 'admin'` na tabela `user_profiles` podem acessar
+- Login: https://admin-stickers.ytem.com.br/login
+
+#### **Criar Novo Admin**
+
+```sql
+-- Via Supabase SQL Editor
+-- 1. Primeiro crie o usuário via Auth (Dashboard ou API)
+-- 2. Depois atualize o role:
+UPDATE user_profiles
+SET role = 'admin'
+WHERE email = 'novo.admin@empresa.com';
+```
+
+#### **Verificar Logs do Admin**
+
+```bash
+vps-ssh "docker service logs sticker_admin --tail 50"
+```
+
+**Tempo:** ~3 minutos (deploy automático via GitHub Actions)
+
+---
+
 ## 📱 QR Code e WhatsApp
 
 ### **Como Funciona**
@@ -576,15 +642,21 @@ curl -s https://wa.ytem.com.br/instance/connect/meu-zap \
 
 ```
 ytem.com.br (Domínio principal)
-├── wa.ytem.com.br          → Evolution API (WhatsApp)
+├── wa.ytem.com.br              → Evolution API (WhatsApp)
 │   └── Porta: 8080
 │   └── Certificado: Let's Encrypt
 │   └── Traefik: evolution_api
 │
-└── stickers.ytem.com.br    → Sticker Bot (Backend)
+├── stickers.ytem.com.br        → Sticker Bot (Backend)
+│   └── Porta: 3000
+│   └── Certificado: Let's Encrypt
+│   └── Traefik: sticker_backend
+│
+└── admin-stickers.ytem.com.br  → Admin Panel (Next.js)
     └── Porta: 3000
     └── Certificado: Let's Encrypt
-    └── Traefik: sticker_backend
+    └── Traefik: sticker_admin
+    └── Auth: Supabase (role=admin)
 ```
 
 ### **Configuração DNS**
@@ -593,6 +665,7 @@ ytem.com.br (Domínio principal)
 |------------|------|---------|-----|
 | wa | A | 69.62.100.250 | 3600 |
 | stickers | A | 69.62.100.250 | 3600 |
+| admin-stickers | A | 69.62.100.250 | 3600 |
 
 ### **Traefik (Reverse Proxy)**
 
@@ -787,9 +860,11 @@ vps-ssh "docker system prune -af"
 |---------|-----|
 | Backend Health | https://stickers.ytem.com.br/health |
 | Backend Webhook | https://stickers.ytem.com.br/webhook |
+| Admin Panel | https://admin-stickers.ytem.com.br |
 | Evolution API | https://wa.ytem.com.br |
 | Supabase Dashboard | https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje |
 | Doppler (Secrets) | https://dashboard.doppler.com/ |
+| GitHub Actions | https://github.com/reisspaulo/sticker/actions |
 | GitHub Container Registry | https://github.com/reisspaulo/sticker-bot/pkgs/container/sticker-bot-backend |
 
 ### **Credenciais**
@@ -854,6 +929,6 @@ vps-ssh "docker stack rm sticker"
 
 ---
 
-**Última atualização:** 28/12/2024
+**Última atualização:** 08/01/2026
 **Mantido por:** Paulo Henrique
-**Versão:** 1.0
+**Versão:** 1.1

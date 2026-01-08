@@ -899,5 +899,192 @@ const queue = new Queue('minha-queue', { connection: {...} });
 
 ---
 
-**Última atualização:** 05/01/2026
-**Testado e validado com:** Zero-downtime deployment test + GHCR authentication fix + BullMQ queue pattern
+## 📊 Deploy do Admin Panel
+
+O Admin Panel tem seu próprio workflow de deploy separado do Sticker Bot principal.
+
+### Visão Geral
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Admin Panel Deploy Flow                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   [Push admin-panel/**]                                     │
+│          │                                                   │
+│          ▼                                                   │
+│   [GitHub Actions: deploy-admin.yml]                        │
+│          │                                                   │
+│          ├──→ Build Docker image (Next.js)                  │
+│          │    - Build args: SUPABASE_URL, SUPABASE_KEY      │
+│          │                                                   │
+│          ├──→ Push to ghcr.io/reisspaulo/sticker-admin      │
+│          │                                                   │
+│          └──→ Deploy to VPS (Docker Swarm)                  │
+│               - Service: sticker_admin                       │
+│               - URL: https://admin-stickers.ytem.com.br     │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Trigger (Quando o workflow roda)
+
+O workflow `deploy-admin.yml` roda automaticamente quando:
+- Push na branch `main` E
+- Arquivos modificados em `admin-panel/**`
+
+**Deploy manual**: Também disponível via GitHub Actions UI (workflow_dispatch)
+
+### Arquivo do Workflow
+
+**Localização**: `.github/workflows/deploy-admin.yml`
+
+```yaml
+name: Deploy Sticker Admin
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'admin-panel/**'
+  workflow_dispatch:
+
+# Build: Next.js com Supabase credentials como build args
+# Deploy: Docker Swarm service com Traefik labels
+```
+
+### Como Fazer Deploy do Admin Panel
+
+#### Opção 1: Automático (via git push)
+
+```bash
+# 1. Fazer alterações no código do admin panel
+cd admin-panel
+code src/app/page.tsx
+
+# 2. Commit e push
+git add .
+git commit -m "feat: adiciona nova funcionalidade no admin"
+git push origin main
+
+# 3. Pronto! Deploy automático iniciado
+# Acompanhe em: https://github.com/reisspaulo/sticker/actions
+```
+
+#### Opção 2: Manual (via GitHub UI)
+
+1. Ir para: https://github.com/reisspaulo/sticker/actions
+2. Selecionar "Deploy Sticker Admin" na lista
+3. Clicar em "Run workflow" → selecionar `main` → "Run workflow"
+
+### Detalhes Técnicos
+
+| Aspecto | Valor |
+|---------|-------|
+| **Imagem Docker** | `ghcr.io/reisspaulo/sticker-admin:latest` |
+| **Service Name** | `sticker_admin` |
+| **URL Pública** | https://admin-stickers.ytem.com.br |
+| **Porta** | 3000 |
+| **Réplicas** | 1 |
+| **Autenticação** | Supabase Auth (role=admin) |
+
+### Build Args
+
+Durante o build da imagem, são injetadas variáveis de ambiente:
+
+```yaml
+build-args: |
+  NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
+```
+
+Essas variáveis são "embeddadas" no JavaScript bundle durante `next build`.
+
+### Traefik Labels
+
+O serviço é exposto via Traefik com as seguintes labels:
+
+```yaml
+--label traefik.enable=true
+--label "traefik.http.routers.sticker-admin.rule=Host(`admin-stickers.ytem.com.br`)"
+--label traefik.http.routers.sticker-admin.entrypoints=websecure
+--label traefik.http.routers.sticker-admin.tls=true
+--label traefik.http.routers.sticker-admin.tls.certresolver=letsencrypt
+--label traefik.http.services.sticker-admin.loadbalancer.server.port=3000
+```
+
+### Verificar Deploy
+
+```bash
+# Verificar se serviço está rodando
+vps-ssh "docker service ls | grep sticker_admin"
+
+# Ver logs do admin panel
+vps-ssh "docker service logs sticker_admin --tail 50"
+
+# Testar acesso
+curl -s -o /dev/null -w "%{http_code}" https://admin-stickers.ytem.com.br
+# Deve retornar: 200
+```
+
+### Gerenciamento de Usuários Admin
+
+O Admin Panel requer login com role `admin`. Para criar/gerenciar admins:
+
+#### Criar novo admin
+
+```sql
+-- 1. Criar usuário no Supabase Auth (via Dashboard ou API)
+-- 2. Atualizar role para admin:
+UPDATE user_profiles
+SET role = 'admin'
+WHERE email = 'novo.admin@empresa.com';
+```
+
+#### Verificar admins existentes
+
+```sql
+SELECT id, email, role, created_at
+FROM user_profiles
+WHERE role = 'admin';
+```
+
+### Troubleshooting Admin Panel
+
+#### Página em branco ou erro de hydration
+
+**Sintomas**: `Application error: a client-side exception has occurred`
+
+**Causa comum**: Variáveis de ambiente não embeddadas no build
+
+**Solução**:
+```bash
+# Verificar se as variáveis foram passadas no build
+vps-ssh "docker service inspect sticker_admin --format '{{json .Spec.TaskTemplate.ContainerSpec.Args}}'"
+
+# Forçar rebuild
+# 1. Fazer commit vazio para triggerar workflow
+git commit --allow-empty -m "chore: trigger admin rebuild"
+git push origin main
+```
+
+#### Login não funciona
+
+**Causa comum**: Usuário não tem role=admin ou user_profiles não existe
+
+**Solução**:
+```sql
+-- Verificar se profile existe
+SELECT * FROM user_profiles WHERE email = 'seu@email.com';
+
+-- Se não existir, criar:
+INSERT INTO user_profiles (id, email, role)
+SELECT id, email, 'admin'
+FROM auth.users
+WHERE email = 'seu@email.com';
+```
+
+---
+
+**Última atualização:** 08/01/2026
+**Testado e validado com:** Zero-downtime deployment test + GHCR authentication fix + BullMQ queue pattern + Admin Panel deployment

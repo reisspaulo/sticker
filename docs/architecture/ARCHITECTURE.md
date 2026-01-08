@@ -108,33 +108,19 @@ Usuário conecta pela primeira vez
 ┌─────────────────────────────────────────────────┐
 │ 🎉 Olá Paulo, bem-vindo ao *StickerBot*!       │
 │                                                 │
-│ Envie uma imagem ou GIF e eu transformo        │
-│ em figurinha para você! 🎨                     │
-│                                                 │
-│ ✨ *PLANO GRATUITO*                            │
-│ Você tem *4 figurinhas por dia* para usar.    │
-│                                                 │
-│ 💎 *QUER MAIS?*                                │
-│                                                 │
-│ [1] 💰 *Premium* - R$ 5,00/mês                 │
-│     • 20 figurinhas/dia                        │
-│     • 15 vídeos Twitter/dia                    │
-│     • Suporte prioritário                      │
-│                                                 │
-│ [2] 🚀 *Ultra* - R$ 9,90/mês                   │
-│     • Figurinhas ILIMITADAS                    │
-│     • Vídeos Twitter ILIMITADOS                │
-│     • Processamento prioritário                │
-│     • Suporte VIP                              │
-│                                                 │
-│ Digite *1* ou *2* para conhecer os planos!    │
-│ Digite *começar* para usar o plano gratuito.  │
+│ Envie uma imagem, vídeo ou GIF agora mesmo    │
+│ que eu transformo em figurinha! 🎨            │
 └─────────────────────────────────────────────────┘
 ```
 
+**Estratégia:** Mensagem curta focada em ação imediata (Time to Value)
+- Sem upsell no primeiro contato
+- Usuário pode começar a usar imediatamente
+- Planos são apresentados apenas quando usuário digita "planos" ou atinge limite
+
 **API Usada:** Evolution API (sendText) - Texto simples
 **Arquivo:** `src/services/messageService.ts` → `sendWelcomeMessage()`
-**Função:** `getWelcomeMenu()` em `menuService.ts`
+**Função:** `getWelcomeMenu()` em `menuService.ts:23-27`
 
 ---
 
@@ -180,7 +166,7 @@ Usuário digita: "planos"
 ```
 
 **API Usada:** Avisa API (sendList) - Lista interativa
-**Arquivo:** `src/services/menuService.ts` → `sendPlansListMenu()`
+**Arquivo:** `src/services/menuService.ts:435-473` → `sendPlansListMenu()`
 **Row IDs:**
 - `plan_free` → Plano gratuito
 - `plan_premium` → Plano Premium
@@ -240,7 +226,7 @@ Usuário clica: "💰 Premium - R$ 5,00/mês"
 ```
 
 **API Usada:** Avisa API (sendList) - Lista interativa
-**Arquivo:** `src/services/menuService.ts` → `sendPaymentMethodList()`
+**Arquivo:** `src/services/menuService.ts:478-523` → `sendPaymentMethodList()`
 **Row IDs:**
 - `payment_card` → Cartão de crédito (Stripe)
 - `payment_boleto` → Boleto bancário (Stripe)
@@ -289,7 +275,7 @@ Usuário clica: "💳 Cartão de Crédito"
 
 **API Usada:** Evolution API (sendText) - Texto com link
 **Arquivo:** `src/routes/webhook.ts` → Handler de `payment_card`/`payment_boleto`
-**Função:** `getPaymentLinkMessage()` em `menuService.ts`
+**Função:** `getPaymentLinkMessage()` em `menuService.ts:280-304`
 
 **Webhook Stripe → Backend:**
 Quando pagamento confirmado:
@@ -372,7 +358,7 @@ Usuário clica: "🔑 PIX"
 - Avisa API (sendPixButton) - Chave PIX com botão de copiar
 - Avisa API (sendButtons) - Botão de confirmação
 
-**Arquivo:** `src/services/menuService.ts` → `sendPixPaymentWithButton()`
+**Arquivo:** `src/services/menuService.ts:533-592` → `sendPixPaymentWithButton()`
 **Button ID:** `button_confirm_pix`
 **Endpoint PIX:** `POST /buttons/pix` (Avisa API)
 
@@ -457,8 +443,8 @@ Usuário clica: "✅ Já Paguei"
 ```
 
 **API Usada:** Evolution API (sendText) - Texto simples
-**Arquivo:** `src/workers/subscriptionWorker.ts` → Job handler
-**Função:** `getSubscriptionActivatedMessage()` em `menuService.ts`
+**Arquivo:** `src/jobs/activatePendingPixSubscription.ts` → Job handler
+**Função:** `getSubscriptionActivatedMessage()` em `menuService.ts:309-326`
 
 ---
 
@@ -468,28 +454,15 @@ Usuário clica: "✅ Já Paguei"
 ```
 🎉 Olá {userName}, bem-vindo ao *StickerBot*!
 
-Envie uma imagem ou GIF e eu transformo em figurinha para você! 🎨
-
-✨ *PLANO GRATUITO*
-Você tem *4 figurinhas por dia* para usar.
-
-💎 *QUER MAIS?*
-
-[1] 💰 *Premium* - R$ 5,00/mês
-    • 20 figurinhas/dia
-    • 15 vídeos Twitter/dia
-    • Sem marca d'água
-
-[2] 🚀 *Ultra* - R$ 9,90/mês
-    • Figurinhas ILIMITADAS
-    • Vídeos Twitter ILIMITADOS
-    • Processamento prioritário
-    • Sem marca d'água
-
-Digite *1* ou *2* para conhecer os planos!
-Digite *começar* para usar o plano gratuito.
+Envie uma imagem, vídeo ou GIF agora mesmo que eu transformo em figurinha! 🎨
 ```
-**Arquivo:** `src/services/menuService.ts:28-50`
+
+**Estratégia:** Mensagem curta focada em "Time to Value"
+- Usuário pode começar imediatamente
+- Sem upsell no primeiro contato
+- Planos apresentados via comando "planos" ou ao atingir limite
+
+**Arquivo:** `src/services/menuService.ts:23-27`
 
 ---
 
@@ -555,7 +528,7 @@ Seu limite será renovado às *00:00*.
 - Logs de conversão: `ab_test_upgrade_click`, `ab_test_bonus_used`, `ab_test_upgrade_dismissed`
 - Armazenado em: `users.ab_test_group`, `users.bonus_credits_today`
 
-**Arquivo:** `src/services/menuService.ts:61-197` + `src/routes/webhook.ts:301-404`
+**Arquivo:** `src/services/menuService.ts:66-199` → `sendLimitReachedMenu()`
 
 ---
 
@@ -582,7 +555,7 @@ Plano Premium: 20 figurinhas/dia (+400%!)
 Digite *CONFIRMAR* para assinar agora!
 Digite *VOLTAR* para ver outros planos.
 ```
-**Arquivo:** `src/services/menuService.ts:79-101`
+**Arquivo:** `src/services/menuService.ts:204-251` → `getPlanDetailsMenu()`
 
 ---
 
@@ -612,7 +585,7 @@ Plano Ultra: *ILIMITADO* 🔥
 Digite *CONFIRMAR* para assinar agora!
 Digite *VOLTAR* para ver outros planos.
 ```
-**Arquivo:** `src/services/menuService.ts:103-126`
+**Arquivo:** `src/services/menuService.ts:204-251` → `getPlanDetailsMenu('ultra')`
 
 ---
 
@@ -631,7 +604,7 @@ Digite *VOLTAR* para ver outros planos.
 
 Continue enviando suas imagens e GIFs! 🎨
 ```
-**Arquivo:** `src/services/menuService.ts:191-207`
+**Arquivo:** `src/services/menuService.ts:331-349` → `getSubscriptionActiveMessage()`
 
 ---
 
@@ -660,7 +633,7 @@ Seus dados estão protegidos. Não armazenamos informações de cartão.
 
 Mais dúvidas? Envie sua pergunta que respondo!
 ```
-**Arquivo:** `src/services/menuService.ts:216-238`
+**Arquivo:** `src/services/menuService.ts:365-388` → `getHelpMessage()`
 
 ---
 
@@ -679,7 +652,7 @@ Mais dúvidas? Envie sua pergunta que respondo!
 - Experiência fluida e limpa
 - Mensagens APENAS quando atingir o limite
 
-**Arquivo:** `src/worker.ts:113-115`
+**Arquivo:** `src/worker.ts:102-157` → processStickerWorker (status handling)
 
 ---
 
@@ -773,7 +746,7 @@ Por favor, tente novamente ou envie outra imagem.
 }
 ```
 
-**Arquivo:** `src/services/menuService.ts:261-285`
+**Arquivo:** `src/services/menuService.ts:435-473` → `sendPlansListMenu()`
 
 **Webhook Retorno (Evolution API):**
 ```json
@@ -824,7 +797,7 @@ Por favor, tente novamente ou envie outra imagem.
 }
 ```
 
-**Arquivo:** `src/services/menuService.ts:300-340`
+**Arquivo:** `src/services/menuService.ts:478-523` → `sendPaymentMethodList()`
 
 ---
 
@@ -862,7 +835,7 @@ Por favor, tente novamente ou envie outra imagem.
 }
 ```
 
-**Arquivo:** `src/services/menuService.ts:342-372`
+**Arquivo:** `src/services/menuService.ts:533-592` → `sendPixPaymentWithButton()`
 
 **Webhook Retorno (Evolution API ou Avisa API):**
 
@@ -981,33 +954,73 @@ Avisa API format (templateButtonReplyMessage):
 
 ---
 
-### **~~Botões: Edição de Sticker~~** ❌ DESCONTINUADO
+### **Botões: Edição de Sticker** ✨
 
-**Status:** Removido em 06/01/2026 (v1.3.0)
+**Status:** Ativo (via fila `edit-buttons` com debounce de 10s)
 
-**Motivo:** Estratégia de conversão focada - mensagens silenciosas
+**Trigger:** Após envio de sticker bem-sucedido (debounced)
 
-**Antes (Removido):**
-- Botões automáticos após cada sticker
-- Mensagens "Gostou da figurinha?"
-- Spam de mensagens
+**Estrutura Avisa API:**
+```typescript
+{
+  number: "5511946304133",
+  title: "🎨 *Gostou da figurinha?*",
+  desc: "Quer fazer alguma edição?",
+  footer: "Edições não contam no limite",
+  buttons: [
+    { id: "button_remove_borders", text: "🧹 Remover Bordas" },
+    { id: "button_remove_background", text: "✨ Remover Fundo" },
+    { id: "button_sticker_perfect", text: "✅ Está perfeita!" }
+  ]
+}
+```
 
-**Agora (v1.3.0):**
-- Stickers enviados silenciosamente
-- SEM botões automáticos
-- SEM mensagens de confirmação
-- Mensagens APENAS quando atingir limite
+**Arquivo:** `src/services/menuService.ts:597-632` → `sendStickerEditButtons()`
 
-**Edição de Stickers (Futuro):**
-A funcionalidade de remoção de bordas/fundo será reimplementada
-quando usuário REENVIAR um sticker existente, mas SEM botões automáticos.
+**Fluxo Completo:**
 
-**Arquivos modificados:**
-- Worker: `src/worker.ts:113-156` (removido editButtonsQueue)
-- Removido: tracking de onboarding steps
-- Removido: sendStickerConfirmation
+```
+1️⃣ Usuário envia imagem
+   → Backend processa e envia sticker
+   → Adiciona job edit-buttons (delay 10s debounce)
 
-**Ver changelog completo em:** Versão 1.3.0 abaixo
+2️⃣ Worker edit-buttons processa:
+   → Salva contexto no Redis (sticker_url, message_key, etc.)
+   → Envia botões de edição via Avisa API
+
+3️⃣ Usuário clica "🧹 Remover Bordas"
+   → Backend detecta button_remove_borders
+   → Adiciona job cleanup-sticker (PATH B)
+   → Envia "🧹 Removendo bordas..."
+
+4️⃣ Worker cleanup-sticker processa (PATH B):
+   → Baixa sticker do Storage
+   → Remove bordas brancas (sem rembg)
+   → Upload nova versão
+   → Envia sticker limpo
+
+5️⃣ Alternativa: Usuário clica "✨ Remover Fundo"
+   → Backend detecta button_remove_background
+   → Adiciona job cleanup-sticker (PATH A)
+   → Envia "✨ Removendo fundo..."
+   → Worker usa rembg com modelo U²-Net
+   → Envia sticker sem fundo
+
+6️⃣ Alternativa: Usuário clica "✅ Está perfeita!"
+   → Backend envia confirmação
+   → Limpa contexto do Redis
+```
+
+**Importante:**
+- Edições NÃO contam no limite diário
+- Contexto expira em 10 minutos (Redis TTL)
+- Worker `edit-buttons` tem concurrency: 5
+- Worker `cleanup-sticker` tem concurrency: 2
+
+**Arquivos:**
+- Worker edit-buttons: `src/worker.ts:1434-1502`
+- Worker cleanup-sticker: `src/worker.ts:1140-1420`
+- Função de botões: `src/services/menuService.ts:597-632`
 
 ---
 
@@ -1150,7 +1163,13 @@ context:5511946304133 = {
 - Ativa assinatura no Supabase
 - Envia mensagem de confirmação
 
-**Queue: scheduled-jobs** ✨
+**Queue: edit-buttons** ✨
+- Envia botões de edição após criação de sticker
+- Debounce de 10 segundos (evita spam)
+- Salva contexto de edição no Redis
+- Concurrency: 5 (apenas envio de mensagens)
+
+**Queue: scheduled-jobs**
 - **send-pending-stickers**: Roda todo dia às 8:00 AM (São Paulo timezone)
   - Envia stickers que não foram enviados por limite atingido
   - Log completo na tabela `pending_sticker_sends`
@@ -1464,16 +1483,26 @@ logMenuInteraction(userNumber, 'pix_payment_confirmed');
 - [ ] Envio de stickers funcionando (silencioso)
 - [ ] Download de Twitter funcionando
 - [ ] Conversão Twitter → Sticker funcionando
-- [ ] ~~Edição de stickers automática~~ (Removida em v1.3.0)
-- [ ] rembg instalado com ONNX Runtime CPU (para uso futuro)
+- [ ] Edição de stickers funcionando (botões via edit-buttons queue)
+- [ ] rembg instalado com ONNX Runtime CPU
 - [ ] Modelos AI pré-baixados no Docker
 
 ---
 
 **Última atualização:** 07/01/2026
-**Versão:** 1.4.0
+**Versão:** 1.5.0
 
-**Mudanças nesta versão (v1.4.0):** 🎉
+**Mudanças nesta versão (v1.5.0):** 📝
+
+**📄 ATUALIZAÇÃO DA DOCUMENTAÇÃO:**
+- ✅ **CORRIGIDO:** Mensagem de boas-vindas atualizada para versão curta (Time to Value)
+- ✅ **CORRIGIDO:** Removida seção "DESCONTINUADO" sobre edit-buttons (funcionalidade está ativa!)
+- ✅ **CORRIGIDO:** Todas as referências de linha atualizadas para corresponder ao código real
+- ✅ **ADICIONADO:** Documentação completa da fila `edit-buttons` e fluxo de edição
+- ✅ **ADICIONADO:** Queue `edit-buttons` na seção de Jobs do Bull Queue
+- ✅ **ATUALIZADO:** Checklist de funcionamento reflete estado atual
+
+**Versão anterior (v1.4.0):** 🎉
 
 **🐛 BUG FIX CRÍTICO:**
 - ✅ **CORRIGIDO:** Sistema agora detecta `templateButtonReplyMessage` da Avisa API

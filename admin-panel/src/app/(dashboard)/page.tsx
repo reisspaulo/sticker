@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AreaChart } from '@/components/charts/area-chart'
+import { PieChart } from '@/components/charts/pie-chart'
+import { BarChart } from '@/components/charts/bar-chart'
 import {
   Users,
   Image,
@@ -12,6 +15,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react'
+import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 interface Stats {
   usersToday: number
@@ -22,6 +27,19 @@ interface Stats {
   totalStickers: number
   pendingClassification: number
   errorsToday: number
+}
+
+interface DailyData {
+  date: string
+  value: number
+  label: string
+}
+
+interface StickerTypeData {
+  name: string
+  value: number
+  color: string
+  [key: string]: string | number
 }
 
 interface RecentActivity {
@@ -64,7 +82,7 @@ function StatCard({
         ) : (
           <>
             <div className="text-2xl font-bold">{value.toLocaleString()}</div>
-            {previousValue !== undefined && (
+            {previousValue !== undefined && previousValue > 0 && (
               <p className={`flex items-center text-xs ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
                 {isPositive ? (
                   <ArrowUpRight className="mr-1 h-3 w-3" />
@@ -92,8 +110,13 @@ export default function DashboardPage() {
     pendingClassification: 0,
     errorsToday: 0,
   })
+  const [usersDaily, setUsersDaily] = useState<DailyData[]>([])
+  const [stickersDaily, setStickersDaily] = useState<DailyData[]>([])
+  const [stickerTypes, setStickerTypes] = useState<StickerTypeData[]>([])
+  const [topCelebrities, setTopCelebrities] = useState<{ name: string; value: number }[]>([])
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
+  const [chartsLoading, setChartsLoading] = useState(true)
 
   useEffect(() => {
     async function loadStats() {
@@ -116,45 +139,36 @@ export default function DashboardPage() {
         errorsTodayRes,
         activityRes,
       ] = await Promise.all([
-        // Users today
         supabase
           .from('users')
           .select('*', { count: 'exact', head: true })
           .gte('created_at', todayISO),
-        // Users yesterday
         supabase
           .from('users')
           .select('*', { count: 'exact', head: true })
           .gte('created_at', yesterdayISO)
           .lt('created_at', todayISO),
-        // Stickers today
         supabase
           .from('stickers')
           .select('*', { count: 'exact', head: true })
           .gte('created_at', todayISO),
-        // Stickers yesterday
         supabase
           .from('stickers')
           .select('*', { count: 'exact', head: true })
           .gte('created_at', yesterdayISO)
           .lt('created_at', todayISO),
-        // Total users
         supabase.from('users').select('*', { count: 'exact', head: true }),
-        // Total stickers
         supabase.from('stickers').select('*', { count: 'exact', head: true }),
-        // Pending classification
         supabase
           .from('stickers')
           .select('*', { count: 'exact', head: true })
           .eq('face_detected', true)
           .or('emotion_approved.is.null,emotion_approved.eq.false'),
-        // Errors today
         supabase
           .from('usage_logs')
           .select('*', { count: 'exact', head: true })
           .gte('created_at', todayISO)
-          .eq('action', 'error'),
-        // Recent activity
+          .ilike('action', '%error%'),
         supabase
           .from('usage_logs')
           .select('id, action, user_number, created_at, metadata')
@@ -177,8 +191,115 @@ export default function DashboardPage() {
       setLoading(false)
     }
 
+    async function loadChartData() {
+      const today = new Date()
+      const thirtyDaysAgo = subDays(today, 30)
+      const thirtyDaysAgoISO = startOfDay(thirtyDaysAgo).toISOString()
+
+      // Get all days in range for proper labels
+      const days = eachDayOfInterval({ start: thirtyDaysAgo, end: today })
+      const dayLabels = days.map(d => format(d, 'dd/MM'))
+
+      // Fetch users created in last 30 days
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('created_at')
+        .gte('created_at', thirtyDaysAgoISO)
+        .order('created_at', { ascending: true })
+
+      // Fetch stickers created in last 30 days
+      const { data: stickersData } = await supabase
+        .from('stickers')
+        .select('created_at, tipo')
+        .gte('created_at', thirtyDaysAgoISO)
+        .order('created_at', { ascending: true })
+
+      // Count users per day
+      const usersByDay: Record<string, number> = {}
+      days.forEach(d => {
+        usersByDay[format(d, 'yyyy-MM-dd')] = 0
+      })
+      usersData?.forEach(u => {
+        const day = format(new Date(u.created_at), 'yyyy-MM-dd')
+        if (usersByDay[day] !== undefined) {
+          usersByDay[day]++
+        }
+      })
+
+      const usersChartData: DailyData[] = days.map(d => ({
+        date: format(d, 'yyyy-MM-dd'),
+        value: usersByDay[format(d, 'yyyy-MM-dd')] || 0,
+        label: format(d, 'dd/MM'),
+      }))
+      setUsersDaily(usersChartData)
+
+      // Count stickers per day
+      const stickersByDay: Record<string, number> = {}
+      days.forEach(d => {
+        stickersByDay[format(d, 'yyyy-MM-dd')] = 0
+      })
+      stickersData?.forEach(s => {
+        const day = format(new Date(s.created_at), 'yyyy-MM-dd')
+        if (stickersByDay[day] !== undefined) {
+          stickersByDay[day]++
+        }
+      })
+
+      const stickersChartData: DailyData[] = days.map(d => ({
+        date: format(d, 'yyyy-MM-dd'),
+        value: stickersByDay[format(d, 'yyyy-MM-dd')] || 0,
+        label: format(d, 'dd/MM'),
+      }))
+      setStickersDaily(stickersChartData)
+
+      // Count stickers by type
+      let staticCount = 0
+      let animatedCount = 0
+      stickersData?.forEach(s => {
+        if (s.tipo === 'animado') {
+          animatedCount++
+        } else {
+          staticCount++
+        }
+      })
+
+      // Get total counts (not just last 30 days)
+      const [staticRes, animatedRes] = await Promise.all([
+        supabase.from('stickers').select('*', { count: 'exact', head: true }).eq('tipo', 'estatico'),
+        supabase.from('stickers').select('*', { count: 'exact', head: true }).eq('tipo', 'animado'),
+      ])
+
+      setStickerTypes([
+        { name: 'Estaticos', value: staticRes.count || 0, color: 'hsl(var(--primary))' },
+        { name: 'Animados', value: animatedRes.count || 0, color: 'hsl(142, 76%, 36%)' },
+      ])
+
+      // Top celebrities
+      const { data: celebData } = await supabase
+        .from('celebrities')
+        .select('name, stickers:stickers(count)')
+        .order('name')
+
+      if (celebData) {
+        const celebCounts = celebData
+          .map(c => ({
+            name: c.name,
+            value: Array.isArray(c.stickers) ? c.stickers.length : (c.stickers as any)?.count || 0,
+          }))
+          .filter(c => c.value > 0)
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 5)
+
+        setTopCelebrities(celebCounts)
+      }
+
+      setChartsLoading(false)
+    }
+
     loadStats()
-    // Refresh every 30 seconds
+    loadChartData()
+
+    // Refresh stats every 30 seconds
     const interval = setInterval(loadStats, 30000)
     return () => clearInterval(interval)
   }, [])
@@ -246,76 +367,169 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Totals */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Charts Row */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Users Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Total de Usuarios</CardTitle>
+            <CardTitle className="text-base">Novos Usuarios (30 dias)</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <Skeleton className="h-10 w-32" />
+            {chartsLoading ? (
+              <Skeleton className="h-[300px] w-full" />
             ) : (
-              <div className="text-3xl font-bold">{stats.totalUsers.toLocaleString()}</div>
+              <AreaChart
+                data={usersDaily}
+                color="hsl(var(--primary))"
+                height={300}
+              />
             )}
           </CardContent>
         </Card>
+
+        {/* Stickers Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Total de Stickers</CardTitle>
+            <CardTitle className="text-base">Stickers Criados (30 dias)</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <Skeleton className="h-10 w-32" />
+            {chartsLoading ? (
+              <Skeleton className="h-[300px] w-full" />
             ) : (
-              <div className="text-3xl font-bold">{stats.totalStickers.toLocaleString()}</div>
+              <AreaChart
+                data={stickersDaily}
+                color="hsl(142, 76%, 36%)"
+                height={300}
+              />
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Atividade Recente</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-20 ml-auto" />
-                </div>
-              ))}
+      {/* Second Charts Row */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Sticker Types Pie */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Stickers por Tipo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {chartsLoading ? (
+              <Skeleton className="h-[250px] w-full" />
+            ) : (
+              <PieChart
+                data={stickerTypes}
+                height={250}
+                innerRadius={50}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top Celebrities */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Top Celebridades</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {chartsLoading ? (
+              <Skeleton className="h-[250px] w-full" />
+            ) : topCelebrities.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhuma celebridade com stickers</p>
+            ) : (
+              <BarChart
+                data={topCelebrities}
+                color="hsl(var(--primary))"
+                height={250}
+                horizontal
+              />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Totals + Activity Row */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Totals */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Totais</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Total de Usuarios</span>
+              {loading ? (
+                <Skeleton className="h-6 w-16" />
+              ) : (
+                <span className="text-xl font-bold">{stats.totalUsers.toLocaleString()}</span>
+              )}
             </div>
-          ) : recentActivity.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Nenhuma atividade recente</p>
-          ) : (
-            <div className="space-y-3">
-              {recentActivity.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0"
-                >
-                  <div className="flex items-center gap-4">
-                    <span className="text-xs text-muted-foreground w-16">
-                      {formatTimeAgo(activity.created_at)}
-                    </span>
-                    <span className="text-sm">
-                      {formatAction(activity.action)}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Total de Stickers</span>
+              {loading ? (
+                <Skeleton className="h-6 w-16" />
+              ) : (
+                <span className="text-xl font-bold">{stats.totalStickers.toLocaleString()}</span>
+              )}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Media por Usuario</span>
+              {loading ? (
+                <Skeleton className="h-6 w-16" />
+              ) : (
+                <span className="text-xl font-bold">
+                  {stats.totalUsers > 0
+                    ? (stats.totalStickers / stats.totalUsers).toFixed(1)
+                    : '0'}
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Atividade Recente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-20 ml-auto" />
+                  </div>
+                ))}
+              </div>
+            ) : recentActivity.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhuma atividade recente</p>
+            ) : (
+              <div className="space-y-3">
+                {recentActivity.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0"
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs text-muted-foreground w-16">
+                        {formatTimeAgo(activity.created_at)}
+                      </span>
+                      <span className="text-sm">
+                        {formatAction(activity.action)}
+                      </span>
+                    </div>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {maskNumber(activity.user_number)}
                     </span>
                   </div>
-                  <span className="text-xs text-muted-foreground font-mono">
-                    {maskNumber(activity.user_number)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

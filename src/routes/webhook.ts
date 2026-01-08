@@ -102,6 +102,23 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
       }
       fastify.log.info('✅ Not from self');
 
+      // Phase 1: Ignore group messages (remoteJid ends with @g.us)
+      // TODO Phase 2: Support groups with individual participant tracking
+      const remoteJid = body.data?.key?.remoteJid || '';
+      if (remoteJid.endsWith('@g.us')) {
+        const keyData = body.data?.key as unknown as Record<string, unknown>;
+        fastify.log.info({
+          msg: '❌ Ignoring group message (Phase 1)',
+          groupId: remoteJid,
+          participant: keyData?.participant || keyData?.participantAlt,
+        });
+        return reply.status(200).send({
+          status: 'ignored',
+          reason: 'group messages not supported yet',
+        });
+      }
+      fastify.log.info('✅ Not a group message');
+
       // Only process messages.upsert events (case-insensitive, supports both . and _)
       const eventType = body.event?.toLowerCase().replace(/_/g, '.');
       fastify.log.info({ event: body.event, normalized: eventType }, 'Event type check');

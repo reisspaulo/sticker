@@ -306,10 +306,19 @@ export async function cancelPixPayment(userNumber: string): Promise<void> {
 }
 
 /**
+ * Result of PIX subscription activation
+ */
+export type ActivationResult = {
+  success: boolean;
+  reason: 'activated' | 'not_confirmed' | 'no_payment_found' | 'database_error' | 'unknown_error';
+  error?: string;
+};
+
+/**
  * Activate subscription after PIX payment confirmation
  * Called by delayed job after 5 minutes
  */
-export async function activatePixSubscription(userNumber: string): Promise<boolean> {
+export async function activatePixSubscription(userNumber: string): Promise<ActivationResult> {
   try {
     logger.info({
       msg: '[PIX] Starting subscription activation',
@@ -340,7 +349,7 @@ export async function activatePixSubscription(userNumber: string): Promise<boole
           msg: '[PIX] No confirmed payment found in Supabase either',
           userNumber,
         });
-        return false;
+        return { success: false, reason: 'no_payment_found' };
       }
 
       logger.info({
@@ -387,7 +396,7 @@ export async function activatePixSubscription(userNumber: string): Promise<boole
         .eq('user_number', userNumber)
         .eq('status', 'pending');
 
-      return false;
+      return { success: false, reason: 'not_confirmed' };
     }
 
     // Calculate subscription dates
@@ -433,7 +442,7 @@ export async function activatePixSubscription(userNumber: string): Promise<boole
         .eq('user_number', userNumber)
         .eq('status', 'confirmed');
 
-      throw userError;
+      return { success: false, reason: 'database_error', error: userError.message };
     }
 
     // Update payment status to activated
@@ -468,11 +477,13 @@ export async function activatePixSubscription(userNumber: string): Promise<boole
       endsAt: endsAt.toISOString(),
     });
 
-    return true;
+    return { success: true, reason: 'activated' };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
     logger.error({
       msg: '[PIX] Error activating PIX subscription',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage,
       userNumber,
     });
 
@@ -482,7 +493,7 @@ export async function activatePixSubscription(userNumber: string): Promise<boole
         .from('pix_payments')
         .update({
           status: 'failed',
-          error_message: error instanceof Error ? error.message : 'Unknown error',
+          error_message: errorMessage,
           updated_at: new Date().toISOString(),
         })
         .eq('user_number', userNumber)
@@ -494,6 +505,6 @@ export async function activatePixSubscription(userNumber: string): Promise<boole
       });
     }
 
-    return false;
+    return { success: false, reason: 'unknown_error', error: errorMessage };
   }
 }

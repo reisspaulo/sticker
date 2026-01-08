@@ -267,6 +267,71 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           }
         }
 
+        // Handle PIX retry button (from failed activation)
+        if (interactive.id.startsWith('retry_pix_')) {
+          const plan = interactive.id.replace('retry_pix_', '') as 'premium' | 'ultra';
+
+          fastify.log.info({
+            msg: 'User clicked retry PIX button',
+            userNumber,
+            plan,
+          });
+
+          try {
+            // Create new pending PIX payment
+            const payment = await createPendingPixPayment(
+              userNumber,
+              userName,
+              user.id,
+              plan
+            );
+
+            // Send PIX payment instructions with interactive button
+            await sendPixPaymentWithButton(userNumber, payment.pixKey, plan);
+
+            fastify.log.info({
+              msg: 'New PIX payment created after retry',
+              userNumber,
+              plan,
+              pixKey: payment.pixKey,
+            });
+
+            return reply.status(200).send({ status: 'pix_retry_created', plan });
+          } catch (error) {
+            fastify.log.error({
+              msg: 'Error creating PIX on retry',
+              userNumber,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+
+            await sendText(
+              userNumber,
+              `😔 *Erro ao gerar PIX*\n\nOcorreu um erro ao gerar o pagamento.\n\nPor favor, digite *planos* para tentar novamente.`
+            );
+
+            return reply.status(500).send({ status: 'error' });
+          }
+        }
+
+        // Handle contact support button (from PIX errors)
+        if (interactive.id === 'contact_support' || interactive.id === 'contact_support_urgent') {
+          fastify.log.info({
+            msg: 'User clicked contact support button',
+            userNumber,
+            buttonId: interactive.id,
+            isUrgent: interactive.id === 'contact_support_urgent',
+          });
+
+          const isUrgent = interactive.id === 'contact_support_urgent';
+          const supportMessage = isUrgent
+            ? `📞 *Suporte Urgente*\n\nSeu caso foi marcado como *prioritário*.\n\n💬 Nosso time vai entrar em contato em breve para resolver seu problema.\n\n📱 Se preferir, envie uma mensagem descrevendo o ocorrido que responderemos o mais rápido possível.`
+            : `📞 *Fale com o Suporte*\n\n${getHelpMessage()}\n\n💬 Envie uma mensagem descrevendo sua dúvida ou problema que vamos ajudar!`;
+
+          await sendText(userNumber, supportMessage);
+
+          return reply.status(200).send({ status: 'support_requested', urgent: isUrgent });
+        }
+
         // Handle Twitter feature presentation buttons
         if (interactive.id === 'button_twitter_learn') {
           const { handleTwitterLearnMore } = await import('../services/onboardingService');

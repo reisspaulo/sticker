@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { supabase, getStickerUrl, type Sticker, type Celebrity } from '@/lib/supabase'
-import { useAuth } from '@/lib/auth'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -49,8 +48,7 @@ const PAGE_SIZE = 30
 
 type FilterStatus = 'pending' | 'all' | 'approved' | 'no_emotion'
 
-export default function Home() {
-  const { user, loading: authLoading, signOut } = useAuth()
+export default function EmotionsPage() {
   const [stickers, setStickers] = useState<Sticker[]>([])
   const [celebrities, setCelebrities] = useState<Celebrity[]>([])
   const [loading, setLoading] = useState(true)
@@ -61,7 +59,7 @@ export default function Home() {
   const [totalCount, setTotalCount] = useState(0)
   const [stats, setStats] = useState({ total: 0, classified: 0, approved: 0 })
 
-  // Modal state - deve ficar antes dos returns condicionais
+  // Modal state
   const [selectedSticker, setSelectedSticker] = useState<Sticker | null>(null)
   const [editTags, setEditTags] = useState<string[]>([])
   const [editCelebrity, setEditCelebrity] = useState<string>('none')
@@ -115,7 +113,6 @@ export default function Home() {
       query = query.contains('emotion_tags', [searchTag.trim().toLowerCase()])
     }
 
-    // Para stickers sem emoção, ordenar por id já que emotion_classified_at é null
     if (filterStatus === 'no_emotion') {
       query = query.order('id', { ascending: false })
     } else {
@@ -144,19 +141,6 @@ export default function Home() {
   useEffect(() => {
     loadStickers()
   }, [loadStickers])
-
-  // Conditional returns - depois de todos os hooks
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-muted-foreground">Carregando...</div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null // AuthProvider vai redirecionar para /login
-  }
 
   const openEditModal = (sticker: Sticker) => {
     setSelectedSticker(sticker)
@@ -236,163 +220,158 @@ export default function Home() {
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 max-w-screen-2xl items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <h1 className="text-lg font-semibold tracking-tight">Stickers Admin</h1>
-            <Separator orientation="vertical" className="h-6" />
-            <span className="text-sm text-muted-foreground">
-              {stats.approved} aprovados / {stats.classified} classificados / {stats.total} total
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => { loadStickers(); loadStats() }}>
-              Atualizar
-            </Button>
-            <Separator orientation="vertical" className="h-6" />
-            <span className="text-sm text-muted-foreground">{user.email}</span>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              Sair
-            </Button>
-          </div>
+    <div className="space-y-6">
+      {/* Stats Bar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Badge variant="outline" className="text-sm">
+            {stats.approved} aprovados
+          </Badge>
+          <Badge variant="outline" className="text-sm">
+            {stats.classified} classificados
+          </Badge>
+          <Badge variant="outline" className="text-sm">
+            {stats.total} total
+          </Badge>
         </div>
-      </header>
-
-      {/* Filters */}
-      <div className="border-b border-border/40 bg-muted/30">
-        <div className="container max-w-screen-2xl px-4 py-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v as FilterStatus); setCurrentPage(0) }}>
-              <SelectTrigger className="w-[180px] bg-background">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pendentes de revisao</SelectItem>
-                <SelectItem value="all">Todos com emocao</SelectItem>
-                <SelectItem value="approved">Aprovados</SelectItem>
-                <SelectItem value="no_emotion">Sem emocao</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filterCelebrity} onValueChange={(v) => { setFilterCelebrity(v); setCurrentPage(0) }}>
-              <SelectTrigger className="w-[180px] bg-background">
-                <SelectValue placeholder="Todas celebridades" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas celebridades</SelectItem>
-                {celebrities.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Input
-              placeholder="Buscar tag..."
-              value={searchTag}
-              onChange={(e) => { setSearchTag(e.target.value); setCurrentPage(0) }}
-              className="w-[160px] bg-background"
-            />
-
-            <span className="ml-auto text-sm text-muted-foreground">
-              {totalCount} stickers
-            </span>
-          </div>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => { loadStickers(); loadStats() }}
+        >
+          Atualizar
+        </Button>
       </div>
 
-      {/* Main Content */}
-      <main className="container max-w-screen-2xl px-4 py-6">
-        {loading ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <Card key={i} className="overflow-hidden">
-                <Skeleton className="aspect-square" />
-                <div className="p-3 space-y-2">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-5 w-full" />
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : stickers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="text-muted-foreground">Nenhum sticker encontrado</div>
-            <p className="mt-2 text-sm text-muted-foreground/60">
-              Tente ajustar os filtros
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {stickers.map((sticker) => (
-              <Card
-                key={sticker.id}
-                className={`group cursor-pointer overflow-hidden transition-all hover:ring-2 hover:ring-primary/50 ${
-                  sticker.emotion_approved ? 'ring-1 ring-green-500/50' : ''
-                }`}
-                onClick={() => openEditModal(sticker)}
-              >
-                <div className="aspect-square bg-muted/50 p-2 flex items-center justify-center">
-                  <img
-                    src={getStickerUrl(sticker)}
-                    alt="Sticker"
-                    className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105"
-                    loading="lazy"
-                  />
-                </div>
-                <div className="p-3 space-y-2">
-  {(Array.isArray(sticker.celebrities) ? sticker.celebrities[0]?.name : sticker.celebrities?.name) && (
-                    <p className="text-xs font-medium text-purple-400 truncate">
-                      {Array.isArray(sticker.celebrities) ? sticker.celebrities[0]?.name : sticker.celebrities?.name}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-1">
-                    {(sticker.emotion_tags || []).slice(0, 3).map((tag, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {(sticker.emotion_tags || []).length > 3 && (
-                      <span className="text-xs text-muted-foreground">
-                        +{(sticker.emotion_tags || []).length - 3}
-                      </span>
-                    )}
-                  </div>
-                  {sticker.emotion_approved && (
-                    <p className="text-xs text-green-500">Aprovado</p>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
+      {/* Filters */}
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v as FilterStatus); setCurrentPage(0) }}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pending">Pendentes de revisao</SelectItem>
+              <SelectItem value="all">Todos com emocao</SelectItem>
+              <SelectItem value="approved">Aprovados</SelectItem>
+              <SelectItem value="no_emotion">Sem emocao</SelectItem>
+            </SelectContent>
+          </Select>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-8">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
-              disabled={currentPage === 0}
+          <Select value={filterCelebrity} onValueChange={(v) => { setFilterCelebrity(v); setCurrentPage(0) }}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Todas celebridades" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas celebridades</SelectItem>
+              {celebrities.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Input
+            placeholder="Buscar tag..."
+            value={searchTag}
+            onChange={(e) => { setSearchTag(e.target.value); setCurrentPage(0) }}
+            className="w-[160px]"
+          />
+
+          <span className="ml-auto text-sm text-muted-foreground">
+            {totalCount} stickers
+          </span>
+        </div>
+      </Card>
+
+      {/* Stickers Grid */}
+      {loading ? (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <Skeleton className="aspect-square" />
+              <div className="p-3 space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-5 w-full" />
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : stickers.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="text-muted-foreground">Nenhum sticker encontrado</div>
+          <p className="mt-2 text-sm text-muted-foreground/60">
+            Tente ajustar os filtros
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {stickers.map((sticker) => (
+            <Card
+              key={sticker.id}
+              className={`group cursor-pointer overflow-hidden transition-all hover:ring-2 hover:ring-primary/50 ${
+                sticker.emotion_approved ? 'ring-1 ring-green-500/50' : ''
+              }`}
+              onClick={() => openEditModal(sticker)}
             >
-              Anterior
-            </Button>
-            <span className="text-sm text-muted-foreground px-4">
-              Pagina {currentPage + 1} de {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={currentPage >= totalPages - 1}
-            >
-              Proximo
-            </Button>
-          </div>
-        )}
-      </main>
+              <div className="aspect-square bg-muted/50 p-2 flex items-center justify-center">
+                <img
+                  src={getStickerUrl(sticker)}
+                  alt="Sticker"
+                  className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105"
+                  loading="lazy"
+                />
+              </div>
+              <div className="p-3 space-y-2">
+                {(Array.isArray(sticker.celebrities) ? sticker.celebrities[0]?.name : sticker.celebrities?.name) && (
+                  <p className="text-xs font-medium text-purple-400 truncate">
+                    {Array.isArray(sticker.celebrities) ? sticker.celebrities[0]?.name : sticker.celebrities?.name}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-1">
+                  {(sticker.emotion_tags || []).slice(0, 3).map((tag, i) => (
+                    <Badge key={i} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                  {(sticker.emotion_tags || []).length > 3 && (
+                    <span className="text-xs text-muted-foreground">
+                      +{(sticker.emotion_tags || []).length - 3}
+                    </span>
+                  )}
+                </div>
+                {sticker.emotion_approved && (
+                  <p className="text-xs text-green-500">Aprovado</p>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-8">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+            disabled={currentPage === 0}
+          >
+            Anterior
+          </Button>
+          <span className="text-sm text-muted-foreground px-4">
+            Pagina {currentPage + 1} de {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={currentPage >= totalPages - 1}
+          >
+            Proximo
+          </Button>
+        </div>
+      )}
 
       {/* Edit Modal */}
       <Dialog open={!!selectedSticker} onOpenChange={() => closeModal()}>

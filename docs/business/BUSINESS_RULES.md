@@ -1,7 +1,7 @@
 # Regras de Negocio - StickerBot
 
 > Documento central com todas as regras de negocio do sistema.
-> Ultima atualizacao: 2026-01-07
+> Ultima atualizacao: 2026-01-08
 
 ---
 
@@ -202,6 +202,31 @@ Mensagem "Seu sticker foi salvo!" **so** e enviada se `pendingCount > 0`
 - Se nao encontrar no Redis, busca no Supabase e restaura para Redis
 
 **Fonte:** `src/services/pixPaymentService.ts:133-210`
+
+### BR-505: Mensagens de Erro PIX com Botoes
+Quando ativacao PIX falha, usuario recebe mensagem de erro + botoes interativos:
+
+| Tipo de Erro | Botoes Oferecidos |
+|--------------|-------------------|
+| `not_confirmed` (usuario nao clicou "Ja Paguei") | [Gerar Novo PIX] [Falar com Suporte] |
+| `no_payment_found` (PIX expirou/nao encontrado) | [Gerar Novo PIX] [Falar com Suporte] |
+| `database_error` (erro tecnico, pagamento recebido) | [Falar com Suporte] (urgente) |
+| `unknown_error` (erro desconhecido) | [Falar com Suporte] (urgente) |
+
+**Fonte:** `src/jobs/activatePendingPixSubscription.ts:44-107`
+
+### BR-506: Retry PIX via Botao
+- Botao "Gerar Novo PIX" cria novo pagamento PIX automaticamente
+- Button ID: `retry_pix_premium` ou `retry_pix_ultra` (baseado no plano original)
+- Nao precisa passar pelo fluxo de selecao de plano novamente
+
+**Fonte:** `src/routes/webhook.ts:270-314`
+
+### BR-507: Fallback de Botoes PIX
+- Se Avisa API falhar ao enviar botoes, envia mensagem texto com instrucoes
+- Texto fallback: "Para tentar novamente, digite *planos*. Para suporte, digite *ajuda*."
+
+**Fonte:** `src/jobs/activatePendingPixSubscription.ts:91-106`
 
 ---
 
@@ -636,6 +661,44 @@ Grupo BONUS com creditos disponiveis **sempre** recebe menu (sem throttle)
 
 **Fonte:** `src/routes/webhook.ts:150`
 
+### BR-1602: Resposta a Textos Nao Reconhecidos
+Quando usuario envia texto que nao e um comando (ex: "ola", "oi", "bom dia", "."):
+
+| Tipo de Usuario | Mensagem Enviada |
+|-----------------|------------------|
+| **Novo** (`first_sticker_at = NULL`) | Mensagem de boas-vindas completa com instrucoes |
+| **Existente** (`first_sticker_at != NULL`) | Lembrete curto: "Envie uma imagem para criar figurinha!" |
+
+**Usuario Novo recebe:**
+```
+👋 Ola, [Nome]! Eu sou o *StickerBot*!
+
+📸 Me envie uma *imagem* ou *GIF* e eu transformo em figurinha instantaneamente!
+
+🐦 Tambem baixo videos do *Twitter/X* - e so enviar o link!
+
+🆓 Voce tem *4 figurinhas gratis* por dia.
+
+💡 Comandos: *planos* | *status* | *ajuda*
+```
+
+**Usuario Existente recebe:**
+```
+📸 Envie uma *imagem* ou *GIF* para criar figurinha!
+
+💡 Comandos: *planos* | *status* | *ajuda*
+```
+
+**Fonte:** `src/routes/webhook.ts:988-1014`, `src/services/menuService.ts:637-657`
+
+### BR-1603: Determinacao de Usuario Novo
+- Campo `first_sticker_at` na tabela `users` determina se usuario e novo
+- `first_sticker_at = NULL` → usuario nunca criou figurinha (novo)
+- `first_sticker_at = timestamp` → usuario ja criou figurinha (existente)
+- Campo e preenchido automaticamente na primeira figurinha criada
+
+**Fonte:** `src/worker.ts:135-153`, `src/services/userService.ts:17`
+
 ---
 
 ## 17. Usuarios
@@ -876,6 +939,8 @@ Step 3: Figurinha enviada
 
 | Data | Regra | Mudanca |
 |------|-------|---------|
+| 2026-01-08 | BR-1602-1603 | Adicionadas regras de resposta a textos nao reconhecidos (saudacoes) |
+| 2026-01-08 | BR-505-507 | Adicionadas regras de botoes em erros PIX |
 | 2026-01-07 | BR-403 | Corrigido bug: mensagem "sticker salvo" nao enviada para grupo control |
 | 2026-01-07 | BR-302 | Implementado: bonus disponivel sempre mostra menu (sem throttle) |
 | 2026-01-07 | BR-1104-1107 | Adicionadas regras de conversao Twitter→Sticker |

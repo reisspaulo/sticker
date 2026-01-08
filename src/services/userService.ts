@@ -14,6 +14,7 @@ export interface User {
   bonus_credits_today?: number;
   limit_notified_at?: string;
   onboarding_step?: number;
+  first_sticker_at?: string; // NULL = never created a sticker (new user)
 }
 
 /**

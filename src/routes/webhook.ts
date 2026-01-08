@@ -29,6 +29,8 @@ import {
   sendPlansListMenu,
   sendPaymentMethodList,
   sendPixPaymentWithButton,
+  getWelcomeMessageForNewUser,
+  getReminderMessage,
 } from '../services/menuService';
 import { getUserPlan, hasActiveSubscription } from '../services/subscriptionService';
 import { uploadTwitterVideo } from '../services/twitterStorage';
@@ -983,12 +985,33 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // No pending video selection - ignore non-media message
-        fastify.log.debug({ userNumber }, 'Ignoring non-media message');
-        return reply.status(200).send({
-          status: 'ignored',
-          reason: 'not an image or gif',
-        });
+        // No pending video selection - send greeting/reminder based on user status
+        const isNewUser = !user.first_sticker_at;
+
+        if (isNewUser) {
+          // NEW USER: Send full welcome message
+          await sendText(userNumber, getWelcomeMessageForNewUser(userName));
+          fastify.log.info({
+            msg: 'Sent welcome message to new user',
+            userNumber,
+            userName,
+          });
+          return reply.status(200).send({
+            status: 'welcome_sent',
+            isNewUser: true,
+          });
+        } else {
+          // EXISTING USER: Send short reminder
+          await sendText(userNumber, getReminderMessage());
+          fastify.log.info({
+            msg: 'Sent reminder message to existing user',
+            userNumber,
+          });
+          return reply.status(200).send({
+            status: 'reminder_sent',
+            isNewUser: false,
+          });
+        }
       }
 
       // Validate the message

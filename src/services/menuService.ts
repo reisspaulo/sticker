@@ -630,3 +630,28 @@ export async function sendStickerEditButtons(userNumber: string): Promise<void> 
     throw error;
   }
 }
+
+/**
+ * Get welcome message for NEW users (never created a sticker)
+ */
+export function getWelcomeMessageForNewUser(userName: string): string {
+  const firstName = userName.split(' ')[0];
+  return `👋 Olá, ${firstName}! Eu sou o *StickerBot*!
+
+📸 Me envie uma *imagem* ou *GIF* e eu transformo em figurinha instantaneamente!
+
+🐦 Também baixo vídeos do *Twitter/X* - é só enviar o link!
+
+🆓 Você tem *4 figurinhas grátis* por dia.
+
+💡 Comandos: *planos* | *status* | *ajuda*`;
+}
+
+/**
+ * Get reminder message for EXISTING users (already created stickers before)
+ */
+export function getReminderMessage(): string {
+  return `📸 Envie uma *imagem* ou *GIF* para criar figurinha!
+
+💡 Comandos: *planos* | *status* | *ajuda*`;
+}

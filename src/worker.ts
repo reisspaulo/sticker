@@ -132,6 +132,26 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
         // Don't throw - sticker was already processed
       }
 
+      // Set first_sticker_at if this is the user's first sticker
+      const { error: firstStickerError } = await supabase
+        .from('users')
+        .update({ first_sticker_at: new Date().toISOString() })
+        .eq('whatsapp_number', userNumber)
+        .is('first_sticker_at', null);
+
+      if (firstStickerError) {
+        logger.warn({
+          msg: 'Error updating first_sticker_at (non-critical)',
+          error: firstStickerError.message,
+          userNumber,
+        });
+      } else {
+        logger.debug({
+          msg: 'Checked/updated first_sticker_at',
+          userNumber,
+        });
+      }
+
       // Step 5: REMOVED - daily count is now incremented atomically in webhook
       // This prevents race conditions when multiple images are sent simultaneously
       logger.info({

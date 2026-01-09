@@ -2,9 +2,20 @@
 
 Diagramas interativos do funcionamento do bot.
 
+## 📊 Legenda de Status
+
+| Indicador | Significado | Descrição |
+|-----------|-------------|-----------|
+| ✅ **ATIVO** | Flow está em produção | Código executa automaticamente |
+| 🚧 **PREPARADO/DESATIVADO** | Infraestrutura existe mas não é executada | Queue/Worker/Função existem mas nenhum código adiciona jobs |
+| 🔄 **EM DESENVOLVIMENTO** | Feature sendo implementada | Código parcialmente implementado |
+| ❌ **DESATIVADO** | Feature foi removida/desligada | Código comentado ou removido |
+
 ---
 
 ## 1. Fluxo Principal do Usuário
+
+**Status**: ✅ ATIVO
 
 ```mermaid
 flowchart TD
@@ -19,8 +30,10 @@ flowchart TD
     CHECK_LIMIT -->|Sim| PROCESS[⚙️ Processa sticker]
     CHECK_LIMIT -->|Não| LIMIT_MSG[⚠️ Limite atingido<br/>+ botões upgrade]
     PROCESS --> SEND_STICKER[📤 Envia sticker<br/>silenciosamente]
-    SEND_STICKER --> EDIT_BTNS[🎨 Botões de edição<br/>após 10s]
-    EDIT_BTNS --> END_OK([✅ Fim])
+    SEND_STICKER --> END_OK([✅ Fim])
+
+    %% 🚧 DESATIVADO: Botões de edição (infraestrutura existe mas não é chamada)
+    %% SEND_STICKER -.->|DISABLED| EDIT_BTNS[🎨 Botões de edição]
 
     %% Fluxo de Comandos
     CMD -->|planos| PLANS_LIST[📋 Lista de planos]
@@ -88,6 +101,8 @@ flowchart TD
 
 ## 2. Fluxo de Assinatura Completo
 
+**Status**: ✅ ATIVO
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -151,6 +166,8 @@ sequenceDiagram
 
 ## 3. Fluxo de Criação de Sticker
 
+**Status**: ✅ ATIVO
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -200,6 +217,8 @@ sequenceDiagram
 ---
 
 ## 4. Fluxo de Download Twitter
+
+**Status**: ✅ ATIVO
 
 ```mermaid
 sequenceDiagram
@@ -254,6 +273,17 @@ sequenceDiagram
 
 ## 5. Fluxo de Edição de Sticker
 
+**Status: 🚧 PREPARADO/DESATIVADO**
+
+> ⚠️ **IMPORTANTE**: Esta funcionalidade está **DESATIVADA** em produção.
+>
+> - ✅ **Infraestrutura existe**: Queue `edit-buttons`, Worker, Função `sendStickerEditButtons()`
+> - ❌ **Não é executada**: Nenhum código adiciona jobs à fila após enviar sticker
+> - 📍 **Localização**: `worker.ts:1490-1558` (worker pronto), `menuService.ts:597-632` (função pronta)
+> - 🔧 **Para ativar**: Descomentar linha no worker que adiciona job após enviar sticker
+>
+> Documentado aqui para referência caso seja reativado no futuro.
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -263,9 +293,9 @@ sequenceDiagram
     participant R as 🔴 Redis
     participant WK as 👷 Worker
 
-    Note over U,WK: ✨ FLUXO: Editar sticker (remover fundo)
+    Note over U,WK: ✨ FLUXO: Editar sticker (remover fundo)<br/>⚠️ DESATIVADO EM PRODUÇÃO
 
-    Note over W: Usuário recebeu sticker + botões
+    Note over W: 🚧 Usuário recebeu sticker (SEM botões)
 
     U->>W: Clica "✨ Remover Fundo"
     W->>B: Webhook (button_remove_background)
@@ -294,6 +324,8 @@ sequenceDiagram
 ---
 
 ## 6. Estados do Usuário
+
+**Status**: ✅ ATIVO
 
 ```mermaid
 stateDiagram-v2
@@ -341,15 +373,17 @@ stateDiagram-v2
 
 ## 7. Mapa de Mensagens
 
+**Status Geral**: ✅ ATIVO (exceto mensagens marcadas como 🚧)
+
 ```mermaid
 flowchart TB
-    subgraph welcome["🎉 BOAS-VINDAS"]
+    subgraph welcome["🎉 BOAS-VINDAS (✅ ATIVO)"]
         W1["🎉 Olá {nome}!<br/><br/>Envie uma imagem, vídeo ou GIF<br/>que eu transformo em figurinha! 🎨"]
     end
 
-    subgraph sticker["🎨 STICKER CRIADO"]
-        S1["(sticker enviado silenciosamente)"]
-        S2["🎨 Gostou da figurinha?<br/><br/>🧹 Remover Bordas<br/>✨ Remover Fundo<br/>✅ Está perfeita!"]
+    subgraph sticker["🎨 STICKER CRIADO (✅ ATIVO)"]
+        S1["✅ (sticker enviado silenciosamente)"]
+        S2["🚧 DESATIVADO:<br/>Botões de edição NÃO são enviados<br/>(infraestrutura existe mas não é chamada)"]
     end
 
     subgraph limit["⚠️ LIMITE ATINGIDO"]
@@ -385,6 +419,8 @@ flowchart TB
 
 ## 8. Arquitetura de Filas
 
+**Status**: ✅ ATIVO (exceto edit-buttons marcado como 🚧)
+
 ```mermaid
 flowchart LR
     subgraph entrada["📥 ENTRADA"]
@@ -392,13 +428,13 @@ flowchart LR
     end
 
     subgraph filas["📋 FILAS BULLMQ"]
-        Q1[process-sticker<br/>concurrency: 5]
-        Q2[download-twitter-video<br/>concurrency: 3]
-        Q3[convert-twitter-sticker<br/>concurrency: 2]
-        Q4[cleanup-sticker<br/>concurrency: 2]
-        Q5[edit-buttons<br/>concurrency: 5<br/>debounce: 10s]
-        Q6[activate-pix-subscription<br/>concurrency: 2<br/>delay: 5min]
-        Q7[scheduled-jobs<br/>concurrency: 1]
+        Q1[✅ process-sticker<br/>concurrency: 5]
+        Q2[✅ download-twitter-video<br/>concurrency: 3]
+        Q3[✅ convert-twitter-sticker<br/>concurrency: 2]
+        Q4[✅ cleanup-sticker<br/>concurrency: 2]
+        Q5[🚧 edit-buttons DESATIVADO<br/>Worker existe mas nenhum job é adicionado<br/>concurrency: 5 / debounce: 10s]
+        Q6[✅ activate-pix-subscription<br/>concurrency: 2<br/>delay: 5min]
+        Q7[✅ scheduled-jobs<br/>concurrency: 1]
     end
 
     subgraph saida["📤 SAÍDA"]
@@ -434,6 +470,8 @@ flowchart LR
 ---
 
 ## 9. Fluxo A/B Test - Bonus Credits
+
+**Status**: ✅ ATIVO
 
 ```mermaid
 flowchart TD
@@ -499,6 +537,8 @@ UPDATE users SET
 ---
 
 ## 10. Fluxo Onboarding - Apresentação de Features
+
+**Status**: ✅ ATIVO
 
 ```mermaid
 sequenceDiagram
@@ -566,6 +606,8 @@ if (user.onboarding_step === 3 && !user.twitter_feature_presented) {
 
 ## 11. Fluxo Pending Stickers - Envio às 8h
 
+**Status**: ✅ ATIVO
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -629,6 +671,8 @@ cron.schedule('0 8 * * *', sendPendingStickersJob, {
 
 ## 12. Fluxo Group Messages - Rejeição (Phase 1)
 
+**Status**: ✅ ATIVO
+
 ```mermaid
 flowchart TD
     START([Webhook recebido]) --> CHECK_GROUP{Mensagem<br/>de grupo?}
@@ -683,6 +727,8 @@ if (remoteJid.endsWith('@g.us')) {
 ---
 
 ## 13. Fluxo Multi-Video Twitter Selection
+
+**Status**: ✅ ATIVO
 
 ```mermaid
 sequenceDiagram
@@ -746,6 +792,8 @@ interface VideoSelectionContext {
 ---
 
 ## 14. Fluxo International Number Fallback
+
+**Status**: ✅ ATIVO
 
 ```mermaid
 flowchart TD
@@ -821,6 +869,8 @@ Digite o número:
 
 ## 15. Comandos de Texto Universais
 
+**Status**: ✅ ATIVO
+
 ```mermaid
 flowchart TD
     START([Usuário envia texto]) --> DETECT{Detecta<br/>comando?}
@@ -885,6 +935,8 @@ flowchart TD
 
 ## 16. Botões de Retry e Suporte
 
+**Status**: ✅ ATIVO
+
 ```mermaid
 flowchart TD
     START([PIX expirado ou erro]) --> SHOW_RETRY[Mostra botão retry]
@@ -936,6 +988,8 @@ flowchart TD
 ---
 
 ## 17. Cleanup Sticker - Dois Paths
+
+**Status**: ✅ ATIVO
 
 ```mermaid
 flowchart TD
@@ -1003,6 +1057,8 @@ if (jobData.messageType) {
 ---
 
 ## 18. Admin Panel - Dashboard Structure
+
+**Status**: ✅ ATIVO
 
 ```mermaid
 graph TB
@@ -1092,6 +1148,8 @@ graph TB
 
 ## 19. Scheduled Jobs Detalhado
 
+**Status**: ✅ ATIVO
+
 ```mermaid
 flowchart TB
     subgraph CRON["⏰ Cron Jobs (node-cron)"]
@@ -1162,6 +1220,8 @@ ORDER BY created_at ASC;
 
 ## 20. Text Message Strategy - Conversão Silenciosa
 
+**Status**: ✅ ATIVO
+
 ```mermaid
 flowchart TD
     START([Texto recebido]) --> IS_CMD{É comando<br/>reconhecido?}
@@ -1210,6 +1270,8 @@ if (!isCommand) {
 ---
 
 ## 21. Bonus Credits Flow Completo
+
+**Status**: ✅ ATIVO
 
 ```mermaid
 sequenceDiagram

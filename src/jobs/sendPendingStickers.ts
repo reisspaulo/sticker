@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import { sendSticker } from '../services/evolutionApi';
+import { logJobStart, logJobComplete, logJobFailed } from '../services/jobLogger';
 import logger from '../config/logger';
 
 /**
@@ -21,6 +22,10 @@ export async function sendPendingStickersJob(): Promise<{
 }> {
   const startTime = Date.now();
   const workerId = process.env.HOSTNAME || process.env.CONTAINER_ID || 'scheduler';
+  const jobName = 'send-pending-stickers' as const;
+
+  // Log job start to database
+  const logId = await logJobStart(jobName);
 
   logger.info({
     msg: '[SEND-PENDING-JOB] Starting send pending stickers job',
@@ -211,6 +216,14 @@ export async function sendPendingStickersJob(): Promise<{
 
     const totalTimeMs = Date.now() - startTime;
 
+    // Log success to database
+    await logJobComplete(logId, jobName, {
+      total_processed: totalProcessed,
+      sent,
+      failed,
+      success_rate: totalProcessed > 0 ? `${((sent / totalProcessed) * 100).toFixed(1)}%` : '0%',
+    }, totalTimeMs);
+
     logger.info({
       msg: '[SEND-PENDING-JOB] Send pending stickers job completed',
       workerId,
@@ -225,6 +238,9 @@ export async function sendPendingStickersJob(): Promise<{
 
   } catch (error) {
     const totalTimeMs = Date.now() - startTime;
+
+    // Log failure to database
+    await logJobFailed(logId, jobName, error, totalTimeMs);
 
     logger.error({
       msg: '[SEND-PENDING-JOB] Fatal error in send pending stickers job',

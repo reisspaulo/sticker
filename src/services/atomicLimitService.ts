@@ -52,26 +52,28 @@ export async function checkAndIncrementDailyLimitAtomic(
       throw error;
     }
 
-    if (!data) {
+    if (!data || !data[0]) {
       throw new Error('No data returned from check_and_increment_daily_limit_atomic');
     }
+
+    const result = data[0];
 
     logger.info({
       msg: '[ATOMIC] Limit check + onboarding update completed',
       userId,
-      allowed: data.allowed,
-      dailyCount: data.daily_count,
-      effectiveLimit: data.effective_limit,
-      pendingCount: data.pending_count,
-      onboardingStep: data.onboarding_step,
+      allowed: result.allowed,
+      dailyCount: result.daily_count,
+      effectiveLimit: result.effective_limit,
+      pendingCount: result.pending_count,
+      onboardingStep: result.onboarding_step,
     });
 
     return {
-      allowed: data.allowed,
-      daily_count: data.daily_count,
-      effective_limit: data.effective_limit,
-      pending_count: data.pending_count,
-      onboarding_step: data.onboarding_step,
+      allowed: result.allowed,
+      daily_count: result.daily_count,
+      effective_limit: result.effective_limit,
+      pending_count: result.pending_count,
+      onboarding_step: result.onboarding_step,
     };
   } catch (error) {
     logger.error({
@@ -121,7 +123,8 @@ export async function setLimitNotifiedAtomic(userId: string): Promise<boolean> {
       throw error;
     }
 
-    const wasAlreadyNotified = data?.was_already_notified ?? false;
+    const result = data?.[0];
+    const wasAlreadyNotified = result?.was_already_notified ?? false;
 
     logger.info({
       msg: '[ATOMIC] Limit notified timestamp set',

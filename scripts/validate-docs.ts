@@ -8,6 +8,7 @@
  * 1. Todos os botões no código estão documentados no FLOWCHARTS.md
  * 2. Todas as filas BullMQ estão documentadas
  * 3. Todos os comandos de texto estão documentados
+ * 4. Limites de planos (PLAN_LIMITS) sincronizados com BUSINESS_RULES.md
  */
 
 import fs from 'fs';
@@ -263,6 +264,79 @@ function validateDocsUpdated(): ValidationResult {
   };
 }
 
+/**
+ * Valida se os limites de planos estão sincronizados entre código e documentação
+ */
+function validatePlanLimits(): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  try {
+    // Lê PLAN_LIMITS do código
+    const subscriptionTypesPath = path.join(process.cwd(), 'src/types/subscription.ts');
+    const codeContent = fs.readFileSync(subscriptionTypesPath, 'utf-8');
+
+    // Extrai limites do código
+    const planLimitsMatch = codeContent.match(/export const PLAN_LIMITS[^}]+}/s);
+    if (!planLimitsMatch) {
+      warnings.push('⚠️  Não foi possível extrair PLAN_LIMITS do código');
+      return { passed: true, errors, warnings };
+    }
+
+    const freeMatch = planLimitsMatch[0].match(/free:\s*(\d+)/);
+    const premiumMatch = planLimitsMatch[0].match(/premium:\s*(\d+)/);
+    const ultraMatch = planLimitsMatch[0].match(/ultra:\s*(\d+)/);
+
+    if (!freeMatch || !premiumMatch || !ultraMatch) {
+      warnings.push('⚠️  Não foi possível extrair todos os limites de planos');
+      return { passed: true, errors, warnings };
+    }
+
+    const codeLimits = {
+      free: parseInt(freeMatch[1]),
+      premium: parseInt(premiumMatch[1]),
+      ultra: parseInt(ultraMatch[1])
+    };
+
+    // Lê limites da documentação
+    const businessRulesPath = path.join(process.cwd(), 'docs/business/BUSINESS_RULES.md');
+    const docsContent = fs.readFileSync(businessRulesPath, 'utf-8');
+
+    // Procura por BR-100, BR-101, BR-102 que definem os limites
+    const br100Match = docsContent.match(/BR-100[^\n]*Gratuito[^\n]*(\d+)[^\n]*dia/i);
+    const br101Match = docsContent.match(/BR-101[^\n]*Premium[^\n]*(\d+)[^\n]*dia/i);
+    const br102Match = docsContent.match(/BR-102[^\n]*Ultra[^\n]*(∞|ilimitad|999)/i);
+
+    if (br100Match && parseInt(br100Match[1]) !== codeLimits.free) {
+      errors.push(`❌ Limite FREE desincronizado:`);
+      errors.push(`   Código: ${codeLimits.free}/dia`);
+      errors.push(`   Docs (BR-100): ${br100Match[1]}/dia`);
+      errors.push(`   → Atualize docs/business/BUSINESS_RULES.md (BR-100)`);
+    }
+
+    if (br101Match && parseInt(br101Match[1]) !== codeLimits.premium) {
+      errors.push(`❌ Limite PREMIUM desincronizado:`);
+      errors.push(`   Código: ${codeLimits.premium}/dia`);
+      errors.push(`   Docs (BR-101): ${br101Match[1]}/dia`);
+      errors.push(`   → Atualize docs/business/BUSINESS_RULES.md (BR-101)`);
+    }
+
+    if (!br100Match || !br101Match || !br102Match) {
+      warnings.push('⚠️  Não foi possível encontrar BR-100, BR-101 ou BR-102 em BUSINESS_RULES.md');
+      warnings.push('   Verifique se os limites de planos estão documentados');
+    }
+
+  } catch (error) {
+    warnings.push(`⚠️  Erro ao validar limites de planos: ${error}`);
+  }
+
+  return {
+    passed: errors.length === 0,
+    errors,
+    warnings
+  };
+}
+
 // ============================================
 // MAIN
 // ============================================
@@ -306,6 +380,19 @@ function main() {
   if (docsResult.warnings.length === 0) {
     console.log('   ✅ Docs atualizados recentemente');
   }
+
+  console.log('');
+
+  // Validação 4: Limites de planos
+  console.log('4️⃣  Validando limites de planos...');
+  const planLimitsResult = validatePlanLimits();
+  if (!planLimitsResult.passed) {
+    allPassed = false;
+    planLimitsResult.errors.forEach(err => console.log(err));
+  } else {
+    console.log('   ✅ Limites de planos sincronizados com docs');
+  }
+  allWarnings.push(...planLimitsResult.warnings);
 
   console.log('');
 

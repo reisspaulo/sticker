@@ -394,15 +394,49 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           const limitCheck = await checkAndIncrementDailyLimitAtomic(user.id);
 
           if (!limitCheck.allowed) {
-            // User reached limit - send notification atomically
-            const wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
+            // User reached limit - check if already notified today (without updating yet)
+            const wasAlreadyNotified = user.limit_notified_at
+              ? new Date(user.limit_notified_at).toDateString() === new Date().toDateString()
+              : false;
 
             if (!wasAlreadyNotified) {
-              const { sendText } = await import('../services/evolutionApi');
-              await sendText(
+              try {
+                // Try to send message FIRST
+                const { sendText } = await import('../services/evolutionApi');
+                await sendText(
+                  userNumber,
+                  `❌ *Limite Diário Atingido*\n\nVocê já usou todas as suas figurinhas de hoje!\n\n💎 Faça upgrade para continuar criando.`
+                );
+
+                // Only mark as notified if message was sent successfully
+                await setLimitNotifiedAtomic(user.id);
+
+                fastify.log.info({
+                  msg: 'Limit reached notification sent - Twitter conversion',
+                  userNumber,
+                });
+              } catch (error) {
+                // If message send fails, don't mark as notified so user can retry
+                fastify.log.error({
+                  msg: 'Failed to send Twitter conversion limit message - user NOT marked as notified',
+                  userNumber,
+                  error: error instanceof Error ? error.message : 'Unknown error',
+                });
+
+                // Send critical alert
+                const { alertMessageSendFailure } = await import('../services/alertService');
+                await alertMessageSendFailure({
+                  userNumber,
+                  userName,
+                  messageType: 'limit_reached_twitter_conversion',
+                  errorMessage: error instanceof Error ? error.message : 'Unknown error',
+                }).catch(() => {}); // Don't fail if alert fails
+              }
+            } else {
+              fastify.log.info({
+                msg: 'User already notified today - skipping message - Twitter conversion',
                 userNumber,
-                `❌ *Limite Diário Atingido*\n\nVocê já usou todas as suas figurinhas de hoje!\n\n💎 Faça upgrade para continuar criando.`
-              );
+              });
             }
 
             return reply.status(200).send({
@@ -1707,28 +1741,61 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           // No bonus available - check pending stickers
           if (pendingCount >= 2) {
             // Already has 2 pending AND no bonus - block with notification throttle
-            const wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
+            // Check if already notified today WITHOUT updating database
+            const wasAlreadyNotified = user.limit_notified_at
+              ? new Date(user.limit_notified_at).toDateString() === new Date().toDateString()
+              : false;
 
             if (!wasAlreadyNotified) {
               const { sendLimitReachedMenu } = await import('../services/menuService');
               const currentPlan = await getUserPlan(user.id);
 
-              await sendLimitReachedMenu(userNumber, {
-                userId: user.id,
-                userName,
-                currentPlan,
-                dailyCount: limitCheck.daily_count,
-                dailyLimit: limitCheck.effective_limit,
-                isTwitter: false,
-                abTestGroup: 'bonus',
-                bonusCreditsUsed: bonusUsed,
-              });
+              try {
+                // CRITICAL: Send message FIRST, before marking as notified
+                await sendLimitReachedMenu(userNumber, {
+                  userId: user.id,
+                  userName,
+                  currentPlan,
+                  dailyCount: limitCheck.daily_count,
+                  dailyLimit: limitCheck.effective_limit,
+                  isTwitter: false,
+                  abTestGroup: 'bonus',
+                  bonusCreditsUsed: bonusUsed,
+                });
 
-              fastify.log.info({
-                msg: 'Max pending + no bonus - menu sent once',
-                userNumber,
-                currentPlan,
-              });
+                // Only mark as notified if message sent successfully
+                await setLimitNotifiedAtomic(user.id);
+
+                fastify.log.info({
+                  msg: 'Max pending + no bonus - menu sent once',
+                  userNumber,
+                  currentPlan,
+                  messageSent: true,
+                });
+              } catch (error) {
+                // If message send fails, don't mark as notified (allows retry)
+                fastify.log.error({
+                  msg: 'Failed to send BONUS limit menu - user NOT marked as notified',
+                  userNumber,
+                  error: error instanceof Error ? error.message : 'Unknown error',
+                  stack: error instanceof Error ? error.stack : undefined,
+                  messageSent: false,
+                });
+
+                // Alert admin about critical message failure
+                const { alertMessageSendFailure } = await import('../services/alertService');
+                await alertMessageSendFailure({
+                  userNumber,
+                  userName,
+                  messageType: 'bonus_limit_menu',
+                  errorMessage: error instanceof Error ? error.message : 'Unknown error',
+                  additionalInfo: {
+                    currentPlan,
+                    pendingCount,
+                    bonusUsed,
+                  },
+                });
+              }
             } else {
               fastify.log.info({
                 msg: 'User already notified today - skipping (no bonus left)',

@@ -19,17 +19,18 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    console.log('🔐 Tentando login...')
+    try {
+      console.log('🔐 Tentando login...')
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    console.log('📧 Resposta do Supabase:', {
-      hasUser: !!data?.user,
-      error: authError?.message
-    })
+      console.log('📧 Resposta do Supabase:', {
+        hasUser: !!data?.user,
+        error: authError?.message
+      })
 
     if (authError) {
       console.error('❌ Erro de autenticação:', authError)
@@ -62,8 +63,12 @@ export default function LoginPage() {
       router.push('/')
       router.refresh()
     }
-
-    setLoading(false)
+    } catch (err) {
+      console.error('💥 Erro não tratado:', err)
+      setError('Erro ao fazer login. Verifique o console.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

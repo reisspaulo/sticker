@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase-browser'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -31,17 +31,14 @@ export default function LoginPage() {
     setError('')
 
     try {
-      console.log('🔐 Tentando login...', { email })
-      console.log('🔑 Supabase client:', supabase)
+      const supabase = createClient()
 
-      const loginPromise = supabase.auth.signInWithPassword({
+      console.log('🔐 Tentando login...', { email })
+
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-
-      console.log('⏳ Aguardando resposta do Supabase...')
-
-      const { data, error: authError } = await loginPromise
 
       console.log('📧 Resposta do Supabase:', {
         hasUser: !!data?.user,

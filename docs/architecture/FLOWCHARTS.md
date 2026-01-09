@@ -433,4 +433,855 @@ flowchart LR
 
 ---
 
+## 9. Fluxo A/B Test - Bonus Credits
+
+```mermaid
+flowchart TD
+    START([Usuário atinge limite]) --> CHECK_GROUP{Grupo A/B?}
+
+    CHECK_GROUP -->|Control| CONTROL_FLOW
+    CHECK_GROUP -->|Bonus| BONUS_FLOW
+
+    subgraph CONTROL_FLOW["🔴 Grupo Control (50%)"]
+        C1[Bloqueio imediato]
+        C2[Botões upgrade]
+        C3{Usuário clica?}
+
+        C1 --> C2
+        C2 --> C3
+        C3 -->|Premium/Ultra| C4[Fluxo pagamento]
+        C3 -->|Dismiss| C5[Sticker pendente → 8h]
+    end
+
+    subgraph BONUS_FLOW["🎁 Grupo Bonus (50%)"]
+        B1{Bônus<br/>disponível?}
+        B2[Botão: Usar Bônus +2]
+        B3[Botões upgrade]
+        B4{Usuário clica?}
+
+        B1 -->|Sim bonus_credits < 2| B2
+        B1 -->|Não| B3
+        B2 --> B4
+        B3 --> B4
+
+        B4 -->|Usar Bônus| B5[Incrementa bonus_credits_today]
+        B4 -->|Premium/Ultra| B6[Fluxo pagamento]
+        B4 -->|Dismiss| B7[Sticker pendente → 8h]
+
+        B5 --> B8[+2 créditos extras]
+        B8 --> B9[Usuário pode continuar]
+    end
+
+    C4 --> END([Fim])
+    C5 --> END
+    B6 --> END
+    B7 --> END
+    B9 --> END
+
+    style CONTROL_FLOW fill:#ffebee
+    style BONUS_FLOW fill:#e8f5e9
+```
+
+**Métricas Rastreadas:**
+- `ab_test_bonus_offered` - Bonus group vê botão
+- `ab_test_bonus_used` - Clique em "Usar Bônus"
+- `ab_test_upgrade_click` - Clique em upgrade
+- `ab_test_upgrade_dismissed` - Dispensa upgrade
+- `ab_test_conversion_paid` - Completou pagamento
+
+**Reset Diário (Meia-noite):**
+```sql
+UPDATE users SET
+  daily_count = 0,
+  bonus_credits_today = 0
+```
+
+---
+
+## 10. Fluxo Onboarding - Apresentação de Features
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as 👤 Usuário
+    participant B as ⚙️ Backend
+    participant DB as 🗄️ Supabase
+
+    Note over U,DB: 🎓 ONBOARDING: Descoberta de Features
+
+    rect rgb(240, 248, 255)
+        Note over U,DB: 1º STICKER - Step 0 → 1
+        U->>B: Envia 1ª imagem
+        B->>DB: Incrementa onboarding_step = 1
+        B->>U: 📤 Sticker (silencioso)
+        Note over B: Sem mensagem adicional
+    end
+
+    rect rgb(255, 248, 240)
+        Note over U,DB: 2º STICKER - Step 1 → 2
+        U->>B: Envia 2ª imagem
+        B->>DB: Incrementa onboarding_step = 2
+        B->>U: 📤 Sticker (silencioso)
+        Note over B: Sem mensagem adicional
+    end
+
+    rect rgb(240, 255, 240)
+        Note over U,DB: 3º STICKER - Step 2 → 3 (TRIGGER)
+        U->>B: Envia 3ª imagem
+        B->>DB: Incrementa onboarding_step = 3
+        B->>U: 📤 Sticker (silencioso)
+
+        Note over B: ⏰ Aguarda 2 segundos
+
+        B->>U: 🐦 Apresenta Twitter Feature
+        Note right of U: "Sabia que também baixo<br/>vídeos do Twitter?<br/>É só enviar o link!"
+
+        B->>U: Botões interativos
+        Note right of U: ✅ Legal, vou testar!<br/>⏭️ Agora não
+    end
+
+    alt Usuário clica "Legal, vou testar!"
+        U->>B: button_twitter_learn
+        B->>U: Tutorial Twitter
+    else Usuário clica "Agora não"
+        U->>B: button_twitter_dismiss
+        B->>DB: Marca feature_dismissed = true
+    end
+```
+
+**Botões:**
+- `button_twitter_learn` - Mostrar tutorial
+- `button_twitter_dismiss` - Dispensar feature
+
+**Lógica:**
+```typescript
+if (user.onboarding_step === 3 && !user.twitter_feature_presented) {
+  await delay(2000);
+  await sendTwitterFeaturePresentation(userNumber);
+  await updateUser({ twitter_feature_presented: true });
+}
+```
+
+---
+
+## 11. Fluxo Pending Stickers - Envio às 8h
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CRON as ⏰ Cron Job
+    participant WK as 👷 Worker
+    participant DB as 🗄️ Supabase
+    participant W as 📱 WhatsApp
+
+    Note over CRON,W: 🌅 8:00 AM (São Paulo timezone)
+
+    CRON->>WK: Trigger: send-pending-stickers
+
+    WK->>DB: SELECT * FROM stickers<br/>WHERE status = 'pendente'<br/>ORDER BY created_at ASC
+    DB-->>WK: Lista de stickers (FIFO)
+
+    loop Para cada sticker
+        WK->>DB: INSERT pending_sticker_sends<br/>(status: 'attempting')
+
+        WK->>W: sendSticker(url, userNumber)
+
+        alt Sucesso
+            W-->>WK: ✅ Enviado
+            WK->>DB: UPDATE stickers<br/>SET status = 'enviado'
+            WK->>DB: UPDATE pending_sticker_sends<br/>SET status = 'sent'
+        else Falha
+            W-->>WK: ❌ Erro
+            WK->>DB: UPDATE pending_sticker_sends<br/>SET status = 'failed'<br/>error_message = '...'
+        end
+
+        Note over WK: ⏳ Delay 200ms (rate limit)
+    end
+
+    WK-->>CRON: Resultado: {sent: X, failed: Y}
+```
+
+**Tabela: pending_sticker_sends**
+```sql
+CREATE TABLE pending_sticker_sends (
+  id UUID PRIMARY KEY,
+  sticker_id UUID REFERENCES stickers(id),
+  user_number TEXT,
+  attempt_number INT,
+  status TEXT, -- 'attempting' | 'sent' | 'failed'
+  worker_id TEXT,
+  sent_at TIMESTAMP,
+  processing_time_ms INT,
+  error_message TEXT,
+  error_code TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Cron Config:**
+```typescript
+cron.schedule('0 8 * * *', sendPendingStickersJob, {
+  timezone: 'America/Sao_Paulo'
+});
+```
+
+---
+
+## 12. Fluxo Group Messages - Rejeição (Phase 1)
+
+```mermaid
+flowchart TD
+    START([Webhook recebido]) --> CHECK_GROUP{Mensagem<br/>de grupo?}
+
+    CHECK_GROUP -->|Sim @g.us| REJECT
+    CHECK_GROUP -->|Não individual| PROCESS
+
+    subgraph REJECT["🚫 Rejeição Automática"]
+        R1[Extrai groupId e participant]
+        R2[Log: group_message_rejected]
+        R3[Retorna 200 OK]
+        R4[NÃO envia resposta]
+    end
+
+    subgraph PROCESS["✅ Processamento Normal"]
+        P1[Processa comando/mídia]
+        P2[Envia resposta]
+    end
+
+    CHECK_GROUP --> R1
+    R1 --> R2
+    R2 --> R3
+    R3 --> R4
+    R4 --> END([Fim])
+
+    CHECK_GROUP --> P1
+    P1 --> P2
+    P2 --> END
+
+    style REJECT fill:#ffcdd2
+    style PROCESS fill:#c8e6c9
+```
+
+**Código (webhook.ts:104-119):**
+```typescript
+// Phase 1: Ignora grupos completamente
+if (remoteJid.endsWith('@g.us')) {
+  logger.info({
+    msg: 'Group message ignored (Phase 1)',
+    groupId: remoteJid,
+    participant: pushName
+  });
+  return reply.code(200).send({ success: true });
+}
+```
+
+**TODO Phase 2:**
+- Suportar grupos com tracking individual
+- Comandos apenas para admin
+- Rate limiting por grupo
+
+---
+
+## 13. Fluxo Multi-Video Twitter Selection
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as 👤 Usuário
+    participant B as ⚙️ Backend
+    participant TW as 🐦 VxTwitter API
+    participant R as 🔴 Redis
+    participant W as 📱 WhatsApp
+
+    U->>B: Envia link Twitter
+    B->>TW: Busca metadados
+
+    alt Tweet tem 1 vídeo
+        TW-->>B: 1 vídeo
+        B->>W: Baixa e envia vídeo
+    else Tweet tem múltiplos vídeos
+        TW-->>B: 3 vídeos [720p, 480p, 360p]
+
+        B->>R: saveVideoSelectionContext({<br/>  videos: [...],<br/>  tweetId: '...'<br/>})
+
+        B->>W: Lista de seleção
+        Note right of W: Escolha o vídeo:<br/>1. 720p (1920x1080) 15s<br/>2. 480p (854x480) 15s<br/>3. 360p (640x360) 15s<br/><br/>Digite 1, 2 ou 3
+
+        U->>B: "2"
+
+        B->>R: getVideoSelectionContext(userNumber)
+        R-->>B: Contexto com videos[]
+
+        B->>B: Valida escolha (1-3)
+        B->>W: Baixa vídeo escolhido (480p)
+        B->>W: Envia vídeo
+        B->>R: clearVideoSelectionContext()
+    end
+
+    alt Usuário cancela
+        U->>B: "cancelar"
+        B->>R: clearVideoSelectionContext()
+        B->>W: ❌ "Operação cancelada"
+    end
+```
+
+**Context Redis:**
+```typescript
+interface VideoSelectionContext {
+  user_number: string;
+  tweet_id: string;
+  videos: Array<{
+    url: string;
+    resolution: string;
+    duration: number;
+    size_bytes: number;
+  }>;
+  created_at: string;
+  expires_at: string; // 10 minutos
+}
+```
+
+**Arquivo:** `src/utils/videoSelectionContext.ts`
+
+---
+
+## 14. Fluxo International Number Fallback
+
+```mermaid
+flowchart TD
+    START([Enviar mensagem interativa]) --> CHECK_COUNTRY{Número<br/>brasileiro?}
+
+    CHECK_COUNTRY -->|Sim +55| AVISA
+    CHECK_COUNTRY -->|Não| EVOLUTION
+
+    subgraph AVISA["📱 Avisa API (Brasil)"]
+        A1[sendList/sendButtons]
+        A2[Listas interativas nativas]
+        A3[Melhor UX]
+    end
+
+    subgraph EVOLUTION["🌍 Evolution API (Internacional)"]
+        E1[sendText com opções texto]
+        E2[Fallback universal]
+        E3[Exemplo: Digite 1, 2 ou 3]
+    end
+
+    CHECK_COUNTRY --> A1
+    A1 --> A2
+    A2 --> A3
+    A3 --> END([Mensagem enviada])
+
+    CHECK_COUNTRY --> E1
+    E1 --> E2
+    E2 --> E3
+    E3 --> END
+
+    style AVISA fill:#c8e6c9
+    style EVOLUTION fill:#bbdefb
+```
+
+**Lógica:**
+```typescript
+function isBrazilianNumber(phone: string): boolean {
+  return phone.startsWith('55');
+}
+
+async function sendInteractiveMessage(userNumber: string, options) {
+  if (isBrazilianNumber(userNumber)) {
+    // Use Avisa API (listas/botões nativos)
+    await sendList({ number: userNumber, ...options });
+  } else {
+    // Use Evolution API (texto simples)
+    const textOptions = formatAsText(options);
+    await sendText(userNumber, textOptions);
+  }
+}
+```
+
+**Exemplo de Fallback:**
+```
+// Avisa API (Brasil):
+┌─────────────────────┐
+│ Escolha seu plano:  │
+│ ├─ 🆓 Gratuito      │
+│ ├─ 💰 Premium       │
+│ └─ 🚀 Ultra         │
+└─────────────────────┘
+
+// Evolution API (Internacional):
+💎 ESCOLHA SEU PLANO
+
+Digite o número:
+1. 🆓 Gratuito (4 figurinhas/dia)
+2. 💰 Premium (20 figurinhas/dia) - R$ 5/mês
+3. 🚀 Ultra (ILIMITADO) - R$ 9,90/mês
+```
+
+---
+
+## 15. Comandos de Texto Universais
+
+```mermaid
+flowchart TD
+    START([Usuário envia texto]) --> DETECT{Detecta<br/>comando?}
+
+    DETECT -->|planos/plans| PLANS[Lista de planos]
+    DETECT -->|ajuda/help/começar| HELP[Mensagem de ajuda]
+    DETECT -->|status/assinatura| STATUS[Status assinatura]
+
+    DETECT -->|premium| SHORTCUT_P[Atalho: Detalhes Premium]
+    DETECT -->|ultra| SHORTCUT_U[Atalho: Detalhes Ultra]
+
+    DETECT -->|pix| SHORTCUT_PIX[Atalho: Gerar PIX]
+    DETECT -->|cartao/cartão| SHORTCUT_CARD[Atalho: Link Cartão]
+    DETECT -->|boleto| SHORTCUT_BOLETO[Atalho: Link Boleto]
+
+    DETECT -->|bonus/bônus| SHORTCUT_BONUS[Atalho: Usar Bônus]
+
+    DETECT -->|Outro texto| STRATEGY{Estratégia}
+
+    subgraph STRATEGY["🎯 Estratégia por Estado"]
+        ST1{Usuário<br/>novo?}
+        ST2{Atingiu<br/>limite?}
+        ST3[Silencioso]
+
+        ST1 -->|Sim step=0| ST4[Envia welcome]
+        ST1 -->|Não| ST2
+        ST2 -->|Sim| ST5[Envia upgrade menu]
+        ST2 -->|Não| ST3
+    end
+
+    PLANS --> END([Fim])
+    HELP --> END
+    STATUS --> END
+    SHORTCUT_P --> END
+    SHORTCUT_U --> END
+    SHORTCUT_PIX --> END
+    SHORTCUT_CARD --> END
+    SHORTCUT_BOLETO --> END
+    SHORTCUT_BONUS --> END
+
+    DETECT --> ST1
+    ST4 --> END
+    ST5 --> END
+    ST3 --> END
+```
+
+**Comandos Implementados:**
+
+| Comando | Aliases | Ação |
+|---------|---------|------|
+| Planos | `planos`, `plans` | Lista interativa |
+| Ajuda | `ajuda`, `help`, `começar` | Mensagem ajuda |
+| Status | `status`, `assinatura` | Ver assinatura |
+| Premium | `premium` | Detalhes Premium |
+| Ultra | `ultra` | Detalhes Ultra |
+| PIX | `pix` | Gerar PIX direto |
+| Cartão | `cartao`, `cartão` | Link cartão |
+| Boleto | `boleto` | Link boleto |
+| Bônus | `bonus`, `bônus` | Usar bônus (se disponível) |
+
+---
+
+## 16. Botões de Retry e Suporte
+
+```mermaid
+flowchart TD
+    START([PIX expirado ou erro]) --> SHOW_RETRY[Mostra botão retry]
+
+    subgraph RETRY_FLOW["🔄 Retry PIX"]
+        R1[button_retry_pix_premium]
+        R2[button_retry_pix_ultra]
+        R3{Usuário clica?}
+
+        R3 -->|Sim| R4[Gera novo PIX]
+        R4 --> R5[Envia nova chave]
+        R5 --> R6[Novo prazo 30min]
+    end
+
+    subgraph SUPPORT_FLOW["💬 Suporte"]
+        S1[button_contact_support]
+        S2[button_contact_support_urgent]
+        S3{Tipo?}
+
+        S3 -->|Normal| S4[Registra ticket]
+        S3 -->|Urgente| S5[Notifica admin]
+
+        S4 --> S6[Mensagem: Aguarde contato]
+        S5 --> S6
+    end
+
+    SHOW_RETRY --> R1
+    SHOW_RETRY --> S1
+
+    R1 --> R3
+    R2 --> R3
+
+    S1 --> S3
+    S2 --> S3
+
+    R6 --> END([Fim])
+    S6 --> END
+```
+
+**Botões Implementados:**
+
+| Button ID | Contexto | Ação |
+|-----------|----------|------|
+| `retry_pix_premium` | PIX Premium expirado | Gera novo PIX Premium |
+| `retry_pix_ultra` | PIX Ultra expirado | Gera novo PIX Ultra |
+| `contact_support` | Qualquer erro | Abre ticket suporte |
+| `contact_support_urgent` | Erro crítico | Notifica admin |
+
+---
+
+## 17. Cleanup Sticker - Dois Paths
+
+```mermaid
+flowchart TD
+    START([Usuário clica editar]) --> CHECK_TYPE{Tipo de<br/>edição?}
+
+    CHECK_TYPE -->|remove_background| PATH_A
+    CHECK_TYPE -->|remove_borders| PATH_B
+
+    subgraph PATH_A["✨ PATH A - Remove Fundo (IA)"]
+        A1[Busca imagem ORIGINAL]
+        A2[Baixa do Evolution API]
+        A3[Executa rembg U²-Net]
+        A4[Processa 10-30s]
+        A5[Converte para WebP sticker]
+        A6[Upload Storage]
+        A7[Envia sticker sem fundo]
+    end
+
+    subgraph PATH_B["🧹 PATH B - Remove Bordas"]
+        B1[Busca sticker CRIADO]
+        B2[Baixa do Storage]
+        B3[Remove bordas brancas]
+        B4[Processa 1-3s]
+        B5[Reprocessa como WebP]
+        B6[Upload Storage]
+        B7[Envia sticker limpo]
+    end
+
+    CHECK_TYPE --> A1
+    A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7
+
+    CHECK_TYPE --> B1
+    B1 --> B2 --> B3 --> B4 --> B5 --> B6 --> B7
+
+    A7 --> END([✅ Não conta no limite])
+    B7 --> END
+
+    style PATH_A fill:#f3e5f5
+    style PATH_B fill:#e3f2fd
+```
+
+**Diferenças:**
+
+| Aspecto | PATH A (Background) | PATH B (Borders) |
+|---------|---------------------|------------------|
+| Input | Imagem original | Sticker criado |
+| Ferramenta | rembg (IA) | Sharp (crop) |
+| Tempo | 10-30s | 1-3s |
+| Qualidade | Alta (IA) | Boa (corte) |
+| messageType | Presente | Ausente |
+
+**Worker Code:**
+```typescript
+if (jobData.messageType) {
+  // PATH A: Remove background da imagem original
+  const originalImage = await downloadFromEvolution(jobData.messageKey);
+  const result = await execRembg(originalImage);
+} else {
+  // PATH B: Remove bordas do sticker
+  const sticker = await downloadFromStorage(jobData.stickerPath);
+  const result = await removeBorders(sticker);
+}
+```
+
+---
+
+## 18. Admin Panel - Dashboard Structure
+
+```mermaid
+graph TB
+    subgraph ADMIN["🎛️ Admin Panel (Next.js)"]
+        SIDEBAR[📊 Sidebar]
+
+        SIDEBAR --> DASHBOARD[Dashboard]
+        SIDEBAR --> ANALYTICS[Analytics]
+        SIDEBAR --> USERS[Users]
+        SIDEBAR --> STICKERS[Stickers]
+        SIDEBAR --> LOGS[Logs]
+        SIDEBAR --> SETTINGS[Settings]
+    end
+
+    subgraph DASHBOARD["📊 Dashboard"]
+        D1[KPIs Cards]
+        D2[Charts Overview]
+        D3[Recent Activity]
+    end
+
+    subgraph ANALYTICS["📈 Analytics"]
+        AN1[Funnel Analysis]
+        AN2[Conversion Metrics]
+        AN3[A/B Test Results]
+    end
+
+    subgraph USERS["👥 Users"]
+        U1[User List Table]
+        U2[User Detail Page]
+        U3[User Flow Diagram]
+    end
+
+    subgraph STICKERS["🎨 Stickers"]
+        S1[All Stickers]
+        S2[Celebrity Detection]
+        S3[Emotion Classification]
+    end
+
+    subgraph LOGS["📋 Logs"]
+        L1[Usage Logs]
+        L2[Error Logs]
+        L3[Filter & Search]
+    end
+
+    DASHBOARD --> D1
+    DASHBOARD --> D2
+    DASHBOARD --> D3
+
+    ANALYTICS --> AN1
+    ANALYTICS --> AN2
+    ANALYTICS --> AN3
+
+    USERS --> U1
+    USERS --> U2
+    USERS --> U3
+
+    STICKERS --> S1
+    STICKERS --> S2
+    STICKERS --> S3
+
+    LOGS --> L1
+    LOGS --> L2
+    LOGS --> L3
+```
+
+**Páginas:**
+- `/admin-panel` - Dashboard
+- `/admin-panel/analytics` - Métricas gerais
+- `/admin-panel/analytics/funnel` - Análise de funil
+- `/admin-panel/users` - Lista de usuários
+- `/admin-panel/users/[id]` - Detalhes do usuário
+- `/admin-panel/users/flow` - Diagrama de fluxo
+- `/admin-panel/stickers` - Todos stickers
+- `/admin-panel/stickers/celebrities` - Detecção celebridades
+- `/admin-panel/stickers/emotions` - Classificação emoções
+- `/admin-panel/logs` - Logs de uso
+- `/admin-panel/logs/errors` - Logs de erros
+- `/admin-panel/settings` - Configurações
+
+**Stack:**
+- Next.js 14 (App Router)
+- Recharts (visualização)
+- Supabase Client (queries)
+- TailwindCSS (styling)
+
+---
+
+## 19. Scheduled Jobs Detalhado
+
+```mermaid
+flowchart TB
+    subgraph CRON["⏰ Cron Jobs (node-cron)"]
+        MIDNIGHT[00:00 - Meia-noite]
+        MORNING[08:00 - Manhã]
+    end
+
+    subgraph MIDNIGHT_JOBS["🌙 Jobs Meia-noite"]
+        M1[resetDailyCountersJob]
+        M2[Reset daily_count = 0]
+        M3[Reset bonus_credits_today = 0]
+        M4[Reset twitter_download_count = 0]
+        M5[Log: daily_reset_completed]
+    end
+
+    subgraph MORNING_JOBS["🌅 Jobs 8h"]
+        MR1[sendPendingStickersJob]
+        MR2[Query stickers pendentes]
+        MR3[FIFO order created_at ASC]
+        MR4[Send each + log]
+        MR5[Update status enviado]
+    end
+
+    MIDNIGHT --> M1
+    M1 --> M2
+    M2 --> M3
+    M3 --> M4
+    M4 --> M5
+
+    MORNING --> MR1
+    MR1 --> MR2
+    MR2 --> MR3
+    MR3 --> MR4
+    MR4 --> MR5
+```
+
+**Configuração (src/jobs/index.ts):**
+```typescript
+// Meia-noite (SP timezone)
+cron.schedule('0 0 * * *', resetDailyCountersJob, {
+  timezone: 'America/Sao_Paulo'
+});
+
+// 8h da manhã (SP timezone)
+cron.schedule('0 8 * * *', sendPendingStickersJob, {
+  timezone: 'America/Sao_Paulo'
+});
+```
+
+**Reset Query:**
+```sql
+UPDATE users SET
+  daily_count = 0,
+  bonus_credits_today = 0,
+  twitter_download_count = 0,
+  last_reset_at = NOW()
+WHERE last_reset_at < CURRENT_DATE;
+```
+
+**Pending Stickers Query:**
+```sql
+SELECT * FROM stickers
+WHERE status = 'pendente'
+ORDER BY created_at ASC;
+```
+
+---
+
+## 20. Text Message Strategy - Conversão Silenciosa
+
+```mermaid
+flowchart TD
+    START([Texto recebido]) --> IS_CMD{É comando<br/>reconhecido?}
+
+    IS_CMD -->|Sim| PROCESS_CMD[Processa comando]
+    IS_CMD -->|Não| CHECK_USER{Tipo de<br/>usuário?}
+
+    CHECK_USER -->|Novo step=0| WELCOME[📨 Welcome message]
+    CHECK_USER -->|Limite atingido| UPGRADE[📨 Upgrade menu]
+    CHECK_USER -->|Com quota| SILENT[🤐 Ignora silenciosamente]
+
+    PROCESS_CMD --> END([Fim])
+    WELCOME --> END
+    UPGRADE --> END
+    SILENT --> END
+
+    style SILENT fill:#e3f2fd
+    style UPGRADE fill:#fff3e0
+    style WELCOME fill:#e8f5e9
+```
+
+**Lógica (webhook.ts:1021-1229):**
+```typescript
+// Texto não é comando conhecido
+if (!isCommand) {
+  if (user.onboarding_step === 0) {
+    // Novo usuário → Welcome (engajamento)
+    await sendWelcomeMessage(userNumber, user.name);
+  } else if (user.daily_count >= user.daily_limit) {
+    // Limite atingido → Upgrade menu (conversão)
+    await sendLimitReachedMenu(userNumber, user);
+  } else {
+    // Com quota → Silencioso (não perturba)
+    // Apenas log, sem resposta
+    logger.debug({ msg: 'Ignored non-command text', userNumber });
+  }
+}
+```
+
+**Objetivos:**
+1. ✅ Não spammar usuários ativos
+2. ✅ Engajar novos usuários
+3. ✅ Converter usuários no limite
+4. ✅ Experiência limpa
+
+---
+
+## 21. Bonus Credits Flow Completo
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as 👤 Usuário
+    participant B as ⚙️ Backend
+    participant DB as 🗄️ Supabase
+    participant W as 📱 WhatsApp
+
+    Note over U,DB: 🎁 BONUS FLOW: Grupo Bonus (A/B Test)
+
+    U->>B: Envia imagem (daily_count = 4)
+    B->>DB: Check: daily_count >= daily_limit?
+    DB-->>B: Sim, limite atingido
+
+    B->>DB: Check: ab_test_group?
+    DB-->>B: ab_test_group = 'bonus'
+
+    B->>DB: Check: bonus_credits_today?
+    DB-->>B: bonus_credits_today = 0 (disponível)
+
+    B->>W: Botões interativos
+    Note right of W: ⚠️ Limite Atingido!<br/><br/>🎁 Usar Bônus (+2)<br/>💰 Premium<br/>🚀 Ultra
+
+    U->>B: Clica "🎁 Usar Bônus"
+
+    B->>DB: UPDATE users SET<br/>bonus_credits_today = 1<br/>WHERE whatsapp_number = ?<br/>AND bonus_credits_today < 2
+
+    alt Update bem-sucedido
+        DB-->>B: 1 row affected
+        B->>W: ✅ "Você ganhou +2 figurinhas extras!"
+
+        Note over U: Usuário pode enviar 2 imagens extras
+
+        U->>B: Envia imagem (usa 1º bônus)
+        B->>B: Processa normalmente
+        B->>W: Envia sticker
+
+        U->>B: Envia imagem (usa 2º bônus)
+        B->>B: Processa normalmente
+        B->>W: Envia sticker
+
+        U->>B: Envia imagem (bônus esgotado)
+        B->>DB: Check: bonus_credits_today?
+        DB-->>B: bonus_credits_today = 2 (limite)
+
+        B->>W: Botões (sem bônus desta vez)
+        Note right of W: ⚠️ Limite Atingido!<br/><br/>💰 Premium<br/>🚀 Ultra<br/>❌ Agora Não
+    else Condição de corrida (outro processo usou)
+        DB-->>B: 0 rows affected
+        B->>W: ❌ "Bônus já utilizado"
+    end
+
+    Note over DB: 🌙 Meia-noite: Reset automático
+    DB->>DB: UPDATE users SET<br/>daily_count = 0,<br/>bonus_credits_today = 0
+```
+
+**Validação Atômica:**
+```typescript
+const result = await supabase
+  .from('users')
+  .update({ bonus_credits_today: user.bonus_credits_today + 1 })
+  .eq('whatsapp_number', userNumber)
+  .lt('bonus_credits_today', 2) // Atomic check
+  .select();
+
+if (result.data.length === 0) {
+  // Condição de corrida ou já usou
+  await sendText(userNumber, 'Bônus já utilizado');
+}
+```
+
+---
+
 **Última atualização:** 08/01/2026

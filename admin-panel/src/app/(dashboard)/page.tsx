@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AreaChart } from '@/components/charts/area-chart'
 import { PieChart } from '@/components/charts/pie-chart'
 import { BarChart } from '@/components/charts/bar-chart'
+import { ActivityHeatmap } from '@/components/charts/activity-heatmap'
 import {
   Users,
   Image,
@@ -14,9 +15,9 @@ import {
   AlertCircle,
   ArrowUpRight,
   ArrowDownRight,
+  Activity,
 } from 'lucide-react'
-import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { format, subDays, subMonths, startOfDay, eachDayOfInterval } from 'date-fns'
 
 // Criar cliente Supabase no nível do módulo
 const supabase = getSupabaseBrowserClient()
@@ -51,6 +52,11 @@ interface RecentActivity {
   user_number: string
   created_at: string
   metadata: Record<string, unknown>
+}
+
+interface HeatmapData {
+  date: string
+  count: number
 }
 
 function StatCard({
@@ -118,6 +124,7 @@ export default function DashboardPage() {
   const [stickerTypes, setStickerTypes] = useState<StickerTypeData[]>([])
   const [topCelebrities, setTopCelebrities] = useState<{ name: string; value: number }[]>([])
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
+  const [heatmapData, setHeatmapData] = useState<HeatmapData[]>([])
   const [loading, setLoading] = useState(true)
   const [chartsLoading, setChartsLoading] = useState(true)
 
@@ -296,6 +303,26 @@ export default function DashboardPage() {
         setTopCelebrities(celebCounts)
       }
 
+      // Fetch heatmap data (last 12 months)
+      const twelveMonthsAgo = subMonths(new Date(), 12)
+      const { data: heatmapStickers } = await supabase
+        .from('stickers')
+        .select('created_at')
+        .gte('created_at', twelveMonthsAgo.toISOString())
+
+      // Group by date for heatmap
+      const dateCounts: Record<string, number> = {}
+      heatmapStickers?.forEach(sticker => {
+        const date = format(new Date(sticker.created_at), 'yyyy-MM-dd')
+        dateCounts[date] = (dateCounts[date] || 0) + 1
+      })
+
+      const heatmapArray: HeatmapData[] = Object.entries(dateCounts).map(([date, count]) => ({
+        date,
+        count,
+      }))
+      setHeatmapData(heatmapArray)
+
       setChartsLoading(false)
     }
 
@@ -369,6 +396,30 @@ export default function DashboardPage() {
           loading={loading}
         />
       </div>
+
+      {/* Activity Heatmap */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Activity className="h-4 w-4" />
+            Atividade Geral (12 meses)
+          </CardTitle>
+          <CardDescription>
+            Frequencia de criacao de stickers por dia
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {chartsLoading ? (
+            <Skeleton className="h-[150px] w-full" />
+          ) : (
+            <ActivityHeatmap
+              data={heatmapData}
+              months={12}
+              colorScheme="green"
+            />
+          )}
+        </CardContent>
+      </Card>
 
       {/* Charts Row */}
       <div className="grid gap-6 lg:grid-cols-2">

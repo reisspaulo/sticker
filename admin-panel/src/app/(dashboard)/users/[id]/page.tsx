@@ -3,15 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   ArrowLeft,
   User,
-  Smartphone,
-  Calendar,
   Crown,
   Image,
   MessageSquare,
@@ -21,11 +19,11 @@ import {
   AlertCircle,
   Zap,
   Loader2,
-  ExternalLink,
+  Activity,
 } from 'lucide-react'
-import { format, formatDistanceToNow } from 'date-fns'
+import { format, formatDistanceToNow, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import Link from 'next/link'
+import { ActivityHeatmap } from '@/components/charts'
 
 interface UserDetails {
   id: string
@@ -66,6 +64,11 @@ interface ActivityLog {
   created_at: string
 }
 
+interface HeatmapData {
+  date: string
+  count: number
+}
+
 const actionIcons: Record<string, typeof Send> = {
   sticker_sent: Send,
   sticker_created: Image,
@@ -95,7 +98,9 @@ export default function UserDetailPage() {
   const [user, setUser] = useState<UserDetails | null>(null)
   const [stickers, setStickers] = useState<Sticker[]>([])
   const [activities, setActivities] = useState<ActivityLog[]>([])
+  const [heatmapData, setHeatmapData] = useState<HeatmapData[]>([])
   const [loading, setLoading] = useState(true)
+  const [totalStickers, setTotalStickers] = useState(0)
 
   useEffect(() => {
     if (userId) {
@@ -122,7 +127,7 @@ export default function UserDetailPage() {
 
     setUser(userData)
 
-    // Fetch user's stickers
+    // Fetch user's stickers (recent for display)
     const { data: stickersData } = await supabase
       .from('stickers')
       .select('id, created_at, tipo, status, storage_path, celebrity_id, emotion_tags')
@@ -131,6 +136,35 @@ export default function UserDetailPage() {
       .limit(50)
 
     setStickers(stickersData || [])
+
+    // Fetch total sticker count
+    const { count: totalCount } = await supabase
+      .from('stickers')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_number', userData.whatsapp_number)
+
+    setTotalStickers(totalCount || 0)
+
+    // Fetch all stickers for heatmap (last 12 months)
+    const startDate = subMonths(new Date(), 12)
+    const { data: heatmapStickers } = await supabase
+      .from('stickers')
+      .select('created_at')
+      .eq('user_number', userData.whatsapp_number)
+      .gte('created_at', startDate.toISOString())
+
+    // Group by date for heatmap
+    const dateCounts: Record<string, number> = {}
+    heatmapStickers?.forEach(sticker => {
+      const date = format(new Date(sticker.created_at), 'yyyy-MM-dd')
+      dateCounts[date] = (dateCounts[date] || 0) + 1
+    })
+
+    const heatmapArray: HeatmapData[] = Object.entries(dateCounts).map(([date, count]) => ({
+      date,
+      count,
+    }))
+    setHeatmapData(heatmapArray)
 
     // Fetch activity logs
     const { data: logsData } = await supabase
@@ -195,6 +229,26 @@ export default function UserDetailPage() {
           {user.subscription_plan !== 'free' && <Crown className="ml-1 h-3 w-3" />}
         </Badge>
       </div>
+
+      {/* Activity Heatmap */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Activity className="h-4 w-4" />
+            Frequencia de Uso
+          </CardTitle>
+          <CardDescription>
+            Stickers criados nos ultimos 12 meses
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ActivityHeatmap
+            data={heatmapData}
+            months={12}
+            colorScheme="green"
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* User Info */}
@@ -261,7 +315,7 @@ export default function UserDetailPage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Total stickers</span>
-                <span className="text-xl font-bold">{stickers.length}</span>
+                <span className="text-xl font-bold">{totalStickers}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Twitter downloads</span>

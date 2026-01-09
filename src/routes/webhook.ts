@@ -452,6 +452,21 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           // Track A/B test conversion attempt
           logMenuInteraction(userNumber, 'ab_test_upgrade_click', selectedPlan);
 
+          // Log experiment event for upgrade_clicked
+          const { logExperimentEvent, getUpgradeDismissVariant } = await import(
+            '../services/experimentService'
+          );
+          const experimentResult = await getUpgradeDismissVariant(user.id, userNumber);
+          if (experimentResult) {
+            await logExperimentEvent(
+              user.id,
+              experimentResult.experiment_id,
+              experimentResult.variant,
+              'upgrade_clicked',
+              { plan: selectedPlan, source: 'limit_menu_button' }
+            );
+          }
+
           // Send payment method selection list
           await sendPaymentMethodList(userNumber, selectedPlan);
 
@@ -524,7 +539,7 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Handle dismiss upgrade button
+        // Handle dismiss upgrade button (control variant)
         if (interactive.id === 'button_dismiss_upgrade') {
           fastify.log.info({
             msg: 'User dismissed upgrade offer',
@@ -535,12 +550,138 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           // Track A/B test dismissal
           logMenuInteraction(userNumber, 'ab_test_upgrade_dismissed', user.ab_test_group || 'unknown');
 
+          // Log experiment event
+          const { logExperimentEvent, getUpgradeDismissVariant } = await import(
+            '../services/experimentService'
+          );
+          const experimentResult = await getUpgradeDismissVariant(user.id, userNumber);
+          if (experimentResult) {
+            await logExperimentEvent(
+              user.id,
+              experimentResult.experiment_id,
+              experimentResult.variant,
+              'dismiss_clicked',
+              { button_id: 'button_dismiss_upgrade' }
+            );
+          }
+
           await sendText(
             userNumber,
             `✅ *Tudo bem!*\n\nSeu limite será renovado às *00:00* (horário de Brasília).\n\nVolte amanhã para criar mais figurinhas! 🎨\n\nQuer fazer upgrade? Digite *planos*.`
           );
 
           return reply.status(200).send({ status: 'upgrade_dismissed' });
+        }
+
+        // Handle remind_2h button (experiment variant)
+        if (interactive.id === 'button_remind_2h') {
+          fastify.log.info({
+            msg: 'User requested 2h reminder',
+            userNumber,
+          });
+
+          const { scheduleReminder, logExperimentEvent, getUpgradeDismissVariant } = await import(
+            '../services/experimentService'
+          );
+
+          const experimentResult = await getUpgradeDismissVariant(user.id, userNumber);
+
+          // Schedule reminder for 2 hours
+          const reminderId = await scheduleReminder(
+            user.id,
+            userNumber,
+            2,
+            experimentResult?.experiment_id || null,
+            experimentResult?.variant || null
+          );
+
+          // Log experiment event
+          if (experimentResult) {
+            await logExperimentEvent(
+              user.id,
+              experimentResult.experiment_id,
+              experimentResult.variant,
+              'remind_scheduled',
+              { delay_hours: 2, reminder_id: reminderId }
+            );
+          }
+
+          await sendText(
+            userNumber,
+            `⏰ *Combinado!*\n\nTe aviso em *2 horas* sobre o upgrade.\n\nAté lá! 😉`
+          );
+
+          return reply.status(200).send({ status: 'reminder_scheduled', delay: '2h' });
+        }
+
+        // Handle remind_tomorrow button (experiment variant)
+        if (interactive.id === 'button_remind_tomorrow') {
+          fastify.log.info({
+            msg: 'User requested tomorrow reminder',
+            userNumber,
+          });
+
+          const { scheduleReminder, logExperimentEvent, getUpgradeDismissVariant } = await import(
+            '../services/experimentService'
+          );
+
+          const experimentResult = await getUpgradeDismissVariant(user.id, userNumber);
+
+          // Schedule reminder for tomorrow morning (14 hours ~ 9am next day)
+          const reminderId = await scheduleReminder(
+            user.id,
+            userNumber,
+            14,
+            experimentResult?.experiment_id || null,
+            experimentResult?.variant || null
+          );
+
+          // Log experiment event
+          if (experimentResult) {
+            await logExperimentEvent(
+              user.id,
+              experimentResult.experiment_id,
+              experimentResult.variant,
+              'remind_scheduled',
+              { delay_hours: 14, reminder_id: reminderId }
+            );
+          }
+
+          await sendText(
+            userNumber,
+            `⏰ *Combinado!*\n\nTe aviso *amanhã de manhã* sobre o upgrade.\n\nBoa noite! 🌙`
+          );
+
+          return reply.status(200).send({ status: 'reminder_scheduled', delay: 'tomorrow' });
+        }
+
+        // Handle reminder_pending button (user already has reminder)
+        if (interactive.id === 'button_reminder_pending') {
+          fastify.log.info({
+            msg: 'User clicked on pending reminder button',
+            userNumber,
+          });
+
+          const { getPendingReminder } = await import('../services/experimentService');
+          const reminder = await getPendingReminder(user.id);
+
+          if (reminder && reminder.minutes_remaining > 0) {
+            const hours = Math.floor(reminder.minutes_remaining / 60);
+            const mins = reminder.minutes_remaining % 60;
+            const timeStr = hours > 0 ? `${hours}h${mins > 0 ? ` ${mins}min` : ''}` : `${mins}min`;
+
+            await sendText(
+              userNumber,
+              `⏰ *Lembrete já agendado!*\n\nVocê será notificado em aproximadamente *${timeStr}*.\n\nQuer fazer upgrade agora? Digite *planos*.`
+            );
+          } else {
+            await sendText(
+              userNumber,
+              `⏰ *Seu lembrete está quase chegando!*\n\nQuer fazer upgrade agora? Digite *planos*.`
+            );
+          }
+
+          return reply.status(200).send({ status: 'reminder_info_sent' });
         }
 
         // Handle plan selection from list
@@ -589,6 +730,21 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           const selectedPlan = planFromContext as 'premium' | 'ultra';
 
           logMenuInteraction(userNumber, 'payment_method_selected', paymentMethod);
+
+          // Log experiment event for payment_started
+          const { logExperimentEvent, getUpgradeDismissVariant } = await import(
+            '../services/experimentService'
+          );
+          const experimentResult = await getUpgradeDismissVariant(user.id, userNumber);
+          if (experimentResult) {
+            await logExperimentEvent(
+              user.id,
+              experimentResult.experiment_id,
+              experimentResult.variant,
+              'payment_started',
+              { plan: selectedPlan, payment_method: paymentMethod }
+            );
+          }
 
           // Handle PIX payment
           if (paymentMethod === 'pix') {
@@ -1191,6 +1347,7 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           const { sendLimitReachedMenu } = await import('../services/menuService');
 
           await sendLimitReachedMenu(userNumber, {
+            userId: user.id,
             userName,
             currentPlan,
             dailyCount: user.daily_count || 0,
@@ -1334,6 +1491,7 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           const { sendLimitReachedMenu } = await import('../services/menuService');
 
           await sendLimitReachedMenu(userNumber, {
+            userId: user.id,
             userName,
             currentPlan,
             dailyCount: currentTwitterCount,
@@ -1467,6 +1625,7 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             const currentPlan = await getUserPlan(user.id);
 
             await sendLimitReachedMenu(userNumber, {
+              userId: user.id,
               userName,
               currentPlan,
               dailyCount: limitCheck.daily_count,
@@ -1505,6 +1664,7 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
               const currentPlan = await getUserPlan(user.id);
 
               await sendLimitReachedMenu(userNumber, {
+                userId: user.id,
                 userName,
                 currentPlan,
                 dailyCount: limitCheck.daily_count,

@@ -138,6 +138,36 @@ export async function activatePendingPixSubscriptionJob(
   if (result.success) {
     await sendText(userNumber, getSubscriptionActivatedMessage(plan));
 
+    // Log experiment event for converted
+    try {
+      const { logExperimentEvent, getUpgradeDismissVariant } = await import(
+        '../services/experimentService'
+      );
+      const experimentResult = await getUpgradeDismissVariant(userId, userNumber);
+      if (experimentResult) {
+        await logExperimentEvent(
+          userId,
+          experimentResult.experiment_id,
+          experimentResult.variant,
+          'converted',
+          { plan, payment_method: 'pix', source: 'pix_activation' }
+        );
+        logger.info({
+          msg: '[PIX JOB] Experiment conversion logged',
+          userId,
+          variant: experimentResult.variant,
+          plan,
+        });
+      }
+    } catch (experimentError) {
+      logger.warn({
+        msg: '[PIX JOB] Failed to log experiment conversion event',
+        error: experimentError instanceof Error ? experimentError.message : 'Unknown error',
+        userId,
+      });
+      // Don't fail job - subscription was activated successfully
+    }
+
     logger.info({
       msg: '[PIX JOB] PIX subscription activated successfully',
       jobId: job.id,

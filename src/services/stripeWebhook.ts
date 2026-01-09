@@ -145,6 +145,34 @@ export async function handleCheckoutCompleted(session: Stripe.Checkout.Session):
       // Don't throw - subscription was created successfully
     }
 
+    // Log experiment event for converted
+    try {
+      const { logExperimentEvent, getUpgradeDismissVariant } = await import('./experimentService');
+      const experimentResult = await getUpgradeDismissVariant(user.id, phoneNumber);
+      if (experimentResult) {
+        await logExperimentEvent(
+          user.id,
+          experimentResult.experiment_id,
+          experimentResult.variant,
+          'converted',
+          { plan: planType, payment_method: 'stripe', source: 'checkout_completed' }
+        );
+        logger.info({
+          msg: 'Experiment conversion logged',
+          userId: user.id,
+          variant: experimentResult.variant,
+          planType,
+        });
+      }
+    } catch (experimentError) {
+      logger.warn({
+        msg: 'Failed to log experiment conversion event',
+        error: experimentError instanceof Error ? experimentError.message : 'Unknown error',
+        userId: user.id,
+      });
+      // Don't throw - subscription was activated successfully
+    }
+
     logger.info({
       msg: 'Checkout completed successfully',
       userId: user.id,

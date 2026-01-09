@@ -72,6 +72,7 @@ export async function sendLimitReachedMessage(
 
     // Then send the limit reached menu with interactive buttons (A/B test)
     await sendLimitReachedMenu(userNumber, {
+      userId: user.id,
       userName,
       currentPlan: userPlan,
       dailyCount: user.daily_count,

@@ -1,7 +1,7 @@
 import { supabase } from '../config/supabase';
 import logger from '../config/logger';
 
-export type JobName = 'reset-daily-counters' | 'send-pending-stickers';
+export type JobName = 'reset-daily-counters' | 'send-pending-stickers' | 'send-scheduled-reminders';
 export type JobStatus = 'started' | 'completed' | 'failed';
 
 interface JobLogEntry {

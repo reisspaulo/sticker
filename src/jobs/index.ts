@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { resetDailyCountersJob } from './resetDailyCounters';
 import { sendPendingStickersJob } from './sendPendingStickers';
+import { sendScheduledRemindersJob } from './sendScheduledReminders';
 import logger from '../config/logger';
 
 /**
@@ -49,11 +50,32 @@ export function initializeScheduledJobs(): void {
     }
   );
 
+  // Send scheduled reminders every 5 minutes
+  // Cron pattern: '*/5 * * * *' = Every 5 minutes
+  const sendRemindersTask = cron.schedule(
+    '*/5 * * * *',
+    async () => {
+      logger.debug({ msg: 'Running scheduled job: send-scheduled-reminders' });
+      try {
+        await sendScheduledRemindersJob();
+      } catch (error) {
+        logger.error({
+          msg: 'Scheduled job failed: send-scheduled-reminders',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    },
+    {
+      timezone: 'America/Sao_Paulo', // Brazil timezone
+    }
+  );
+
   logger.info({
     msg: 'Scheduled jobs initialized',
     jobs: [
       { name: 'reset-daily-counters', schedule: '0 0 * * *', time: 'Midnight' },
       { name: 'send-pending-stickers', schedule: '0 8 * * *', time: '8:00 AM' },
+      { name: 'send-scheduled-reminders', schedule: '*/5 * * * *', time: 'Every 5 min' },
     ],
     timezone: 'America/Sao_Paulo',
   });
@@ -63,6 +85,7 @@ export function initializeScheduledJobs(): void {
     logger.info({ msg: 'Stopping scheduled jobs' });
     resetCountersTask.stop();
     sendPendingTask.stop();
+    sendRemindersTask.stop();
     logger.info({ msg: 'Scheduled jobs stopped' });
   };
 

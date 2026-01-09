@@ -62,6 +62,7 @@ const navigation: NavItem[] = [
     children: [
       { title: 'Métricas', href: '/analytics' },
       { title: 'Funil', href: '/analytics/funnel' },
+      { title: 'Experimentos', href: '/analytics/experiments' },
     ],
   },
   {

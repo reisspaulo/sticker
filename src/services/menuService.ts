@@ -1,6 +1,39 @@
 import { PlanType, PLAN_LIMITS } from '../types/subscription';
 import logger from '../config/logger';
 import { sendList, sendButtons } from './avisaApi';
+import {
+  getUpgradeDismissVariant,
+  hasPendingReminder,
+  logExperimentEvent,
+  type ExperimentVariantConfig,
+} from './experimentService';
+
+// ============================================
+// EXPERIMENT MESSAGE HELPERS
+// ============================================
+
+interface MessageContext {
+  count: number;
+  limit: number;
+  feature: string;
+  emoji: string;
+  userName: string;
+  plan: string;
+}
+
+/**
+ * Replace placeholders in message templates
+ * Placeholders: {count}, {limit}, {feature}, {emoji}, {userName}, {plan}
+ */
+function replacePlaceholders(template: string, context: MessageContext): string {
+  return template
+    .replace(/{count}/g, String(context.count))
+    .replace(/{limit}/g, String(context.limit))
+    .replace(/{feature}/g, context.feature)
+    .replace(/{emoji}/g, context.emoji)
+    .replace(/{userName}/g, context.userName)
+    .replace(/{plan}/g, context.plan);
+}
 
 // Payment links from Stripe
 const PAYMENT_LINKS = {
@@ -62,10 +95,12 @@ Digite *1* ou *2* para fazer upgrade agora!`;
  * Send limit reached menu with interactive buttons (A/B Test implementation)
  * - Control Group: Direct upsell buttons based on current plan
  * - Bonus Group: Bonus credits option + upsell buttons
+ * - Experiment: Different dismiss button variants (control, remind_2h, remind_tomorrow, no_button)
  */
 export async function sendLimitReachedMenu(
   userNumber: string,
   options: {
+    userId: string; // Required for experiment assignment
     userName: string;
     currentPlan: PlanType;
     dailyCount: number;
@@ -75,31 +110,45 @@ export async function sendLimitReachedMenu(
     bonusCreditsUsed?: number;
   }
 ): Promise<void> {
-  const { currentPlan, dailyCount, dailyLimit, isTwitter = false, abTestGroup, bonusCreditsUsed = 0 } = options;
+  const { userId, currentPlan, dailyCount, dailyLimit, isTwitter = false, abTestGroup, bonusCreditsUsed = 0 } = options;
 
   const feature = isTwitter ? 'vídeos do Twitter' : 'figurinhas';
   const emoji = isTwitter ? '🐦' : '🎨';
 
-  // Smart upsell: only show plans higher than current
-  const availableUpgrades: Array<{ id: string; text: string }> = [];
+  // === EXPERIMENT: Get variant for this user ===
+  const experimentResult = await getUpgradeDismissVariant(userId, userNumber);
+  let experimentId: string | null = null;
+  let experimentVariant: string = 'control';
+  let expConfig: ExperimentVariantConfig | null = null;
 
-  if (currentPlan === 'free') {
-    availableUpgrades.push(
-      { id: 'button_upgrade_premium', text: '💰 Premium - R$ 5/mês' },
-      { id: 'button_upgrade_ultra', text: '🚀 Ultra - R$ 9,90/mês' }
-    );
-  } else if (currentPlan === 'premium') {
-    availableUpgrades.push(
-      { id: 'button_upgrade_ultra', text: '🚀 Upgrade para Ultra' }
-    );
+  if (experimentResult) {
+    experimentId = experimentResult.experiment_id;
+    experimentVariant = experimentResult.variant;
+    expConfig = experimentResult.config;
+
+    logger.info({
+      msg: 'Experiment variant assigned',
+      userId,
+      variant: experimentVariant,
+      hasMessageConfig: !!(expConfig?.message_title || expConfig?.message_body),
+    });
   }
-  // If ultra plan, no upgrades available (shouldn't hit limits)
 
-  // Build buttons based on A/B group
+  // Build context for placeholder replacement
+  const msgContext: MessageContext = {
+    count: dailyCount,
+    limit: dailyLimit,
+    feature,
+    emoji,
+    userName: options.userName,
+    plan: currentPlan,
+  };
+
+  // === BUILD BUTTONS ===
   const buttons: Array<{ id: string; text: string }> = [];
 
+  // Bonus button (only for bonus A/B group)
   if (abTestGroup === 'bonus' && bonusCreditsUsed < 2) {
-    // Bonus group: show "Use bonus" button first
     const bonusRemaining = 2 - bonusCreditsUsed;
     buttons.push({
       id: 'button_use_bonus',
@@ -107,73 +156,116 @@ export async function sendLimitReachedMenu(
     });
   }
 
-  // Add upgrade buttons
-  buttons.push(...availableUpgrades);
-
-  // Add dismiss button only if we have space (max 3 buttons allowed by Avisa API)
-  if (buttons.length < 3) {
+  // Upgrade buttons - use experiment config if available
+  if (currentPlan === 'free') {
     buttons.push({
-      id: 'button_dismiss_upgrade',
-      text: '❌ Agora Não',
+      id: 'button_upgrade_premium',
+      text: expConfig?.button_premium_text || '💰 Premium - R$ 5/mês',
+    });
+    buttons.push({
+      id: 'button_upgrade_ultra',
+      text: expConfig?.button_ultra_text || '🚀 Ultra - R$ 9,90/mês',
+    });
+  } else if (currentPlan === 'premium') {
+    buttons.push({
+      id: 'button_upgrade_ultra',
+      text: expConfig?.button_ultra_text || '🚀 Upgrade para Ultra',
     });
   }
 
-  // Build message text based on A/B group
-  let messageDesc = '';
+  // Dismiss button - use experiment config
+  if (buttons.length < 3) {
+    const showDismiss = expConfig?.show_dismiss_button !== false && expConfig?.show_button !== false;
 
-  if (abTestGroup === 'control') {
-    // Control group: Direct upsell message
-    messageDesc = `Você já usou *${dailyCount}/${dailyLimit} ${feature}* hoje.\n\n`;
-    messageDesc += `Seu limite será renovado às *00:00* (horário de Brasília).\n\n`;
-    messageDesc += `💎 *FAÇA UPGRADE E TENHA MAIS!*\n\n`;
+    if (showDismiss) {
+      const hasReminder = await hasPendingReminder(userId);
 
-    if (currentPlan === 'free') {
-      messageDesc += `💰 *Premium (R$ 5/mês)*\n`;
-      messageDesc += `• ${PLAN_LIMITS.premium.daily_sticker_limit} figurinhas/dia\n`;
-      messageDesc += `• ${PLAN_LIMITS.premium.daily_twitter_limit} vídeos Twitter/dia\n\n`;
-      messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
-      messageDesc += `• Figurinhas *ILIMITADAS*\n`;
-      messageDesc += `• Vídeos Twitter *ILIMITADOS*\n`;
-      messageDesc += `• Processamento prioritário`;
-    } else if (currentPlan === 'premium') {
-      messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
-      messageDesc += `• Figurinhas *ILIMITADAS*\n`;
-      messageDesc += `• Vídeos Twitter *ILIMITADOS*\n`;
-      messageDesc += `• Processamento prioritário\n`;
-      messageDesc += `• Nunca mais espere! 🔥`;
+      if (hasReminder && expConfig?.action === 'schedule_reminder') {
+        buttons.push({
+          id: 'button_reminder_pending',
+          text: '⏰ Lembrete agendado',
+        });
+      } else {
+        buttons.push({
+          id: expConfig?.button_dismiss_id || expConfig?.button_id || 'button_dismiss_upgrade',
+          text: expConfig?.button_dismiss_text || expConfig?.button_text || '❌ Agora Não',
+        });
+      }
     }
+  }
+
+  // === BUILD MESSAGE ===
+  let messageTitle: string;
+  let messageDesc: string;
+
+  // Check if experiment has custom message config
+  if (expConfig?.message_title && expConfig?.message_body) {
+    // Use experiment message (new variants)
+    messageTitle = replacePlaceholders(expConfig.message_title, msgContext);
+    messageDesc = replacePlaceholders(expConfig.message_body, msgContext);
+
+    logger.info({
+      msg: 'Using experiment message config',
+      variant: experimentVariant,
+      titleTemplate: expConfig.message_title,
+    });
   } else {
-    // Bonus group: Bonus offer + upsell
-    messageDesc = `Você já usou *${dailyCount}/${dailyLimit} ${feature}* hoje.\n\n`;
+    // Fallback to legacy hardcoded messages (control behavior)
+    messageTitle = `⚠️ *Limite Atingido!* ${emoji}`;
 
-    if (bonusCreditsUsed < 2) {
-      const bonusRemaining = 2 - bonusCreditsUsed;
-      messageDesc += `🎁 *PRESENTE ESPECIAL!*\n`;
-      messageDesc += `Ganhe *+${bonusRemaining} ${feature}* extras hoje!\n\n`;
-      messageDesc += `Seu limite será renovado às *00:00*.\n\n`;
+    if (abTestGroup === 'control') {
+      messageDesc = `Você já usou *${dailyCount}/${dailyLimit} ${feature}* hoje.\n\n`;
+      messageDesc += `Seu limite será renovado às *00:00* (horário de Brasília).\n\n`;
+      messageDesc += `💎 *FAÇA UPGRADE E TENHA MAIS!*\n\n`;
+
+      if (currentPlan === 'free') {
+        messageDesc += `💰 *Premium (R$ 5/mês)*\n`;
+        messageDesc += `• ${PLAN_LIMITS.premium.daily_sticker_limit} figurinhas/dia\n`;
+        messageDesc += `• ${PLAN_LIMITS.premium.daily_twitter_limit} vídeos Twitter/dia\n\n`;
+        messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
+        messageDesc += `• Figurinhas *ILIMITADAS*\n`;
+        messageDesc += `• Vídeos Twitter *ILIMITADOS*\n`;
+        messageDesc += `• Processamento prioritário`;
+      } else if (currentPlan === 'premium') {
+        messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
+        messageDesc += `• Figurinhas *ILIMITADAS*\n`;
+        messageDesc += `• Vídeos Twitter *ILIMITADOS*\n`;
+        messageDesc += `• Processamento prioritário\n`;
+        messageDesc += `• Nunca mais espere! 🔥`;
+      }
     } else {
-      messageDesc += `Você já usou seus bônus extras hoje.\n`;
-      messageDesc += `Seu limite será renovado às *00:00*.\n\n`;
-    }
+      // Bonus group
+      messageDesc = `Você já usou *${dailyCount}/${dailyLimit} ${feature}* hoje.\n\n`;
 
-    messageDesc += `💎 *OU FAÇA UPGRADE:*\n\n`;
+      if (bonusCreditsUsed < 2) {
+        const bonusRemaining = 2 - bonusCreditsUsed;
+        messageDesc += `🎁 *PRESENTE ESPECIAL!*\n`;
+        messageDesc += `Ganhe *+${bonusRemaining} ${feature}* extras hoje!\n\n`;
+        messageDesc += `Seu limite será renovado às *00:00*.\n\n`;
+      } else {
+        messageDesc += `Você já usou seus bônus extras hoje.\n`;
+        messageDesc += `Seu limite será renovado às *00:00*.\n\n`;
+      }
 
-    if (currentPlan === 'free') {
-      messageDesc += `💰 *Premium (R$ 5/mês)*\n`;
-      messageDesc += `• ${PLAN_LIMITS.premium.daily_sticker_limit} figurinhas/dia\n`;
-      messageDesc += `• ${PLAN_LIMITS.premium.daily_twitter_limit} vídeos Twitter/dia\n\n`;
-      messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
-      messageDesc += `• *ILIMITADO* 🔥`;
-    } else if (currentPlan === 'premium') {
-      messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
-      messageDesc += `• *ILIMITADO* 🔥`;
+      messageDesc += `💎 *OU FAÇA UPGRADE:*\n\n`;
+
+      if (currentPlan === 'free') {
+        messageDesc += `💰 *Premium (R$ 5/mês)*\n`;
+        messageDesc += `• ${PLAN_LIMITS.premium.daily_sticker_limit} figurinhas/dia\n`;
+        messageDesc += `• ${PLAN_LIMITS.premium.daily_twitter_limit} vídeos Twitter/dia\n\n`;
+        messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
+        messageDesc += `• *ILIMITADO* 🔥`;
+      } else if (currentPlan === 'premium') {
+        messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
+        messageDesc += `• *ILIMITADO* 🔥`;
+      }
     }
   }
 
   try {
     await sendButtons({
       number: userNumber,
-      title: `⚠️ *Limite Atingido!* ${emoji}`,
+      title: messageTitle,
       desc: messageDesc,
       footer: 'StickerBot',
       buttons,
@@ -187,7 +279,20 @@ export async function sendLimitReachedMenu(
       bonusCreditsUsed,
       isTwitter,
       buttonsShown: buttons.length,
+      experimentVariant,
+      experimentId,
     });
+
+    // Log experiment event: menu_shown
+    if (experimentId) {
+      await logExperimentEvent(userId, experimentId, experimentVariant, 'menu_shown', {
+        buttons_shown: buttons.map((b) => b.id),
+        current_plan: currentPlan,
+        daily_count: dailyCount,
+        daily_limit: dailyLimit,
+        is_twitter: isTwitter,
+      });
+    }
   } catch (error) {
     logger.error({
       msg: 'Error sending limit reached menu',

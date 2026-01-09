@@ -122,6 +122,9 @@ export async function sendButtons(request: SendButtonsRequest): Promise<AvisaApi
       'button_upgrade_ultra': 'ultra',
       'button_use_bonus': 'bonus',
       'button_dismiss_upgrade': 'agora não',
+      'button_remind_2h': 'lembrar 2h',
+      'button_remind_tomorrow': 'lembrar amanhã',
+      'button_reminder_pending': 'lembrete',
     };
 
     // Build text message from button data

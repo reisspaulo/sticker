@@ -1363,4 +1363,80 @@ if (result.data.length === 0) {
 
 ---
 
-**Última atualização:** 09/01/2026 - Atualizado fluxo de onboarding para refletir incremento atômico no webhook
+---
+
+## 22. Fluxo A/B Test - Message Variants (upgrade_message_v1)
+
+**Status**: ✅ ATIVO
+
+```mermaid
+flowchart TD
+    START([Usuário atinge limite]) --> GET_VARIANT[Busca variante do experimento]
+
+    GET_VARIANT --> CHECK_BR{Número<br/>brasileiro?}
+
+    CHECK_BR -->|Não +55| CONTROL_INT[Força variante: control]
+    CHECK_BR -->|Sim +55| ASSIGN{Variante<br/>atribuída?}
+
+    ASSIGN -->|Não| RANDOM[Sorteia variante por peso]
+    ASSIGN -->|Sim| USE_EXISTING[Usa variante existente]
+
+    RANDOM --> SAVE_DB[Salva em experiment_assignments]
+    SAVE_DB --> LOAD_CONFIG
+
+    USE_EXISTING --> LOAD_CONFIG[Carrega config da variante]
+    CONTROL_INT --> LOAD_CONFIG
+
+    LOAD_CONFIG --> RENDER[Renderiza mensagem com placeholders]
+
+    subgraph VARIANTS["📝 Variantes de Mensagem"]
+        V1["🔵 control (25%)<br/>Mensagem original com 5 emojis"]
+        V2["🟢 social_proof (25%)<br/>'Mais de 150 pessoas fizeram upgrade...' 😊"]
+        V3["🟣 benefit (25%)<br/>'Com Premium você teria +16 hoje...' ✨"]
+        V4["🟡 hybrid (25%)<br/>'Usuários Premium criam em média 12...' 🎨"]
+    end
+
+    RENDER --> SEND_MSG[Envia mensagem + botões]
+
+    SEND_MSG --> LOG_SHOWN[Log: menu_shown]
+
+    LOG_SHOWN --> USER_ACTION{Ação do<br/>usuário?}
+
+    USER_ACTION -->|Dismiss| LOG_DISMISS[Log: dismiss_clicked]
+    USER_ACTION -->|Premium/Ultra| LOG_UPGRADE[Log: upgrade_clicked]
+
+    LOG_UPGRADE --> PAYMENT{Método?}
+    PAYMENT -->|PIX/Card/Boleto| LOG_PAYMENT[Log: payment_started]
+    LOG_PAYMENT --> PAID{Pagou?}
+    PAID -->|Sim| LOG_CONVERTED[Log: converted]
+
+    LOG_DISMISS --> END([Fim])
+    LOG_CONVERTED --> END
+
+    style V1 fill:#bbdefb
+    style V2 fill:#c8e6c9
+    style V3 fill:#e1bee7
+    style V4 fill:#fff9c4
+```
+
+**Placeholders Disponíveis:**
+| Placeholder | Descrição | Exemplo |
+|-------------|-----------|---------|
+| `{count}` | Stickers usados hoje | 4 |
+| `{limit}` | Limite do plano | 4 |
+| `{feature}` | Nome da feature | figurinhas |
+| `{emoji}` | Emoji do plano | 🎨 |
+| `{userName}` | Nome do usuário | João |
+
+**Eventos Rastreados:**
+- `menu_shown` - Menu de upgrade exibido
+- `dismiss_clicked` - Clicou em fechar/depois
+- `upgrade_clicked` - Clicou em Premium/Ultra
+- `payment_started` - Iniciou pagamento (PIX/Card/Boleto)
+- `converted` - Pagamento confirmado
+
+**Dashboard:** `/admin-panel/analytics/experiments`
+
+---
+
+**Última atualização:** 09/01/2026 - Adicionado fluxo do experimento upgrade_message_v1 com variantes de mensagem

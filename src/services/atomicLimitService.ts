@@ -7,23 +7,25 @@ export interface AtomicLimitCheckResult {
   daily_count: number;
   effective_limit: number;
   pending_count: number;
+  onboarding_step: number;
 }
 
 /**
- * Atomically check and increment daily limit
+ * Atomically check and increment daily limit AND onboarding step
  * This prevents race conditions when multiple images are sent simultaneously
  * Uses SELECT FOR UPDATE lock to ensure thread-safety
+ * Now also updates onboarding_step atomically to prevent inconsistencies
  */
 export async function checkAndIncrementDailyLimitAtomic(
   userId: string
 ): Promise<AtomicLimitCheckResult> {
   try {
     logger.debug({
-      msg: '[ATOMIC] Checking and incrementing daily limit',
+      msg: '[ATOMIC] Checking and incrementing daily limit + onboarding',
       userId,
     });
 
-    const { data, error } = await supabase.rpc('check_and_increment_daily_limit', {
+    const { data, error } = await supabase.rpc('check_and_increment_daily_limit_atomic', {
       p_user_id: userId,
     });
 
@@ -51,16 +53,17 @@ export async function checkAndIncrementDailyLimitAtomic(
     }
 
     if (!data) {
-      throw new Error('No data returned from check_and_increment_daily_limit');
+      throw new Error('No data returned from check_and_increment_daily_limit_atomic');
     }
 
     logger.info({
-      msg: '[ATOMIC] Limit check completed',
+      msg: '[ATOMIC] Limit check + onboarding update completed',
       userId,
       allowed: data.allowed,
       dailyCount: data.daily_count,
       effectiveLimit: data.effective_limit,
       pendingCount: data.pending_count,
+      onboardingStep: data.onboarding_step,
     });
 
     return {
@@ -68,6 +71,7 @@ export async function checkAndIncrementDailyLimitAtomic(
       daily_count: data.daily_count,
       effective_limit: data.effective_limit,
       pending_count: data.pending_count,
+      onboarding_step: data.onboarding_step,
     };
   } catch (error) {
     logger.error({

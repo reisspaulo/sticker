@@ -159,7 +159,9 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
         jobId: job.id,
       });
 
-      // Step 6: Handle status-specific actions
+      // Step 6: Handle status-specific actions and Twitter feature presentation
+      // NOTE: Onboarding step is now updated ATOMICALLY in webhook (not here!)
+      // This prevents race conditions and ensures consistency
       if (status === 'enviado') {
         // Sticker sent silently - no confirmation message
         logger.info({
@@ -168,47 +170,47 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
           userNumber,
         });
 
-        // Step 6.5: Update onboarding step and present Twitter feature (without spam)
+        // Step 6.5: Check if should present Twitter feature (after 3rd sticker)
+        // Onboarding step was already incremented atomically in webhook
         try {
-          const {
-            updateOnboardingStep,
-            getOnboardingStatus,
-            checkTwitterFeaturePresentation,
-          } = await import('./services/onboardingService');
+          const { checkTwitterFeaturePresentation } = await import('./services/onboardingService');
 
-          const onboardingStatus = await getOnboardingStatus(userNumber);
-          let currentStep = onboardingStatus?.step || 0;
+          // Get current onboarding step from database (already updated by webhook)
+          const { data: userData } = await supabase
+            .from('users')
+            .select('onboarding_step')
+            .eq('whatsapp_number', userNumber)
+            .single();
 
-          // Update step based on current step (only for first 3 stickers)
-          if (currentStep < 3) {
-            currentStep = currentStep + 1;
-            await updateOnboardingStep(userNumber, currentStep);
-            logger.info({
-              msg: 'Onboarding step updated',
-              jobId: job.id,
-              userNumber,
-              newStep: currentStep,
-            });
-          }
+          const currentStep = userData?.onboarding_step || 0;
+
+          logger.info({
+            msg: 'Onboarding step already updated by webhook (atomic)',
+            jobId: job.id,
+            userNumber,
+            currentStep,
+          });
 
           // Check if should present Twitter feature (after 3rd sticker)
           if (currentStep === 3) {
             await checkTwitterFeaturePresentation(userNumber, userName, currentStep);
           }
-        } catch (onboardingError) {
+        } catch (error) {
           // Non-critical - don't fail the job
           logger.warn({
-            msg: 'Error updating onboarding (non-critical)',
-            error: onboardingError instanceof Error ? onboardingError.message : 'Unknown error',
+            msg: 'Error checking Twitter feature presentation (non-critical)',
+            error: error instanceof Error ? error.message : 'Unknown error',
             userNumber,
           });
         }
       } else if (status === 'pendente') {
         // User hit limit - notification already handled atomically in webhook
+        // Onboarding step was still incremented (user created sticker, even if pending)
         logger.info({
           msg: 'Sticker saved as pending (limit notification already sent in webhook)',
           jobId: job.id,
           userNumber,
+          note: 'Onboarding step was incremented atomically in webhook',
         });
       }
 

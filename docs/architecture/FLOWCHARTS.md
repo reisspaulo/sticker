@@ -186,7 +186,8 @@ sequenceDiagram
     B->>B: Verifica limite diário
 
     alt Limite OK
-        B->>B: Incrementa daily_count (atômico)
+        B->>B: Incrementa daily_count + onboarding_step (atômico)
+        Note over B: ✅ Ambos atualizados atomicamente via RPC<br/>para prevenir inconsistências
         B->>Q: Adiciona job: process-sticker
         B->>W: (nada - silencioso)
 
@@ -197,6 +198,8 @@ sequenceDiagram
         WK->>S: 📤 Upload sticker
         WK->>W: 📤 Envia sticker
 
+        Note over WK: Verifica se step === 3<br/>para apresentar Twitter feature
+
         Note over WK: ⏰ Aguarda 10s (debounce)
 
         WK->>Q: Adiciona job: edit-buttons
@@ -205,6 +208,8 @@ sequenceDiagram
         Note right of W: 🧹 Remover Bordas<br/>✨ Remover Fundo<br/>✅ Está perfeita!
 
     else Limite Atingido
+        B->>B: ⚡ Incrementa onboarding_step (mesmo com limite!)
+        Note over B: Usuário criou sticker, onboarding progride<br/>independente do status pendente
         B->>Q: Adiciona job: process-sticker (status: pendente)
         B->>W: ⚠️ Limite + botões upgrade
         Note right of W: 🎁 Usar Bônus<br/>💰 Premium<br/>🚀 Ultra
@@ -552,7 +557,8 @@ sequenceDiagram
     rect rgb(240, 248, 255)
         Note over U,DB: 1º STICKER - Step 0 → 1
         U->>B: Envia 1ª imagem
-        B->>DB: Incrementa onboarding_step = 1
+        B->>DB: ⚡ Incrementa atomicamente:<br/>daily_count + onboarding_step = 1
+        Note over DB: RPC: check_and_increment_daily_limit_atomic
         B->>U: 📤 Sticker (silencioso)
         Note over B: Sem mensagem adicional
     end
@@ -560,7 +566,8 @@ sequenceDiagram
     rect rgb(255, 248, 240)
         Note over U,DB: 2º STICKER - Step 1 → 2
         U->>B: Envia 2ª imagem
-        B->>DB: Incrementa onboarding_step = 2
+        B->>DB: ⚡ Incrementa atomicamente:<br/>daily_count + onboarding_step = 2
+        Note over DB: Mesma transação SQL (FOR UPDATE lock)
         B->>U: 📤 Sticker (silencioso)
         Note over B: Sem mensagem adicional
     end
@@ -568,10 +575,11 @@ sequenceDiagram
     rect rgb(240, 255, 240)
         Note over U,DB: 3º STICKER - Step 2 → 3 (TRIGGER)
         U->>B: Envia 3ª imagem
-        B->>DB: Incrementa onboarding_step = 3
+        B->>DB: ⚡ Incrementa atomicamente:<br/>daily_count + onboarding_step = 3
+        Note over DB: Garante consistência total
         B->>U: 📤 Sticker (silencioso)
 
-        Note over B: ⏰ Aguarda 2 segundos
+        Note over B: ⏰ Worker verifica step === 3
 
         B->>U: 🐦 Apresenta Twitter Feature
         Note right of U: "Sabia que também baixo<br/>vídeos do Twitter?<br/>É só enviar o link!"
@@ -595,10 +603,19 @@ sequenceDiagram
 
 **Lógica:**
 ```typescript
-if (user.onboarding_step === 3 && !user.twitter_feature_presented) {
-  await delay(2000);
-  await sendTwitterFeaturePresentation(userNumber);
-  await updateUser({ twitter_feature_presented: true });
+// WEBHOOK: Incrementa atomicamente daily_count + onboarding_step
+const limitCheck = await checkAndIncrementDailyLimitAtomic(userId);
+// limitCheck.onboarding_step contém o novo valor (já incrementado)
+
+// WORKER: Apenas lê e verifica (não atualiza mais!)
+const { data: userData } = await supabase
+  .from('users')
+  .select('onboarding_step, twitter_feature_shown')
+  .eq('whatsapp_number', userNumber)
+  .single();
+
+if (userData.onboarding_step === 3 && !userData.twitter_feature_shown) {
+  await checkTwitterFeaturePresentation(userNumber, userName, 3);
 }
 ```
 
@@ -1346,4 +1363,4 @@ if (result.data.length === 0) {
 
 ---
 
-**Última atualização:** 08/01/2026
+**Última atualização:** 09/01/2026 - Atualizado fluxo de onboarding para refletir incremento atômico no webhook

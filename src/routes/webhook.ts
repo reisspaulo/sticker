@@ -1400,12 +1400,13 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
       const limitCheck = await checkAndIncrementDailyLimitAtomic(user.id);
 
       fastify.log.info({
-        msg: 'Atomic limit check completed',
+        msg: 'Atomic limit check + onboarding update completed',
         userId: user.id,
         allowed: limitCheck.allowed,
         dailyCount: limitCheck.daily_count,
         effectiveLimit: limitCheck.effective_limit,
         pendingCount: limitCheck.pending_count,
+        onboardingStep: limitCheck.onboarding_step,
         abTestGroup: user.ab_test_group,
       });
 

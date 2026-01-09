@@ -148,8 +148,9 @@ function extractQueuesFromDocs(): string[] {
 
   const queues = new Set<string>();
 
-  // Pattern: Q1[process-sticker<br/>concurrency: 5]
-  const pattern = /Q\d+\[([a-z-]+)(?:<br\/>|\\n)/g;
+  // Pattern: Q1[✅ process-sticker<br/>concurrency: 5] or Q1[🚧 edit-buttons DESATIVADO<br/>...]
+  // Handles optional emoji/status prefix before queue name
+  const pattern = /Q\d+\[[^\]]*?([a-z]+-[a-z-]+)(?:<br\/>|\s|\\n)/g;
   let match;
   while ((match = pattern.exec(content)) !== null) {
     queues.add(match[1]);

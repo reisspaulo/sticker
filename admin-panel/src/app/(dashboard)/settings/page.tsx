@@ -10,12 +10,12 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            Configuracoes
+            Configurações
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Em breve: Configuracoes do sistema.
+            Em breve: Configurações do sistema.
           </p>
           <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
             <li>- Feature flags</li>

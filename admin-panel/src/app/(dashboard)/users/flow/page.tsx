@@ -103,7 +103,7 @@ export default function UsersFlowPage() {
 
     const funnelData: FunnelStep[] = [
       {
-        name: 'Novos usuarios',
+        name: 'Novos usuários',
         count: totalUsers,
         percentage: 100,
         dropoff: 0,
@@ -222,9 +222,9 @@ export default function UsersFlowPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <GitBranch className="h-6 w-6" />
-            Fluxo de Usuarios
+            Fluxo de Usuários
           </h1>
-          <p className="text-muted-foreground">Funil de conversao e retencao</p>
+          <p className="text-muted-foreground">Funil de conversão e retenção</p>
         </div>
         <div className="flex items-center gap-4">
           <Select value={period} onValueChange={setPeriod}>
@@ -233,10 +233,10 @@ export default function UsersFlowPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7">Ultimos 7 dias</SelectItem>
-              <SelectItem value="14">Ultimos 14 dias</SelectItem>
-              <SelectItem value="30">Ultimos 30 dias</SelectItem>
-              <SelectItem value="90">Ultimos 90 dias</SelectItem>
+              <SelectItem value="7">Últimos 7 dias</SelectItem>
+              <SelectItem value="14">Últimos 14 dias</SelectItem>
+              <SelectItem value="30">Últimos 30 dias</SelectItem>
+              <SelectItem value="90">Últimos 90 dias</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={fetchData}>
@@ -254,8 +254,8 @@ export default function UsersFlowPage() {
           {/* Conversion Funnel */}
           <Card>
             <CardHeader>
-              <CardTitle>Funil de Conversao</CardTitle>
-              <CardDescription>Da chegada ate a assinatura</CardDescription>
+              <CardTitle>Funil de Conversão</CardTitle>
+              <CardDescription>Da chegada até a assinatura</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -307,7 +307,7 @@ export default function UsersFlowPage() {
             {abComparison && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Comparacao A/B Test</CardTitle>
+                  <CardTitle>Comparação A/B Test</CardTitle>
                   <CardDescription>Control vs Bonus - Primeiro sticker</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -316,7 +316,7 @@ export default function UsersFlowPage() {
                       <div className="flex items-center justify-between">
                         <Badge variant="outline">Control</Badge>
                         <span className="text-sm text-muted-foreground">
-                          {abComparison.control.total} usuarios
+                          {abComparison.control.total} usuários
                         </span>
                       </div>
                       <div className="text-center">
@@ -332,7 +332,7 @@ export default function UsersFlowPage() {
                       <div className="flex items-center justify-between">
                         <Badge className="bg-emerald-500/20 text-emerald-300">Bonus</Badge>
                         <span className="text-sm text-muted-foreground">
-                          {abComparison.bonus.total} usuarios
+                          {abComparison.bonus.total} usuários
                         </span>
                       </div>
                       <div className="text-center">
@@ -368,8 +368,8 @@ export default function UsersFlowPage() {
             {/* Retention Cohorts */}
             <Card>
               <CardHeader>
-                <CardTitle>Retencao por Cohort</CardTitle>
-                <CardDescription>Retorno apos D1, D7, D30</CardDescription>
+                <CardTitle>Retenção por Cohort</CardTitle>
+                <CardDescription>Retorno após D1, D7, D30</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">

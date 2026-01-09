@@ -203,7 +203,7 @@ export default function AnalyticsPage() {
             <BarChart3 className="h-6 w-6" />
             Analytics
           </h1>
-          <p className="text-muted-foreground">Metricas detalhadas do periodo</p>
+          <p className="text-muted-foreground">Métricas detalhadas do período</p>
         </div>
         <div className="flex items-center gap-4">
           <Select value={period} onValueChange={setPeriod}>
@@ -212,10 +212,10 @@ export default function AnalyticsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7">Ultimos 7 dias</SelectItem>
-              <SelectItem value="14">Ultimos 14 dias</SelectItem>
-              <SelectItem value="30">Ultimos 30 dias</SelectItem>
-              <SelectItem value="90">Ultimos 90 dias</SelectItem>
+              <SelectItem value="7">Últimos 7 dias</SelectItem>
+              <SelectItem value="14">Últimos 14 dias</SelectItem>
+              <SelectItem value="30">Últimos 30 dias</SelectItem>
+              <SelectItem value="90">Últimos 90 dias</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={fetchData}>
@@ -237,7 +237,7 @@ export default function AnalyticsPage() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Novos Usuarios</p>
+                      <p className="text-sm text-muted-foreground">Novos Usuários</p>
                       <p className="text-3xl font-bold">{comparison.users.current}</p>
                       <div className="flex items-center gap-1 mt-1">
                         {comparison.users.isPositive ? (
@@ -254,7 +254,7 @@ export default function AnalyticsPage() {
                           {comparison.users.change.toFixed(1)}%
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          vs periodo anterior
+                          vs período anterior
                         </span>
                       </div>
                     </div>
@@ -284,7 +284,7 @@ export default function AnalyticsPage() {
                           {comparison.stickers.change.toFixed(1)}%
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          vs periodo anterior
+                          vs período anterior
                         </span>
                       </div>
                     </div>
@@ -297,7 +297,7 @@ export default function AnalyticsPage() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Usuarios Ativos</p>
+                      <p className="text-sm text-muted-foreground">Usuários Ativos</p>
                       <p className="text-3xl font-bold">{comparison.active.current}</p>
                       <div className="flex items-center gap-1 mt-1">
                         {comparison.active.isPositive ? (
@@ -314,7 +314,7 @@ export default function AnalyticsPage() {
                           {comparison.active.change.toFixed(1)}%
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          vs periodo anterior
+                          vs período anterior
                         </span>
                       </div>
                     </div>
@@ -331,7 +331,7 @@ export default function AnalyticsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  Novos Usuarios por Dia
+                  Novos Usuários por Dia
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -375,7 +375,7 @@ export default function AnalyticsPage() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    Distribuicao por Hora
+                    Distribuição por Hora
                   </CardTitle>
                   <CardDescription>Stickers criados por hora do dia</CardDescription>
                 </div>
@@ -398,8 +398,8 @@ export default function AnalyticsPage() {
           {/* Stats Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Dados Diarios</CardTitle>
-              <CardDescription>Ultimos {period} dias</CardDescription>
+              <CardTitle>Dados Diários</CardTitle>
+              <CardDescription>Últimos {period} dias</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -407,9 +407,9 @@ export default function AnalyticsPage() {
                   <thead>
                     <tr className="border-b">
                       <th className="pb-2 text-left font-medium">Data</th>
-                      <th className="pb-2 text-center font-medium">Novos Usuarios</th>
+                      <th className="pb-2 text-center font-medium">Novos Usuários</th>
                       <th className="pb-2 text-center font-medium">Stickers</th>
-                      <th className="pb-2 text-center font-medium">Stickers/Usuario</th>
+                      <th className="pb-2 text-center font-medium">Stickers/Usuário</th>
                     </tr>
                   </thead>
                   <tbody>

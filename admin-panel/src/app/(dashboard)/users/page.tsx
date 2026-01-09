@@ -67,7 +67,7 @@ function getColumns(): ColumnDef<User>[] {
           className="-ml-4"
         >
           <Smartphone className="mr-2 h-4 w-4" />
-          Numero
+          Número
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
@@ -171,7 +171,7 @@ function getColumns(): ColumnDef<User>[] {
     },
     {
       accessorKey: 'last_interaction',
-      header: 'Ultima atividade',
+      header: 'Última atividade',
       cell: ({ row }) => {
         const lastInteraction = row.original.last_interaction
         if (!lastInteraction) return <span className="text-muted-foreground">-</span>
@@ -282,7 +282,7 @@ export default function UsersPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Usuarios</p>
+                <p className="text-sm text-muted-foreground">Total Usuários</p>
                 <p className="text-2xl font-bold">{stats.total}</p>
               </div>
               <Users className="h-8 w-8 text-muted-foreground" />
@@ -329,7 +329,7 @@ export default function UsersPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Lista de Usuarios
+            Lista de Usuários
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -338,7 +338,7 @@ export default function UsersPage() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar por numero ou nome..."
+                placeholder="Buscar por número ou nome..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"

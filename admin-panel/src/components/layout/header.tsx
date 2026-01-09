@@ -9,16 +9,16 @@ import { Sidebar } from './sidebar'
 
 const routeTitles: Record<string, string> = {
   '/': 'Dashboard',
-  '/users': 'Usuarios',
-  '/users/flow': 'Fluxo de Usuarios',
+  '/users': 'Usuários',
+  '/users/flow': 'Fluxo de Usuários',
   '/stickers': 'Stickers',
-  '/stickers/emotions': 'Classificacao de Emocoes',
+  '/stickers/emotions': 'Classificação de Emoções',
   '/stickers/celebrities': 'Por Celebridade',
   '/analytics': 'Analytics',
-  '/analytics/funnel': 'Funil de Conversao',
+  '/analytics/funnel': 'Funil de Conversão',
   '/logs': 'Logs do Sistema',
   '/logs/errors': 'Erros',
-  '/settings': 'Configuracoes',
+  '/settings': 'Configurações',
 }
 
 function getBreadcrumbs(pathname: string) {

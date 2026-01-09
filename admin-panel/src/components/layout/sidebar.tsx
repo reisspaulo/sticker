@@ -37,7 +37,7 @@ const navigation: NavItem[] = [
     icon: LayoutDashboard,
   },
   {
-    title: 'Usuarios',
+    title: 'Usuários',
     href: '/users',
     icon: Users,
     children: [
@@ -51,7 +51,7 @@ const navigation: NavItem[] = [
     icon: Image,
     children: [
       { title: 'Todos', href: '/stickers' },
-      { title: 'Emocoes', href: '/stickers/emotions' },
+      { title: 'Emoções', href: '/stickers/emotions' },
       { title: 'Celebridades', href: '/stickers/celebrities' },
     ],
   },
@@ -60,7 +60,7 @@ const navigation: NavItem[] = [
     href: '/analytics',
     icon: BarChart3,
     children: [
-      { title: 'Metricas', href: '/analytics' },
+      { title: 'Métricas', href: '/analytics' },
       { title: 'Funil', href: '/analytics/funnel' },
     ],
   },
@@ -74,7 +74,7 @@ const navigation: NavItem[] = [
     ],
   },
   {
-    title: 'Configuracoes',
+    title: 'Configurações',
     href: '/settings',
     icon: Settings,
   },

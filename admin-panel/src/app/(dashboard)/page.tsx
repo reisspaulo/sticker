@@ -273,7 +273,7 @@ export default function DashboardPage() {
       ])
 
       setStickerTypes([
-        { name: 'Estaticos', value: staticRes.count || 0, color: 'hsl(var(--primary))' },
+        { name: 'Estáticos', value: staticRes.count || 0, color: 'hsl(var(--primary))' },
         { name: 'Animados', value: animatedRes.count || 0, color: 'hsl(142, 76%, 36%)' },
       ])
 
@@ -316,9 +316,9 @@ export default function DashboardPage() {
     const diffDays = Math.floor(diffHours / 24)
 
     if (diffMin < 1) return 'agora'
-    if (diffMin < 60) return `ha ${diffMin}min`
-    if (diffHours < 24) return `ha ${diffHours}h`
-    return `ha ${diffDays}d`
+    if (diffMin < 60) return `há ${diffMin}min`
+    if (diffHours < 24) return `há ${diffHours}h`
+    return `há ${diffDays}d`
   }
 
   function formatAction(action: string) {
@@ -343,7 +343,7 @@ export default function DashboardPage() {
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Usuarios Hoje"
+          title="Usuários Hoje"
           value={stats.usersToday}
           previousValue={stats.usersYesterday}
           icon={Users}
@@ -357,7 +357,7 @@ export default function DashboardPage() {
           loading={loading}
         />
         <StatCard
-          title="Pendente Classificacao"
+          title="Pendente Classificação"
           value={stats.pendingClassification}
           icon={TrendingUp}
           loading={loading}
@@ -375,7 +375,7 @@ export default function DashboardPage() {
         {/* Users Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Novos Usuarios (30 dias)</CardTitle>
+            <CardTitle className="text-base">Novos Usuários (30 dias)</CardTitle>
           </CardHeader>
           <CardContent>
             {chartsLoading ? (
@@ -460,7 +460,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Total de Usuarios</span>
+              <span className="text-sm text-muted-foreground">Total de Usuários</span>
               {loading ? (
                 <Skeleton className="h-6 w-16" />
               ) : (
@@ -476,7 +476,7 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Media por Usuario</span>
+              <span className="text-sm text-muted-foreground">Média por Usuário</span>
               {loading ? (
                 <Skeleton className="h-6 w-16" />
               ) : (

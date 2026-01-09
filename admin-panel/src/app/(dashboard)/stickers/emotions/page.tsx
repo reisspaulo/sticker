@@ -255,10 +255,10 @@ export default function EmotionsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="pending">Pendentes de revisao</SelectItem>
-              <SelectItem value="all">Todos com emocao</SelectItem>
+              <SelectItem value="pending">Pendentes de revisão</SelectItem>
+              <SelectItem value="all">Todos com emoção</SelectItem>
               <SelectItem value="approved">Aprovados</SelectItem>
-              <SelectItem value="no_emotion">Sem emocao</SelectItem>
+              <SelectItem value="no_emotion">Sem emoção</SelectItem>
             </SelectContent>
           </Select>
 
@@ -364,7 +364,7 @@ export default function EmotionsPage() {
             Anterior
           </Button>
           <span className="text-sm text-muted-foreground px-4">
-            Pagina {currentPage + 1} de {totalPages}
+            Página {currentPage + 1} de {totalPages}
           </span>
           <Button
             variant="outline"
@@ -372,7 +372,7 @@ export default function EmotionsPage() {
             onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={currentPage >= totalPages - 1}
           >
-            Proximo
+            Próximo
           </Button>
         </div>
       )}
@@ -381,7 +381,7 @@ export default function EmotionsPage() {
       <Dialog open={!!selectedSticker} onOpenChange={() => closeModal()}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Editar Classificacao</DialogTitle>
+            <DialogTitle>Editar Classificação</DialogTitle>
           </DialogHeader>
 
           {selectedSticker && (
@@ -451,7 +451,7 @@ export default function EmotionsPage() {
 
               {/* Emotion Suggestions */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Emocoes</label>
+                <label className="text-sm font-medium text-muted-foreground">Emoções</label>
                 <div className="flex flex-wrap gap-1.5">
                   {EMOTION_SUGGESTIONS.map(({ tag, color }) => (
                     <button

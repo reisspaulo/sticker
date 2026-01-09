@@ -1727,6 +1727,29 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             abTestGroup: 'bonus',
             pendingCount,
           });
+
+          // Send notification that sticker was saved as pending
+          const { sendButtons } = await import('../services/avisaApi');
+          const pendingMessage = pendingCount === 0
+            ? `📌 *Figurinha Guardada!*\n\nVocê usou todas as figurinhas e bônus de hoje.\n\n✅ Sua figurinha foi salva e será enviada *amanhã às 8h*.\n\n💡 Ou faça upgrade agora para receber imediatamente!`
+            : `📌 *Figurinha Guardada!*\n\nVocê usou todas as figurinhas e bônus de hoje.\n\n✅ Suas *${pendingCount + 1} figurinhas* foram salvas e serão enviadas *amanhã às 8h*.\n\n💡 Ou faça upgrade agora para receber imediatamente!`;
+
+          await sendButtons({
+            number: userNumber,
+            title: '📌 Figurinha Guardada',
+            desc: pendingMessage,
+            footer: 'StickerBot',
+            buttons: [
+              { id: 'button_upgrade_premium', text: 'Premium R$5' },
+              { id: 'button_upgrade_ultra', text: 'Ultra R$9,90' },
+            ],
+          });
+
+          fastify.log.info({
+            msg: 'Pending sticker notification sent',
+            userNumber,
+            pendingCount: pendingCount + 1,
+          });
         }
       }
 

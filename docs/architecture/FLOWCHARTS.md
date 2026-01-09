@@ -516,6 +516,10 @@ flowchart TD
 
         B5 --> B8[+2 créditos extras]
         B8 --> B9[Usuário pode continuar]
+
+        B1 -->|Não bonus >= 2| B10[📌 Figurinha Guardada!]
+        B10 --> B11[Botões: Premium / Ultra]
+        B11 --> B4
     end
 
     C4 --> END([Fim])
@@ -1442,4 +1446,4 @@ flowchart TD
 
 ---
 
-**Última atualização:** 09/01/2026 - Adicionado fluxo do experimento upgrade_message_v1 com variantes de mensagem
+**Última atualização:** 09/01/2026 - Adicionada notificação "Figurinha Guardada" quando bônus esgotados (pendingCount < 2)

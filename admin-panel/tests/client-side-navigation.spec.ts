@@ -4,6 +4,9 @@ test('test client-side navigation (clicking links)', async ({ page }) => {
   const multipleInstances: string[] = [];
   const supabaseLogs: string[] = [];
 
+  // Set viewport para mostrar sidebar
+  await page.setViewportSize({ width: 1920, height: 1080 });
+
   page.on('console', msg => {
     const text = msg.text();
 
@@ -36,20 +39,28 @@ test('test client-side navigation (clicking links)', async ({ page }) => {
   await page.waitForTimeout(2000);
 
   // Agora testar navegação client-side
-  console.log('\n2. Clicando no link de Stickers (navegação client-side)...');
-  // Procurar por qualquer link que contenha "sticker" no href
-  const stickerLink = page.locator('a[href*="sticker"]').first();
-  await stickerLink.click();
+  console.log('\n2. Expandindo menu Stickers...');
+  await page.click('button:has-text("Stickers")');
+  await page.waitForTimeout(500);
+
+  console.log('\n3. Clicando em "Emocoes" (navegação client-side)...');
+  await page.click('a[href="/stickers/emotions"]');
   await page.waitForTimeout(3000);
 
-  console.log('\n3. Voltando ao dashboard (navegação client-side)...');
-  const dashboardLink = page.locator('a[href="/"]').first();
-  await dashboardLink.click();
+  console.log('\n4. Clicando em "Celebridades" (navegação client-side)...');
+  await page.click('a[href="/stickers/celebrities"]');
   await page.waitForTimeout(3000);
 
-  console.log('\n4. Navegando para usuários (navegação client-side)...');
-  const usersLink = page.locator('a[href*="users"]').first();
-  await usersLink.click();
+  console.log('\n5. Voltando ao Dashboard (navegação client-side)...');
+  await page.click('a[href="/"]');
+  await page.waitForTimeout(3000);
+
+  console.log('\n6. Expandindo menu Usuarios...');
+  await page.click('button:has-text("Usuarios")');
+  await page.waitForTimeout(500);
+
+  console.log('\n7. Clicando em "Lista" de usuarios (navegação client-side)...');
+  await page.click('text=/Lista/i');
   await page.waitForTimeout(3000);
 
   console.log('\n=== RESULTADO (apenas navegação client-side) ===\n');

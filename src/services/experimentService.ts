@@ -354,3 +354,200 @@ export async function getActiveExperiments(): Promise<
     return [];
   }
 }
+
+// ============================================
+// PAYMENT INTENT REMINDERS
+// ============================================
+
+/**
+ * Obtem variante do experimento payment_intent_reminder_v1.
+ * Similar ao getUpgradeDismissVariant mas para reminder de pagamento.
+ */
+export async function getPaymentReminderVariant(
+  userId: string,
+  userNumber: string
+): Promise<ExperimentVariantResult | null> {
+  try {
+    const isBrazilian = isBrazilianNumber(userNumber);
+
+    logger.debug({
+      msg: '[PAYMENT_REMINDER] Getting variant for user',
+      userId,
+      userNumber: userNumber.slice(0, 6) + '...',
+      isBrazilian,
+    });
+
+    const { data, error } = await supabase.rpc('assign_experiment_variant', {
+      p_user_id: userId,
+      p_experiment_name: 'payment_intent_reminder_v1',
+      p_is_brazilian: isBrazilian,
+    });
+
+    if (error) {
+      logger.error({
+        msg: '[PAYMENT_REMINDER] RPC error',
+        error: error.message,
+        userId,
+      });
+      return null;
+    }
+
+    if (!data || data.length === 0) {
+      logger.warn({
+        msg: '[PAYMENT_REMINDER] No active experiment found',
+        userId,
+      });
+      return null;
+    }
+
+    const result = data[0] as ExperimentVariantResult;
+
+    if (result.is_new_assignment) {
+      logger.info({
+        msg: '[PAYMENT_REMINDER] New variant assigned',
+        userId,
+        variant: result.variant,
+        experimentId: result.experiment_id,
+      });
+    }
+
+    return result;
+  } catch (error) {
+    logger.error({
+      msg: '[PAYMENT_REMINDER] Error getting variant',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId,
+    });
+    return null;
+  }
+}
+
+/**
+ * Agenda os 3 lembretes de pagamento (T+30min, T+6h, T+48h).
+ * Timeline suave para não spammar o usuário.
+ */
+export async function schedulePaymentReminders(
+  userId: string,
+  userNumber: string,
+  selectedPlan: 'premium' | 'ultra',
+  experimentId: string,
+  variant: string
+): Promise<boolean> {
+  try {
+    const now = new Date();
+
+    // Wave 1: T+30min
+    const wave1Time = new Date(now.getTime() + 30 * 60 * 1000);
+
+    // Wave 2: T+6h
+    const wave2Time = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+
+    // Wave 3: T+48h
+    const wave3Time = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+
+    const reminders = [
+      {
+        user_id: userId,
+        user_number: userNumber,
+        reminder_type: 'payment_reminder_wave1',
+        scheduled_for: wave1Time.toISOString(),
+        status: 'pending',
+        experiment_id: experimentId,
+        variant,
+        message_template: JSON.stringify({ selected_plan: selectedPlan, wave: 1 }),
+      },
+      {
+        user_id: userId,
+        user_number: userNumber,
+        reminder_type: 'payment_reminder_wave2',
+        scheduled_for: wave2Time.toISOString(),
+        status: 'pending',
+        experiment_id: experimentId,
+        variant,
+        message_template: JSON.stringify({ selected_plan: selectedPlan, wave: 2 }),
+      },
+      {
+        user_id: userId,
+        user_number: userNumber,
+        reminder_type: 'payment_reminder_wave3',
+        scheduled_for: wave3Time.toISOString(),
+        status: 'pending',
+        experiment_id: experimentId,
+        variant,
+        message_template: JSON.stringify({ selected_plan: selectedPlan, wave: 3 }),
+      },
+    ];
+
+    const { error } = await supabase.from('scheduled_reminders').insert(reminders);
+
+    if (error) {
+      logger.error({
+        msg: '[PAYMENT_REMINDER] Error scheduling reminders',
+        error: error.message,
+        userId,
+        selectedPlan,
+      });
+      return false;
+    }
+
+    logger.info({
+      msg: '[PAYMENT_REMINDER] 3 reminders scheduled',
+      userId,
+      selectedPlan,
+      wave1: wave1Time.toISOString(),
+      wave2: wave2Time.toISOString(),
+      wave3: wave3Time.toISOString(),
+    });
+
+    return true;
+  } catch (error) {
+    logger.error({
+      msg: '[PAYMENT_REMINDER] Exception scheduling reminders',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId,
+    });
+    return false;
+  }
+}
+
+/**
+ * Cancela lembretes pendentes quando usuário completa pagamento.
+ * Atualiza status para 'canceled' para evitar envio.
+ */
+export async function cancelPaymentReminders(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('scheduled_reminders')
+      .update({ status: 'canceled', updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+      .in('reminder_type', [
+        'payment_reminder_wave1',
+        'payment_reminder_wave2',
+        'payment_reminder_wave3',
+      ]);
+
+    if (error) {
+      logger.error({
+        msg: '[PAYMENT_REMINDER] Error canceling reminders',
+        error: error.message,
+        userId,
+      });
+      return false;
+    }
+
+    logger.info({
+      msg: '[PAYMENT_REMINDER] Pending reminders canceled',
+      userId,
+    });
+
+    return true;
+  } catch (error) {
+    logger.error({
+      msg: '[PAYMENT_REMINDER] Exception canceling reminders',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId,
+    });
+    return false;
+  }
+}

@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import { sendText } from '../services/evolutionApi';
+import { sendList } from '../services/avisaApi';
 import { logExperimentEvent } from '../services/experimentService';
 import { logJobStart, logJobComplete, logJobFailed } from '../services/jobLogger';
 import logger from '../config/logger';
@@ -10,6 +11,91 @@ const PLAN_LIMITS = {
   premium: 20,
   ultra: 999,
 };
+
+/**
+ * Helper function to process payment reminder based on experiment variant
+ */
+async function processPaymentReminder(
+  reminder: any
+): Promise<{ message?: string; list?: any; eventType: string }> {
+  const metadata = JSON.parse(reminder.message_template || '{}');
+  const selectedPlan = metadata.selected_plan as 'premium' | 'ultra';
+  const wave = metadata.wave as 1 | 2 | 3;
+
+  // Get experiment configuration
+  const { data: experiment } = await supabase
+    .from('experiments')
+    .select('variants')
+    .eq('id', reminder.experiment_id)
+    .single();
+
+  if (!experiment) {
+    throw new Error('Experiment not found');
+  }
+
+  const variantConfig = experiment.variants[reminder.variant];
+  if (!variantConfig) {
+    throw new Error(`Variant ${reminder.variant} not found`);
+  }
+
+  // Get wave-specific config
+  const config = variantConfig.config;
+  const waveKey = `wave_${wave}`;
+  const title = config[`${waveKey}_title`];
+  const body = config[`${waveKey}_body`];
+  const buttons = config[`${waveKey}_buttons`];
+  const buttonTexts = config[`${waveKey}_button_texts`];
+
+  // Replace placeholders
+  const planName = selectedPlan === 'premium' ? 'Premium' : 'Ultra';
+  const planBenefit =
+    selectedPlan === 'premium' ? '20 figurinhas por dia' : 'figurinhas ilimitadas';
+  const benefitToday = selectedPlan === 'premium' ? '+16 figurinhas hoje' : 'figurinhas ilimitadas';
+  const benefitWeek = selectedPlan === 'premium' ? '83 figurinhas' : 'centenas de figurinhas';
+  const totalWeek = '347';
+
+  let finalTitle = title
+    .replace('{plan_name}', planName)
+    .replace('{benefit_today}', benefitToday)
+    .replace('{benefit_week}', benefitWeek)
+    .replace('{total_week}', totalWeek);
+
+  let finalBody = body
+    .replace('{plan_name}', planName)
+    .replace('{plan_benefit}', planBenefit)
+    .replace('{benefit_today}', benefitToday)
+    .replace('{benefit_week}', benefitWeek)
+    .replace('{total_week}', totalWeek);
+
+  // Build button list for Avisa API
+  const listItems = buttons.map((btnType: string) => {
+    const text = buttonTexts[btnType];
+    let rowId = '';
+
+    if (btnType === 'pix') rowId = 'payment_pix';
+    else if (btnType === 'card') rowId = 'payment_card';
+    else if (btnType === 'plans') rowId = 'show_plans';
+    else if (btnType === 'dismiss') rowId = 'dismiss_payment_reminder';
+
+    return {
+      RowId: rowId,
+      title: text,
+      desc: '',
+    };
+  });
+
+  await sendList({
+    number: reminder.user_number,
+    buttontext: '💳 Escolher',
+    toptext: finalTitle,
+    desc: finalBody,
+    list: listItems,
+  });
+
+  return {
+    eventType: `payment_reminder_wave${wave}_sent`,
+  };
+}
 
 /**
  * Send scheduled reminders to users
@@ -130,32 +216,50 @@ export async function sendScheduledRemindersJob(): Promise<{
         const dailyLimit =
           PLAN_LIMITS[user.subscription_plan as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.free;
 
-        // Build appropriate message
-        let message: string;
-        const userName = user.name || 'amigo(a)';
+        // Check if this is a payment reminder
+        const isPaymentReminder = reminder.reminder_type?.startsWith('payment_reminder');
+        let eventType = 'remind_sent';
 
-        if (user.daily_count >= dailyLimit) {
-          // User is still at limit - upsell message
-          message = `⏰ *Lembrete, ${userName}!*
+        if (isPaymentReminder) {
+          // Process payment reminder with experiment variant
+          logger.info({
+            msg: '[REMINDERS-JOB] Processing payment reminder',
+            reminderId: reminder.id,
+            reminderType: reminder.reminder_type,
+            variant: reminder.variant,
+          });
+
+          const result = await processPaymentReminder(reminder);
+          eventType = result.eventType;
+        } else {
+          // Original upgrade reminder logic
+
+          let message: string;
+          const userName = user.name || 'amigo(a)';
+
+          if (user.daily_count >= dailyLimit) {
+            // User is still at limit - upsell message
+            message = `⏰ *Lembrete, ${userName}!*
 
 Você pediu pra te lembrar do upgrade.
 
 Seu limite de hoje ainda está esgotado, mas com o *Premium* você tem *20 figurinhas por dia*! 🚀
 
 💎 Digite *planos* para ver as opções.`;
-        } else {
-          // Limit has reset - softer upsell
-          message = `⏰ *Seu limite voltou, ${userName}!*
+          } else {
+            // Limit has reset - softer upsell
+            message = `⏰ *Seu limite voltou, ${userName}!*
 
 Você já pode criar mais figurinhas hoje! 🎨
 
 💡 *Dica:* Com o *Premium* você nunca mais fica sem.
 
 Digite *planos* se quiser saber mais.`;
-        }
+          }
 
-        // Send message
-        await sendText(reminder.user_number, message);
+          // Send message
+          await sendText(reminder.user_number, message);
+        }
 
         // Update reminder status
         const processingTime = Date.now() - reminderStartTime;
@@ -174,12 +278,13 @@ Digite *planos* se quiser saber mais.`;
             reminder.user_id,
             reminder.experiment_id,
             reminder.variant || 'unknown',
-            'remind_sent',
+            eventType,
             {
               daily_count: user.daily_count,
               daily_limit: dailyLimit,
               was_at_limit: user.daily_count >= dailyLimit,
               processing_time_ms: processingTime,
+              reminder_type: reminder.reminder_type,
             }
           );
         }

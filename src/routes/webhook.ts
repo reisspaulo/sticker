@@ -509,6 +509,31 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             selected_plan: selectedPlan,
           });
 
+          // Schedule payment reminders (A/B test for remarketing)
+          const { getPaymentReminderVariant, schedulePaymentReminders } = await import(
+            '../services/experimentService'
+          );
+
+          const paymentExperiment = await getPaymentReminderVariant(user.id, userNumber);
+          if (paymentExperiment) {
+            await schedulePaymentReminders(
+              user.id,
+              userNumber,
+              selectedPlan,
+              paymentExperiment.experiment_id,
+              paymentExperiment.variant
+            );
+
+            // Log payment intent event (reuse logExperimentEvent from above)
+            await logExperimentEvent(
+              user.id,
+              paymentExperiment.experiment_id,
+              paymentExperiment.variant,
+              'payment_intent',
+              { plan: selectedPlan, source: 'limit_menu_button' }
+            );
+          }
+
           return reply.status(200).send({
             status: 'upgrade_payment_requested',
             plan: selectedPlan,
@@ -741,6 +766,33 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             selected_plan: selectedPlan,
           });
 
+          // Schedule payment reminders (A/B test for remarketing)
+          const {
+            getPaymentReminderVariant,
+            schedulePaymentReminders,
+            logExperimentEvent,
+          } = await import('../services/experimentService');
+
+          const paymentExperiment = await getPaymentReminderVariant(user.id, userNumber);
+          if (paymentExperiment) {
+            await schedulePaymentReminders(
+              user.id,
+              userNumber,
+              selectedPlan,
+              paymentExperiment.experiment_id,
+              paymentExperiment.variant
+            );
+
+            // Log payment intent event
+            await logExperimentEvent(
+              user.id,
+              paymentExperiment.experiment_id,
+              paymentExperiment.variant,
+              'payment_intent',
+              { plan: selectedPlan, source: 'plan_button_direct' }
+            );
+          }
+
           return reply.status(200).send({ status: 'payment_method_requested', plan: selectedPlan });
         }
 
@@ -765,10 +817,13 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
           logMenuInteraction(userNumber, 'payment_method_selected', paymentMethod);
 
-          // Log experiment event for payment_started
-          const { logExperimentEvent, getUpgradeDismissVariant } = await import(
+          // Cancel payment reminders (user is proceeding with payment)
+          const { cancelPaymentReminders, logExperimentEvent, getUpgradeDismissVariant } = await import(
             '../services/experimentService'
           );
+          await cancelPaymentReminders(user.id);
+
+          // Log experiment event for payment_started
           const experimentResult = await getUpgradeDismissVariant(user.id, userNumber);
           if (experimentResult) {
             await logExperimentEvent(
@@ -1056,6 +1111,25 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         await saveConversationContext(userNumber, 'awaiting_payment_method', {
           selected_plan: 'premium',
         });
+
+        // Schedule payment reminders
+        const {
+          getPaymentReminderVariant: getPRV1,
+          schedulePaymentReminders: sPR1,
+          logExperimentEvent: lEE1,
+        } = await import('../services/experimentService');
+        const paymentExp1 = await getPRV1(user.id, userNumber);
+        if (paymentExp1) {
+          await sPR1(user.id, userNumber, 'premium', paymentExp1.experiment_id, paymentExp1.variant);
+          await lEE1(
+            user.id,
+            paymentExp1.experiment_id,
+            paymentExp1.variant,
+            'payment_intent',
+            { plan: 'premium', source: 'text_command' }
+          );
+        }
+
         return reply.status(200).send({ status: 'payment_methods_sent', plan: 'premium' });
       }
 
@@ -1070,6 +1144,25 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         await saveConversationContext(userNumber, 'awaiting_payment_method', {
           selected_plan: 'ultra',
         });
+
+        // Schedule payment reminders
+        const {
+          getPaymentReminderVariant: getPRV2,
+          schedulePaymentReminders: sPR2,
+          logExperimentEvent: lEE2,
+        } = await import('../services/experimentService');
+        const paymentExp2 = await getPRV2(user.id, userNumber);
+        if (paymentExp2) {
+          await sPR2(user.id, userNumber, 'ultra', paymentExp2.experiment_id, paymentExp2.variant);
+          await lEE2(
+            user.id,
+            paymentExp2.experiment_id,
+            paymentExp2.variant,
+            'payment_intent',
+            { plan: 'ultra', source: 'text_command' }
+          );
+        }
+
         return reply.status(200).send({ status: 'payment_methods_sent', plan: 'ultra' });
       }
 
@@ -1091,6 +1184,10 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
         const selectedPlan = planFromContext as 'premium' | 'ultra';
         logMenuInteraction(userNumber, 'payment_method_command', paymentMethod);
+
+        // Cancel payment reminders (user is proceeding with payment)
+        const { cancelPaymentReminders: cancelPR } = await import('../services/experimentService');
+        await cancelPR(user.id);
 
         fastify.log.info({
           msg: 'User typed payment method command',

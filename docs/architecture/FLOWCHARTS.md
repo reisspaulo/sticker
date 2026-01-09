@@ -211,6 +211,8 @@ sequenceDiagram
     else Limite Atingido
         B->>B: ⚡ Incrementa onboarding_step (mesmo com limite!)
         Note over B: Usuário criou sticker, onboarding progride<br/>independente do status pendente
+        B->>B: 📝 Loga limit_reached no banco
+        Note over B: Logs: limit_reached + menu_sent<br/>para debugging
         B->>Q: Adiciona job: process-sticker (status: pendente)
         B->>W: ⚠️ Limite + botões upgrade
         Note right of W: 🎁 Usar Bônus<br/>💰 Premium<br/>🚀 Ultra

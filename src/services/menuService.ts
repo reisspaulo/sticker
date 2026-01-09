@@ -7,6 +7,7 @@ import {
   logExperimentEvent,
   type ExperimentVariantConfig,
 } from './experimentService';
+import { logLimitMenuSent } from './usageLogs';
 
 // ============================================
 // EXPERIMENT MESSAGE HELPERS
@@ -283,6 +284,17 @@ export async function sendLimitReachedMenu(
       experimentId,
     });
 
+    // Log to database for debugging
+    await logLimitMenuSent({
+      userNumber,
+      userName: options.userName,
+      currentPlan,
+      abTestGroup,
+      bonusCreditsUsed,
+      buttonsShown: buttons.map((b) => b.id),
+      success: true,
+    });
+
     // Log experiment event: menu_shown
     if (experimentId) {
       await logExperimentEvent(userId, experimentId, experimentVariant, 'menu_shown', {
@@ -294,6 +306,18 @@ export async function sendLimitReachedMenu(
       });
     }
   } catch (error) {
+    // Log failure to database
+    await logLimitMenuSent({
+      userNumber,
+      userName: options.userName,
+      currentPlan,
+      abTestGroup,
+      bonusCreditsUsed,
+      buttonsShown: buttons.map((b) => b.id),
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    });
+
     logger.error({
       msg: 'Error sending limit reached menu',
       userNumber,

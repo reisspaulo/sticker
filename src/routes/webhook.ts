@@ -9,7 +9,7 @@ import { getTwitterDownloadCount } from '../services/twitterLimits';
 import { getUserLimits } from '../services/subscriptionService';
 import { sendWelcomeMessage } from '../services/messageService';
 import { sendText, sendVideo } from '../services/evolutionApi';
-import { logWebhookReceived, logMessageReceived, logTextMessageReceived, logError, logButtonClicked } from '../services/usageLogs';
+import { logWebhookReceived, logMessageReceived, logTextMessageReceived, logError, logButtonClicked, logLimitReached } from '../services/usageLogs';
 import { extractTweetInfo } from '../utils/urlDetector';
 import {
   getVideoSelectionContext,
@@ -1582,6 +1582,17 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           // Atomically check and set notification to prevent duplicate messages
           const wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
 
+          // Log limit reached to database
+          await logLimitReached({
+            userNumber,
+            userName,
+            dailyCount: limitCheck.daily_count,
+            dailyLimit: limitCheck.effective_limit,
+            abTestGroup: 'control',
+            messageType: detectedType,
+            wasNotified: !wasAlreadyNotified,
+          });
+
           if (!wasAlreadyNotified) {
             const { sendLimitReachedMessage } = await import('../services/messageService');
             await sendLimitReachedMessage(userNumber, userName, 0);
@@ -1617,6 +1628,17 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             pendingCount,
             bonusUsed,
             hasBonusAvailable,
+          });
+
+          // Log limit reached to database (wasNotified will be updated in specific cases below)
+          await logLimitReached({
+            userNumber,
+            userName,
+            dailyCount: limitCheck.daily_count,
+            dailyLimit: limitCheck.effective_limit,
+            abTestGroup: 'bonus',
+            messageType: detectedType,
+            wasNotified: hasBonusAvailable, // Bonus users always get menu if bonus available
           });
 
           // If user has bonus available, ALWAYS send menu (no notification throttle)

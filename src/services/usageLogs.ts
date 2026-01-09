@@ -78,7 +78,10 @@ export async function logLimitReached(params: {
   userNumber: string;
   userName?: string;
   dailyCount: number;
-  limit: number;
+  dailyLimit: number;
+  abTestGroup?: string;
+  messageType?: string;
+  wasNotified?: boolean;
 }): Promise<void> {
   await logUsage({
     userNumber: params.userNumber,
@@ -86,7 +89,10 @@ export async function logLimitReached(params: {
     details: {
       user_name: params.userName,
       daily_count: params.dailyCount,
-      limit: params.limit,
+      daily_limit: params.dailyLimit,
+      ab_test_group: params.abTestGroup,
+      message_type: params.messageType,
+      was_notified: params.wasNotified,
     },
   });
 }
@@ -496,6 +502,39 @@ export async function logPixButtonSent(params: {
       plan: params.plan,
       amount: params.amount,
       pix_code_preview: params.pixCode?.substring(0, 20),
+      success: params.success,
+      error_message: params.errorMessage,
+    },
+  });
+}
+
+// ========================================
+// LIMIT MENU LOGGING
+// ========================================
+
+/**
+ * Log when limit reached menu is sent to user
+ */
+export async function logLimitMenuSent(params: {
+  userNumber: string;
+  userName?: string;
+  currentPlan: string;
+  abTestGroup: string;
+  bonusCreditsUsed: number;
+  buttonsShown: string[];
+  success: boolean;
+  errorMessage?: string;
+}): Promise<void> {
+  await logUsage({
+    userNumber: params.userNumber,
+    action: 'menu_sent',
+    details: {
+      user_name: params.userName,
+      menu_type: 'limit_reached',
+      current_plan: params.currentPlan,
+      ab_test_group: params.abTestGroup,
+      bonus_credits_used: params.bonusCreditsUsed,
+      buttons_shown: params.buttonsShown,
       success: params.success,
       error_message: params.errorMessage,
     },

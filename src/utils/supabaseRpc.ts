@@ -147,6 +147,22 @@ export async function callScalarRpc<T = any>(
  *   { functionName: 'getOldDownloads', returnFirst: false }
  * );
  */
+// Overloads for proper type inference
+export async function callTableRpc<T = any>(
+  rpcName: string,
+  params: Record<string, any>,
+  options: RpcOptions & { returnFirst: true }
+): Promise<T>;
+export async function callTableRpc<T = any>(
+  rpcName: string,
+  params: Record<string, any>,
+  options: RpcOptions & { returnFirst: false }
+): Promise<T[]>;
+export async function callTableRpc<T = any>(
+  rpcName: string,
+  params: Record<string, any>,
+  options: RpcOptions & { returnFirst?: boolean }
+): Promise<T | T[]>;
 export async function callTableRpc<T = any>(
   rpcName: string,
   params: Record<string, any>,

@@ -189,6 +189,7 @@ sequenceDiagram
         B->>B: Incrementa daily_count + onboarding_step (atômico)
         Note over B: ✅ Ambos atualizados atomicamente via RPC<br/>para prevenir inconsistências
         B->>Q: Adiciona job: process-sticker
+        Note over Q: jobId = userNumber-timestamp-messageId<br/>messageId garante unicidade em batch
         B->>W: (nada - silencioso)
 
         Q->>WK: Processa job

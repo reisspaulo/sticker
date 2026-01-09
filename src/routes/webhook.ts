@@ -1527,8 +1527,9 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         };
 
         // Add job to Twitter video queue
+        // jobId inclui messageId para evitar colisão em mensagens simultâneas
         const job = await downloadTwitterVideoQueue.add('download-twitter-video', twitterJobData, {
-          jobId: `twitter-${userNumber}-${Date.now()}`,
+          jobId: `twitter-${userNumber}-${Date.now()}-${body.data.key.id}`,
         });
 
         const processingTime = Date.now() - startTime;
@@ -1722,8 +1723,10 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
       };
 
       // Add job to queue
+      // IMPORTANTE: jobId inclui body.data.key.id para evitar colisão quando
+      // múltiplas imagens chegam no mesmo milissegundo (Date.now() igual)
       const job = await processStickerQueue.add('process-sticker', jobData, {
-        jobId: `${userNumber}-${Date.now()}`,
+        jobId: `${userNumber}-${Date.now()}-${body.data.key.id}`,
       });
 
       const processingTime = Date.now() - startTime;

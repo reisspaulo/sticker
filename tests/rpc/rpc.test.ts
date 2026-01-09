@@ -40,6 +40,7 @@ describe('RPC Registry', () => {
         'increment_bonus_credit',
         'increment_twitter_download_count',
         'set_limit_notified_atomic',
+        'set_twitter_feature_shown_atomic',
         'schedule_reminder',
         'check_and_increment_daily_limit_atomic',
         'assign_experiment_variant',
@@ -63,6 +64,7 @@ describe('RPC Registry', () => {
       expect(RPC_REGISTRY.reset_all_daily_counters.type).toBe('scalar');
       expect(RPC_REGISTRY.increment_bonus_credit.type).toBe('scalar');
       expect(RPC_REGISTRY.set_limit_notified_atomic.type).toBe('scalar');
+      expect(RPC_REGISTRY.set_twitter_feature_shown_atomic.type).toBe('scalar');
 
       // TABLE functions
       expect(RPC_REGISTRY.check_and_increment_daily_limit_atomic.type).toBe('table');
@@ -83,10 +85,11 @@ describe('RPC Registry', () => {
         'increment_bonus_credit',
         'increment_twitter_download_count',
         'set_limit_notified_atomic',
+        'set_twitter_feature_shown_atomic',
         'schedule_reminder',
       ];
 
-      expect(scalarFunctions).toHaveLength(6);
+      expect(scalarFunctions).toHaveLength(7);
     });
 
     it('should correctly infer TABLE function names', () => {

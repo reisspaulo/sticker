@@ -224,11 +224,10 @@ export default function ExperimentsPage() {
   const totalConversions = metrics.reduce((acc, m) => acc + m.converted, 0)
   const overallRate = totalUsers > 0 ? (totalConversions / totalUsers) * 100 : 0
 
-  // Prepare chart data
+  // Prepare chart data - conversion rates
   const chartData = metrics.map(m => ({
     name: VARIANT_LABELS[m.variant] || m.variant,
-    'Taxa de Conversao': parseFloat(m.conversion_rate.toFixed(2)),
-    'Taxa de Clique': parseFloat(m.upgrade_rate.toFixed(2)),
+    value: parseFloat(m.conversion_rate.toFixed(2)),
     color: VARIANT_COLORS[m.variant] || 'hsl(var(--primary))',
   }))
 
@@ -356,16 +355,15 @@ export default function ExperimentsPage() {
           {/* Comparison Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>Comparacao de Taxas</CardTitle>
-              <CardDescription>Taxa de clique vs conversao por variante</CardDescription>
+              <CardTitle>Taxa de Conversao por Variante</CardTitle>
+              <CardDescription>Porcentagem de usuarios que converteram</CardDescription>
             </CardHeader>
             <CardContent>
               {chartData.length > 0 ? (
                 <BarChart
                   data={chartData}
-                  dataKeys={['Taxa de Conversao', 'Taxa de Clique']}
-                  xAxisKey="name"
                   height={300}
+                  formatValue={(v) => `${v}%`}
                 />
               ) : (
                 <div className="flex h-[300px] items-center justify-center text-muted-foreground">

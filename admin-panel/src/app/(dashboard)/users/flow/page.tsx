@@ -75,10 +75,14 @@ export default function UsersFlowPage() {
       .gte('created_at', startDate.toISOString())
 
     // Fetch upgrade events (from usage_logs)
+    // menu_sent com menu_type = 'limit_reached' = viu upgrade
+    // button_clicked com button_id = 'button_upgrade_premium' ou 'button_upgrade_ultra' = clicou plano
+    // menu_sent com menu_type = 'pix_options' = viu pagamento
+    // button_clicked com button_id = 'payment_pix' = clicou pix
     const { data: upgradeLogs } = await supabase
       .from('usage_logs')
-      .select('user_number, action, created_at')
-      .in('action', ['upgrade_shown', 'upgrade_clicked', 'subscription_started'])
+      .select('user_number, action, details, created_at')
+      .in('action', ['menu_sent', 'button_clicked', 'limit_reached'])
       .gte('created_at', startDate.toISOString())
 
     if (!users) {
@@ -93,17 +97,52 @@ export default function UsersFlowPage() {
       const userStickers = stickers?.filter(s => s.user_number === u.whatsapp_number) || []
       return userStickers.length >= 3
     }).length
+
+    // Viu limite/upgrade: menu_sent com menu_type = 'limit_reached' OU action = 'limit_reached'
     const usersShownUpgrade = new Set(
-      upgradeLogs?.filter(l => l.action === 'upgrade_shown').map(l => l.user_number)
+      upgradeLogs?.filter(l => {
+        if (l.action === 'limit_reached') return true
+        if (l.action === 'menu_sent') {
+          const details = l.details as Record<string, unknown> | null
+          return details?.menu_type === 'limit_reached'
+        }
+        return false
+      }).map(l => l.user_number)
     ).size
-    const usersClickedUpgrade = new Set(
-      upgradeLogs?.filter(l => l.action === 'upgrade_clicked').map(l => l.user_number)
+
+    // Clicou em plano: button_clicked com button_id = 'button_upgrade_premium' ou 'button_upgrade_ultra'
+    const usersClickedPlan = new Set(
+      upgradeLogs?.filter(l => {
+        if (l.action !== 'button_clicked') return false
+        const details = l.details as Record<string, unknown> | null
+        const buttonId = details?.button_id as string
+        return buttonId === 'button_upgrade_premium' || buttonId === 'button_upgrade_ultra'
+      }).map(l => l.user_number)
     ).size
+
+    // Viu pagamento: menu_sent com menu_type = 'pix_options' ou 'plans'
+    const usersShownPayment = new Set(
+      upgradeLogs?.filter(l => {
+        if (l.action !== 'menu_sent') return false
+        const details = l.details as Record<string, unknown> | null
+        return details?.menu_type === 'pix_options' || details?.menu_type === 'plans'
+      }).map(l => l.user_number)
+    ).size
+
+    // Clicou PIX: button_clicked com button_id = 'payment_pix'
+    const usersClickedPix = new Set(
+      upgradeLogs?.filter(l => {
+        if (l.action !== 'button_clicked') return false
+        const details = l.details as Record<string, unknown> | null
+        return details?.button_id === 'payment_pix'
+      }).map(l => l.user_number)
+    ).size
+
     const usersSubscribed = users.filter(u => u.subscription_plan !== 'free').length
 
     const funnelData: FunnelStep[] = [
       {
-        name: 'Novos usuários',
+        name: 'Novos usuarios',
         count: totalUsers,
         percentage: 100,
         dropoff: 0,
@@ -121,22 +160,34 @@ export default function UsersFlowPage() {
         dropoff: usersWithStickers > 0 ? ((usersWithStickers - usersWithMultipleStickers) / usersWithStickers) * 100 : 0,
       },
       {
-        name: 'Viu upgrade',
+        name: 'Viu limite',
         count: usersShownUpgrade,
         percentage: totalUsers > 0 ? (usersShownUpgrade / totalUsers) * 100 : 0,
         dropoff: usersWithMultipleStickers > 0 ? ((usersWithMultipleStickers - usersShownUpgrade) / usersWithMultipleStickers) * 100 : 0,
       },
       {
-        name: 'Clicou upgrade',
-        count: usersClickedUpgrade,
-        percentage: totalUsers > 0 ? (usersClickedUpgrade / totalUsers) * 100 : 0,
-        dropoff: usersShownUpgrade > 0 ? ((usersShownUpgrade - usersClickedUpgrade) / usersShownUpgrade) * 100 : 0,
+        name: 'Clicou plano',
+        count: usersClickedPlan,
+        percentage: totalUsers > 0 ? (usersClickedPlan / totalUsers) * 100 : 0,
+        dropoff: usersShownUpgrade > 0 ? ((usersShownUpgrade - usersClickedPlan) / usersShownUpgrade) * 100 : 0,
+      },
+      {
+        name: 'Viu pagamento',
+        count: usersShownPayment,
+        percentage: totalUsers > 0 ? (usersShownPayment / totalUsers) * 100 : 0,
+        dropoff: usersClickedPlan > 0 ? ((usersClickedPlan - usersShownPayment) / usersClickedPlan) * 100 : 0,
+      },
+      {
+        name: 'Clicou PIX',
+        count: usersClickedPix,
+        percentage: totalUsers > 0 ? (usersClickedPix / totalUsers) * 100 : 0,
+        dropoff: usersShownPayment > 0 ? ((usersShownPayment - usersClickedPix) / usersShownPayment) * 100 : 0,
       },
       {
         name: 'Assinou',
         count: usersSubscribed,
         percentage: totalUsers > 0 ? (usersSubscribed / totalUsers) * 100 : 0,
-        dropoff: usersClickedUpgrade > 0 ? ((usersClickedUpgrade - usersSubscribed) / usersClickedUpgrade) * 100 : 0,
+        dropoff: usersClickedPix > 0 ? ((usersClickedPix - usersSubscribed) / usersClickedPix) * 100 : 0,
       },
     ]
 

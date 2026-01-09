@@ -332,21 +332,20 @@ export async function checkAndIncrementLimitAtomic(
 
 /**
  * ✅ Type-safe call para set_limit_notified_atomic
+ * Retorna boolean indicando se já foi notificado hoje
  */
 export async function setLimitNotifiedAtomic(userId: string): Promise<boolean> {
-  const result = await callTableRpc<AtomicLimitNotifiedResult>(
+  // RPC returns boolean directly (scalar), not TABLE
+  return await callScalarRpc<boolean>(
     'set_limit_notified_atomic',
     {
       p_user_id: userId,
     },
     {
       functionName: 'setLimitNotifiedAtomic',
-      returnFirst: true,
       logParams: false,
     }
   );
-
-  return result?.was_already_notified ?? false;
 }
 
 /**

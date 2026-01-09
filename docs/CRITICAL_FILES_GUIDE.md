@@ -15,10 +15,54 @@ Este documento lista **todos os arquivos críticos** que, quando alterados, **DE
 | `src/worker.ts` | `docs/architecture/FLOWCHARTS.md` | ✅ Pre-commit hook |
 | `src/config/queue.ts` | `docs/architecture/FLOWCHARTS.md` | ✅ CI validation |
 | `src/types/subscription.ts` (PLAN_LIMITS) | `docs/business/BUSINESS_RULES.md` | ✅ CI validation |
+| **Chamadas RPC do Supabase** | `src/utils/supabaseRpc.ts` (wrapper type-safe) | ✅ Type safety + Runtime validation |
 
 **Como funciona:**
 1. **Pre-commit hook** te avisa se você mudou esses arquivos
 2. **CI validation** quebra o build se docs estiverem desatualizados
+3. **RPC Wrapper** previne bugs de acesso a arrays (NOVO em 09/01/2026)
+
+---
+
+## 🛡️ NOVO: Proteção Contra Bugs de RPC (09/01/2026)
+
+### O que foi implementado
+
+**Problema resolvido**: Bug crítico de produção onde funções RPC que retornam `TABLE` (arrays) eram acessadas como objetos, resultando em `undefined`.
+
+**Solução**: Wrapper type-safe em `src/utils/supabaseRpc.ts` que:
+- ✅ Detecta automaticamente SCALAR vs TABLE
+- ✅ Valida tipo de retorno em runtime
+- ✅ TypeScript types previnem erros em compile time
+- ✅ Logs detalhados para debugging
+
+**Documentação**: Ver [ADR 005: Safe RPC Wrapper](./decisions/005-safe-rpc-wrapper.md)
+
+### Como usar
+
+**❌ NUNCA faça isso** (propenso a bugs):
+```typescript
+const { data, error } = await supabase.rpc('my_function', { params });
+const result = data.field; // ❌ Pode ser undefined!
+```
+
+**✅ SEMPRE use o wrapper**:
+```typescript
+import { callTableRpc, callScalarRpc } from '../utils/supabaseRpc';
+
+// Para funções que retornam TABLE
+const result = await callTableRpc<MyType>('my_function', { params }, {
+  functionName: 'myFunction',
+  returnFirst: true
+});
+
+// Para funções que retornam SCALAR
+const count = await callScalarRpc<number>('increment_count', { params }, {
+  functionName: 'incrementCount'
+});
+```
+
+**Status**: ✅ Implementado e em produção desde 09/01/2026
 
 ---
 

@@ -15,6 +15,9 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "test:flows": "vitest run tests/flows",
+    "validate:docs": "tsx scripts/validate-docs.ts",
+    "setup:hooks": "bash scripts/setup-hooks.sh",
     "health-check": "tsx scripts/health-check.ts",
     "check-alerts": "tsx -e \"import {runAllAlertChecks} from './src/services/alerting.js'; runAllAlertChecks().then(console.log)\""
   },

@@ -3,31 +3,38 @@
 ## 📋 Índice
 1. [Visão Geral das APIs](#visão-geral-das-apis)
 2. [Fluxo Principal](#fluxo-principal)
-3. [Fluxo de Assinatura Completo](#fluxo-de-assinatura-completo)
-4. [Mensagens e Copies](#mensagens-e-copies)
-5. [Listas e Botões Interativos](#listas-e-botões-interativos)
-6. [Detalhamento Técnico](#detalhamento-técnico)
+3. [Detecção de Números Internacionais](#-detecção-de-números-internacionais) 🆕
+4. [Fluxo Estratégico: Mensagens de Texto](#-fluxo-estratégico-mensagens-de-texto) 🆕
+5. [Fluxo de Assinatura Completo](#fluxo-de-assinatura-completo)
+6. [Mensagens e Copies](#mensagens-e-copies)
+7. [Listas e Botões Interativos](#listas-e-botões-interativos)
+8. [Detalhamento Técnico](#detalhamento-técnico)
 
 ---
 
 ## 🔄 Visão Geral das APIs
 
-### **Evolution API** (Recepção)
-- **Função**: Receber webhooks do WhatsApp
+### **Evolution API** (Recepção + Envio)
+- **Função**: Receber webhooks e enviar mensagens básicas
 - **Endpoint**: `https://stickers.ytem.com.br/webhook`
 - **Responsável por**:
   - Conectar com WhatsApp via Baileys
   - Receber mensagens dos usuários
   - Enviar webhooks para nosso backend
   - Enviar mensagens de TEXTO simples
+  - Enviar mídia (stickers, imagens, vídeos)
+  - **🌍 Fallback para números internacionais** (quando Avisa API não suporta)
 
 ### **Avisa API** (Envio Interativo)
 - **Função**: Enviar mensagens interativas
 - **Endpoint**: `https://www.avisaapi.com.br/api`
+- **⚠️ LIMITAÇÃO**: Suporta apenas números brasileiros (+55)
 - **Responsável por**:
   - Enviar LISTAS interativas (selection lists)
   - Enviar BOTÕES interativos
+  - Enviar BOTÕES PIX (copia e cola nativo)
   - Recursos avançados de WhatsApp Business
+- **Fallback automático**: Números internacionais são convertidos para texto via Evolution API
 
 ### **Backend StickerBot**
 - **Função**: Processar lógica de negócio
@@ -35,6 +42,7 @@
 - **Responsável por**:
   - Receber webhooks da Evolution API
   - Processar comandos e mensagens
+  - **Detectar número brasileiro vs internacional**
   - Decidir qual API usar para resposta
   - Gerenciar assinaturas e limites
 
@@ -85,6 +93,154 @@
          │   (Usuário)  │
          └──────────────┘
 ```
+
+---
+
+## 🌍 Detecção de Números Internacionais
+
+### **Problema**
+A Avisa API suporta apenas números brasileiros (+55). Números internacionais (ex: Angola +244, EUA +1) recebem erro "Could not validate the provided number".
+
+### **Solução: Fallback Automático**
+
+```
+Enviar mensagem interativa
+           ↓
+    ┌──────────────────┐
+    │ isBrazilianNumber│
+    │   (número)       │
+    └────────┬─────────┘
+             │
+    ┌────────┴────────┐
+    │                 │
+    ↓                 ↓
+┌────────┐      ┌────────────┐
+│ +55?   │      │ Outro DDI? │
+│ SIM    │      │ NÃO        │
+└───┬────┘      └─────┬──────┘
+    │                 │
+    ↓                 ↓
+┌────────────┐  ┌──────────────────┐
+│ Avisa API  │  │ Evolution API    │
+│ (interativo)│  │ (texto fallback) │
+└────────────┘  └──────────────────┘
+```
+
+### **Funções Afetadas**
+
+**Arquivo:** `src/services/avisaApi.ts`
+
+| Função | BR (+55) | Internacional |
+|--------|----------|---------------|
+| `sendButtons()` | Botões nativos WhatsApp | Texto numerado: `1. Opção A\n2. Opção B` |
+| `sendList()` | Lista interativa dropdown | Texto com itens: `📋 *Título:*\n1. *Item* - desc` |
+| `sendPixButton()` | Botão PIX copia e cola | Código PIX em bloco de código |
+
+### **Exemplo: sendButtons() para Angola**
+
+**Input:**
+```typescript
+await sendButtons({
+  number: '244974983551', // Angola
+  title: '⚠️ Limite Atingido!',
+  buttons: [
+    { id: 'btn_premium', text: '💰 Premium' },
+    { id: 'btn_ultra', text: '🚀 Ultra' },
+  ]
+});
+```
+
+**Output (texto via Evolution API):**
+```
+⚠️ Limite Atingido!
+
+📋 *Opções:*
+1. 💰 Premium
+2. 🚀 Ultra
+```
+
+### **Detecção de Número Brasileiro**
+
+```typescript
+// src/services/avisaApi.ts:15-18
+export function isBrazilianNumber(phoneNumber: string): boolean {
+  const sanitized = phoneNumber.replace(/\D/g, '');
+  return sanitized.startsWith('55');
+}
+```
+
+**Arquivo:** `src/services/avisaApi.ts:15-18`
+
+---
+
+## 💬 Fluxo Estratégico: Mensagens de Texto
+
+### **Problema Anterior**
+Quando usuário enviava texto (ex: "oi"), o bot respondia com `getReminderMessage()` em TODA mensagem, causando spam.
+
+### **Solução: Fluxo Estratégico (v1.6.0)**
+
+```
+Usuário envia TEXTO
+        ↓
+┌───────────────────────────┐
+│ Verificar status usuário  │
+└──────────┬────────────────┘
+           │
+    ┌──────┴──────┬──────────────┐
+    ↓             ↓              ↓
+┌────────┐  ┌──────────┐   ┌──────────┐
+│ NOVO   │  │ ATINGIU  │   │ TEM      │
+│ USUÁRIO│  │ LIMITE   │   │ QUOTA    │
+└───┬────┘  └────┬─────┘   └────┬─────┘
+    │            │              │
+    ↓            ↓              ↓
+┌──────────┐ ┌───────────┐ ┌──────────┐
+│ Welcome  │ │ Upgrade   │ │ Silêncio │
+│ Message  │ │ Menu      │ │ (200 OK) │
+└──────────┘ └───────────┘ └──────────┘
+```
+
+### **Cenários**
+
+**1. Novo Usuário (`onboarding_step === 0`)**
+```
+Usuário: "oi"
+Bot: "🎉 Olá Paulo, bem-vindo ao *StickerBot*!
+
+Envie uma imagem, vídeo ou GIF agora mesmo que eu transformo em figurinha! 🎨"
+```
+
+**2. Usuário que Atingiu Limite**
+```
+Usuário: "oi"
+Bot: [Menu de upgrade com botões Premium/Ultra]
+```
+- Converte touchpoint em oportunidade de conversão
+- A/B test: grupo controle vs grupo bônus
+
+**3. Usuário com Quota Disponível**
+```
+Usuário: "oi"
+Bot: (silêncio - não responde)
+```
+- Evita spam
+- Usuário sabe usar o bot (já criou stickers)
+
+### **Arquivo:** `src/routes/webhook.ts:1004-1066`
+
+### **Deprecação: getReminderMessage()**
+
+```typescript
+/**
+ * @deprecated Replaced by strategic flow in webhook.ts (2026-01-08)
+ * - User with quota available → Silent ignore (no spam)
+ * - User who hit limit → Upgrade menu (conversion opportunity)
+ */
+export function getReminderMessage(): string { ... }
+```
+
+**Arquivo:** `src/services/menuService.ts:650-661`
 
 ---
 
@@ -1028,13 +1184,15 @@ Avisa API format (templateButtonReplyMessage):
 
 ### **Mapeamento API por Tipo de Mensagem**
 
-| Tipo de Mensagem | API Usada | Função | Arquivo |
-|-----------------|-----------|---------|---------|
-| Texto simples | Evolution API | `sendText()` | `src/services/evolutionApi.ts` |
-| Lista interativa | Avisa API | `sendList()` | `src/services/avisaApi.ts` |
-| Botões interativos | Avisa API | `sendButtons()` | `src/services/avisaApi.ts` |
-| **Botão PIX copia e cola** | **Avisa API** | **`sendPixButton()`** | **`src/services/avisaApi.ts`** |
-| Mídia (sticker, imagem, vídeo) | Evolution API | `sendSticker()`, `sendMedia()` | `src/services/evolutionApi.ts` |
+| Tipo de Mensagem | API (BR +55) | API (Internacional) | Função | Arquivo |
+|-----------------|--------------|---------------------|--------|---------|
+| Texto simples | Evolution API | Evolution API | `sendText()` | `src/services/evolutionApi.ts` |
+| Lista interativa | Avisa API | Evolution API (texto) | `sendList()` | `src/services/avisaApi.ts` |
+| Botões interativos | Avisa API | Evolution API (texto) | `sendButtons()` | `src/services/avisaApi.ts` |
+| **Botão PIX** | **Avisa API** | **Evolution API (texto)** | **`sendPixButton()`** | **`src/services/avisaApi.ts`** |
+| Mídia (sticker, etc) | Evolution API | Evolution API | `sendSticker()`, `sendMedia()` | `src/services/evolutionApi.ts` |
+
+**Nota:** Funções `sendButtons()`, `sendList()` e `sendPixButton()` detectam automaticamente se o número é brasileiro (`isBrazilianNumber()`) e aplicam o fallback adequado.
 
 ---
 
@@ -1486,13 +1644,43 @@ logMenuInteraction(userNumber, 'pix_payment_confirmed');
 - [ ] Edição de stickers funcionando (botões via edit-buttons queue)
 - [ ] rembg instalado com ONNX Runtime CPU
 - [ ] Modelos AI pré-baixados no Docker
+- [ ] **Detecção de números internacionais funcionando** 🆕
+- [ ] **Fallback de texto para números não-BR** 🆕
+- [ ] **Fluxo estratégico de texto (sem spam)** 🆕
 
 ---
 
-**Última atualização:** 07/01/2026
-**Versão:** 1.5.0
+**Última atualização:** 08/01/2026
+**Versão:** 1.6.0
 
-**Mudanças nesta versão (v1.5.0):** 📝
+**Mudanças nesta versão (v1.6.0):** 🌍
+
+**🌍 SUPORTE A NÚMEROS INTERNACIONAIS:**
+- ✅ **NOVO:** Função `isBrazilianNumber()` para detectar números brasileiros (+55)
+- ✅ **NOVO:** `sendButtons()` com fallback automático para texto em números internacionais
+- ✅ **NOVO:** `sendList()` com fallback automático para texto em números internacionais
+- ✅ **NOVO:** `sendPixButton()` com fallback automático para código PIX em texto
+- ✅ **NOVO:** Seção "Detecção de Números Internacionais" na documentação
+- 📁 **Arquivo:** `src/services/avisaApi.ts`
+- 🔍 **Impacto:** Usuários de Angola, EUA, Europa agora recebem menus como texto
+
+**💬 FLUXO ESTRATÉGICO DE TEXTO:**
+- ✅ **NOVO:** Fluxo inteligente para mensagens de texto (webhook.ts:1004-1066)
+  1. Novo usuário → Welcome message
+  2. Usuário no limite → Menu de upgrade (conversão!)
+  3. Usuário com quota → Silêncio (sem spam)
+- ✅ **DEPRECADO:** `getReminderMessage()` marcada como deprecated
+- ✅ **FIX:** Resolvido spam de mensagens repetidas para usuários existentes
+- 📁 **Arquivo:** `src/routes/webhook.ts`, `src/services/menuService.ts`
+- 🔍 **Impacto:** Experiência mais limpa, menos spam, mais conversões
+
+**📊 TABELA DE APIs ATUALIZADA:**
+- ✅ **ATUALIZADO:** Tabela agora mostra comportamento BR vs Internacional
+- ✅ **ADICIONADO:** Nota sobre detecção automática de país
+
+---
+
+**Versão anterior (v1.5.0):** 📝
 
 **📄 ATUALIZAÇÃO DA DOCUMENTAÇÃO:**
 - ✅ **CORRIGIDO:** Mensagem de boas-vindas atualizada para versão curta (Time to Value)

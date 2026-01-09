@@ -1,0 +1,61 @@
+#!/bin/sh
+
+# 🔍 PRE-COMMIT HOOK - Lembra de atualizar documentação
+#
+# Este hook verifica se você alterou arquivos de fluxo e lembra
+# de atualizar a documentação em docs/architecture/FLOWCHARTS.md
+#
+# Para instalar:
+# cp .git-hooks/pre-commit .git/hooks/pre-commit
+# chmod +x .git/hooks/pre-commit
+
+echo ""
+echo "🔍 Verificando alterações..."
+
+# Arquivos que afetam fluxos documentados
+FLOW_FILES="src/routes/webhook.ts src/services/menuService.ts src/worker.ts src/config/queue.ts"
+
+# Verifica se algum desses arquivos foi modificado
+CHANGED_FLOW_FILES=""
+for file in $FLOW_FILES; do
+  if git diff --cached --name-only | grep -q "^$file$"; then
+    CHANGED_FLOW_FILES="$CHANGED_FLOW_FILES\n  - $file"
+  fi
+done
+
+# Se houve mudanças, avisa o usuário
+if [ -n "$CHANGED_FLOW_FILES" ]; then
+  echo ""
+  echo "⚠️  ATENÇÃO: Você alterou arquivos de fluxo do bot!"
+  echo ""
+  echo "📝 Arquivos modificados:$CHANGED_FLOW_FILES"
+  echo ""
+  echo "📋 Lembre-se de atualizar a documentação:"
+  echo "   → docs/architecture/FLOWCHARTS.md"
+  echo "   → docs/architecture/ARCHITECTURE.md (se necessário)"
+  echo ""
+
+  # Verifica se FLOWCHARTS.md foi modificado também
+  if git diff --cached --name-only | grep -q "docs/architecture/FLOWCHARTS.md"; then
+    echo "✅ FLOWCHARTS.md foi modificado neste commit. Ótimo!"
+    echo ""
+  else
+    echo "❌ FLOWCHARTS.md NÃO foi modificado neste commit."
+    echo ""
+    echo "   Deseja continuar mesmo assim? (y/n)"
+    read -r response
+
+    if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
+      echo ""
+      echo "❌ Commit cancelado. Atualize a documentação e tente novamente."
+      echo ""
+      exit 1
+    fi
+
+    echo ""
+    echo "⚠️  Prosseguindo com o commit. Não esqueça de atualizar os docs depois!"
+    echo ""
+  fi
+fi
+
+exit 0

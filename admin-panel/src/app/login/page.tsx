@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,10 +9,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    if (errorParam === 'not_admin') {
+      setError('Acesso negado. Apenas administradores podem acessar.')
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,27 +55,10 @@ export default function LoginPage() {
     }
 
     if (data.user) {
-      console.log('👤 Usuário autenticado, verificando role...')
+      console.log('👤 Usuário autenticado, redirecionando...')
+      console.log('ℹ️ O middleware verificará se é admin')
 
-      // Verificar se é admin
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single()
-
-      console.log('👔 Profile:', { role: profile?.role, error: profileError?.message })
-
-      if (profile?.role !== 'admin') {
-        console.warn('⛔ Usuário não é admin')
-        await supabase.auth.signOut()
-        setError('Acesso negado. Apenas administradores podem acessar.')
-        setLoading(false)
-        return
-      }
-
-      console.log('✅ Admin verificado, redirecionando...')
-      // Usar window.location para forçar reload completo e middleware ver a sessão
+      // Middleware verificará o role, apenas redirecionar
       window.location.href = '/'
     }
     } catch (err) {

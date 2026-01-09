@@ -57,7 +57,9 @@ export async function middleware(request: NextRequest) {
   // Se não é admin, fazer logout e redirecionar
   if (profile?.role !== 'admin') {
     await supabase.auth.signOut()
-    return NextResponse.redirect(new URL('/login', request.url))
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('error', 'not_admin')
+    return NextResponse.redirect(loginUrl)
   }
 
   return response

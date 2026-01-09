@@ -1,16 +1,104 @@
 #!/bin/sh
 
-# 🔍 PRE-COMMIT HOOK - Lembra de atualizar documentação
+# ============================================================
+# PRE-COMMIT HOOK - Seguranca + Documentacao
+# ============================================================
 #
-# Este hook verifica se você alterou arquivos de fluxo e lembra
-# de atualizar a documentação em docs/architecture/FLOWCHARTS.md
+# Este hook:
+# 1. BLOQUEIA commits com secrets/senhas
+# 2. Lembra de atualizar documentacao de fluxos
 #
 # Para instalar:
 # cp .git-hooks/pre-commit .git/hooks/pre-commit
 # chmod +x .git/hooks/pre-commit
 
 echo ""
-echo "🔍 Verificando alterações..."
+echo "🔍 Pre-commit: verificando..."
+
+# ============================================================
+# 1. DETECCAO DE SECRETS (BLOQUEIA COMMIT)
+# ============================================================
+
+# Padroes de secrets comuns
+SECRET_PATTERNS="
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+sk_live_
+sk_test_
+AKIA[0-9A-Z]{16}
+ghp_[a-zA-Z0-9]{36}
+gho_[a-zA-Z0-9]{36}
+xox[baprs]-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24}
+-----BEGIN (RSA |DSA |EC |OPENSSH |PGP )?PRIVATE KEY-----
+password\s*=\s*['\"][^'\"]+['\"]
+api_key\s*=\s*['\"][^'\"]+['\"]
+secret\s*=\s*['\"][^'\"]+['\"]
+"
+
+# Arquivos/diretorios a ignorar na checagem
+IGNORE_FILES="\.example$|\.sample$|\.md$|package\.json$|package-lock\.json$|\.git-hooks/|pre-commit"
+
+# Verifica arquivos staged
+SECRETS_FOUND=0
+for pattern in $SECRET_PATTERNS; do
+  # Pula linhas vazias
+  [ -z "$pattern" ] && continue
+
+  # Busca pattern nos arquivos staged (exceto os ignorados)
+  MATCHES=$(git diff --cached --diff-filter=ACMR -U0 | grep -E "^\+" | grep -v "^+++" | grep -E "$pattern" | grep -vE "$IGNORE_FILES" | head -3)
+
+  if [ -n "$MATCHES" ]; then
+    if [ $SECRETS_FOUND -eq 0 ]; then
+      echo ""
+      echo "🚨 ERRO: Possivel SECRET detectado nos arquivos!"
+      echo ""
+    fi
+    echo "   Pattern: $pattern"
+    echo "$MATCHES" | head -3 | sed 's/^/   /'
+    echo ""
+    SECRETS_FOUND=1
+  fi
+done
+
+if [ $SECRETS_FOUND -eq 1 ]; then
+  echo "❌ COMMIT BLOQUEADO!"
+  echo ""
+  echo "   Remova os secrets dos arquivos antes de commitar."
+  echo "   Use Doppler para gerenciar secrets: doppler run npm run dev"
+  echo ""
+  echo "   Para bypass (USE COM CUIDADO):"
+  echo "   git commit --no-verify"
+  echo ""
+  exit 1
+fi
+
+echo "   ✅ Nenhum secret detectado"
+
+# ============================================================
+# 2. VERIFICACAO DE .env FILES
+# ============================================================
+
+# Verifica se algum .env esta sendo commitado (exceto .example)
+ENV_FILES=$(git diff --cached --name-only | grep -E "^\.env" | grep -v "\.example$")
+
+if [ -n "$ENV_FILES" ]; then
+  echo ""
+  echo "🚨 ERRO: Arquivos .env detectados no commit!"
+  echo ""
+  echo "   Arquivos:"
+  echo "$ENV_FILES" | sed 's/^/   - /'
+  echo ""
+  echo "   Arquivos .env NUNCA devem ser commitados!"
+  echo "   Use Doppler para gerenciar secrets."
+  echo ""
+  echo "   Para remover do staging:"
+  echo "   git reset HEAD <arquivo>"
+  echo ""
+  exit 1
+fi
+
+# ============================================================
+# 3. LEMBRETE DE DOCUMENTACAO
+# ============================================================
 
 # Arquivos que afetam fluxos documentados
 FLOW_FILES="src/routes/webhook.ts src/services/menuService.ts src/worker.ts src/config/queue.ts"
@@ -23,39 +111,42 @@ for file in $FLOW_FILES; do
   fi
 done
 
-# Se houve mudanças, avisa o usuário
+# Se houve mudancas, avisa o usuario
 if [ -n "$CHANGED_FLOW_FILES" ]; then
   echo ""
-  echo "⚠️  ATENÇÃO: Você alterou arquivos de fluxo do bot!"
+  echo "⚠️  ATENCAO: Voce alterou arquivos de fluxo do bot!"
   echo ""
   echo "📝 Arquivos modificados:$CHANGED_FLOW_FILES"
   echo ""
-  echo "📋 Lembre-se de atualizar a documentação:"
-  echo "   → docs/architecture/FLOWCHARTS.md"
-  echo "   → docs/architecture/ARCHITECTURE.md (se necessário)"
+  echo "📋 Lembre-se de atualizar a documentacao:"
+  echo "   -> docs/architecture/FLOWCHARTS.md"
+  echo "   -> docs/architecture/ARCHITECTURE.md (se necessario)"
   echo ""
 
-  # Verifica se FLOWCHARTS.md foi modificado também
+  # Verifica se FLOWCHARTS.md foi modificado tambem
   if git diff --cached --name-only | grep -q "docs/architecture/FLOWCHARTS.md"; then
-    echo "✅ FLOWCHARTS.md foi modificado neste commit. Ótimo!"
+    echo "✅ FLOWCHARTS.md foi modificado neste commit. Otimo!"
     echo ""
   else
-    echo "❌ FLOWCHARTS.md NÃO foi modificado neste commit."
+    echo "❌ FLOWCHARTS.md NAO foi modificado neste commit."
     echo ""
     echo "   Deseja continuar mesmo assim? (y/n)"
     read -r response
 
     if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
       echo ""
-      echo "❌ Commit cancelado. Atualize a documentação e tente novamente."
+      echo "❌ Commit cancelado. Atualize a documentacao e tente novamente."
       echo ""
       exit 1
     fi
 
     echo ""
-    echo "⚠️  Prosseguindo com o commit. Não esqueça de atualizar os docs depois!"
+    echo "⚠️  Prosseguindo com o commit. Nao esqueca de atualizar os docs depois!"
     echo ""
   fi
 fi
+
+echo "✅ Pre-commit: OK"
+echo ""
 
 exit 0

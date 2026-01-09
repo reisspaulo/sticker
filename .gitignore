@@ -1,12 +1,20 @@
-# Evolution API - .gitignore
+# Sticker Bot - .gitignore
 
-# Arquivos sensíveis - NUNCA commitar!
+# ============================================
+# SECRETS - NUNCA COMMITAR!
+# Use Doppler: doppler run npm run dev
+# ============================================
 .env
+.env.*
+!.env.example
+!.env.*.example
 .env.local
-.env.*.local
+.env.docker
 *.key
 *.pem
 .mcp.json
+secrets/
+credentials.json
 
 # Dados temporários
 qrcode-data.txt
@@ -74,4 +82,3 @@ logs/
 *.tar.gz
 *.zip
 *.tar
-.env.docker

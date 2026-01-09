@@ -96,7 +96,10 @@ export async function sendLimitReachedMessage(
       error: error instanceof Error ? error.message : 'Unknown error',
       userNumber,
       userName,
+      stack: error instanceof Error ? error.stack : undefined,
     });
+    // Re-throw error so caller knows message failed to send
+    // This prevents marking user as "notified" when message didn't actually send
     throw error;
   }
 }

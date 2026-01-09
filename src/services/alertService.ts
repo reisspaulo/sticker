@@ -306,3 +306,72 @@ export function getErrorStats(): Record<string, { count: number; firstError: str
 
   return stats;
 }
+
+/**
+ * Send critical alert about message send failure
+ * This is critical because users may not receive important notifications
+ */
+export async function alertMessageSendFailure(context: {
+  userNumber: string;
+  userName: string;
+  messageType: string;
+  errorMessage: string;
+  additionalInfo?: Record<string, any>;
+}): Promise<void> {
+  // For message send failures, we want immediate alert (no threshold)
+  // because it's critical that users receive limit notifications
+  const alertKey = `message_send_${context.messageType}`;
+
+  // Check debounce only (no threshold for message failures)
+  const now = new Date();
+  const counter = errorCounters.get(alertKey);
+
+  if (counter?.lastAlert) {
+    const minutesSinceLastAlert = (now.getTime() - counter.lastAlert.getTime()) / 1000 / 60;
+    if (minutesSinceLastAlert < 5) {
+      // Only 5 min debounce for message failures (shorter than default)
+      logger.debug({
+        msg: '[ALERT] Message send failure alert debounced',
+        alertKey,
+        minutesSinceLastAlert,
+      });
+      return;
+    }
+  }
+
+  // Update counter
+  if (counter) {
+    counter.count++;
+    counter.lastAlert = now;
+  } else {
+    errorCounters.set(alertKey, {
+      count: 1,
+      firstError: now,
+      lastAlert: now,
+    });
+  }
+
+  const message = `🚨 *ALERTA CRÍTICO - FALHA NO ENVIO DE MENSAGEM*
+
+📱 *Usuário:* ${context.userName}
+📞 *Número:* ${context.userNumber}
+📋 *Tipo de mensagem:* ${context.messageType}
+🐛 *Erro:* ${context.errorMessage}
+
+⏰ *Timestamp:* ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+
+⚠️ *IMPACTO:* Usuário NÃO recebeu notificação importante!
+🔧 *AÇÃO:* Verificar Avisa API e tentar reenviar manualmente se necessário.
+
+${context.additionalInfo ? `\n📋 *Info adicional:*\n${JSON.stringify(context.additionalInfo, null, 2)}` : ''}`;
+
+  logger.error({
+    msg: '[ALERT] 🚨 Critical message send failure alert triggered',
+    userNumber: context.userNumber,
+    messageType: context.messageType,
+    errorMessage: context.errorMessage,
+  });
+
+  // Send to all configured channels
+  await Promise.allSettled([sendWhatsAppAlert(message), sendDiscordAlert(message)]);
+}

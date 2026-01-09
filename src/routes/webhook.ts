@@ -1579,8 +1579,50 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             abTestGroup: 'control',
           });
 
-          // Atomically check and set notification to prevent duplicate messages
-          const wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
+          // Check if user was already notified today (without updating yet)
+          const wasAlreadyNotified = user.limit_notified_at
+            ? new Date(user.limit_notified_at).toDateString() === new Date().toDateString()
+            : false;
+
+          let messageSent = false;
+
+          if (!wasAlreadyNotified) {
+            try {
+              // Try to send message FIRST
+              const { sendLimitReachedMessage } = await import('../services/messageService');
+              await sendLimitReachedMessage(userNumber, userName, 0);
+
+              // Only mark as notified if message was sent successfully
+              await setLimitNotifiedAtomic(user.id);
+              messageSent = true;
+
+              fastify.log.info({
+                msg: 'Limit reached message sent - CONTROL group',
+                userNumber,
+              });
+            } catch (error) {
+              // If message send fails, don't mark as notified so user can retry
+              fastify.log.error({
+                msg: 'Failed to send limit message - user NOT marked as notified',
+                userNumber,
+                error: error instanceof Error ? error.message : 'Unknown error',
+              });
+
+              // Send critical alert
+              const { alertMessageSendFailure } = await import('../services/alertService');
+              await alertMessageSendFailure({
+                userNumber,
+                userName,
+                messageType: 'limit_reached_control',
+                errorMessage: error instanceof Error ? error.message : 'Unknown error',
+              }).catch(() => {}); // Don't fail if alert fails
+            }
+          } else {
+            fastify.log.info({
+              msg: 'User already notified today - skipping message - CONTROL group',
+              userNumber,
+            });
+          }
 
           // Log limit reached to database
           await logLimitReached({
@@ -1590,23 +1632,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             dailyLimit: limitCheck.effective_limit,
             abTestGroup: 'control',
             messageType: detectedType,
-            wasNotified: !wasAlreadyNotified,
+            wasNotified: messageSent,
           });
-
-          if (!wasAlreadyNotified) {
-            const { sendLimitReachedMessage } = await import('../services/messageService');
-            await sendLimitReachedMessage(userNumber, userName, 0);
-
-            fastify.log.info({
-              msg: 'Limit reached message sent - CONTROL group',
-              userNumber,
-            });
-          } else {
-            fastify.log.info({
-              msg: 'User already notified today - skipping message - CONTROL group',
-              userNumber,
-            });
-          }
 
           return reply.status(200).send({
             status: 'blocked',

@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { resetDailyCountersJob } from './resetDailyCounters';
 import { sendPendingStickersJob } from './sendPendingStickers';
 import { sendScheduledRemindersJob } from './sendScheduledReminders';
+import { supabase } from '../config/supabase';
 import logger from '../config/logger';
 
 /**
@@ -154,5 +155,90 @@ export async function runJobManually(
       error: error instanceof Error ? error.message : 'Unknown error',
     });
     throw error;
+  }
+}
+
+/**
+ * Recovery check for pending stickers on server startup
+ *
+ * This function runs on server initialization to catch any pending stickers
+ * that should have been sent at 8:00 AM but weren't (due to deploy/restart).
+ *
+ * Logic:
+ * 1. Only runs if current time is after 8:00 AM (São Paulo timezone)
+ * 2. Checks for pending stickers created before 8:00 AM today
+ * 3. If found, runs the sendPendingStickersJob to send them
+ *
+ * This ensures users don't have to wait until the next day if a deploy
+ * happens around 8:00 AM and the scheduled job is missed.
+ */
+export async function checkPendingStickersRecovery(): Promise<void> {
+  try {
+    // Get current time in São Paulo timezone
+    const now = new Date();
+    const saoPauloTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const currentHour = saoPauloTime.getHours();
+
+    // Only run recovery if it's after 8:00 AM
+    if (currentHour < 8) {
+      logger.info({
+        msg: '[RECOVERY] Skipping - before 8:00 AM',
+        currentHour,
+        timezone: 'America/Sao_Paulo',
+      });
+      return;
+    }
+
+    // Calculate 8:00 AM today in São Paulo timezone
+    const today8am = new Date(saoPauloTime);
+    today8am.setHours(8, 0, 0, 0);
+
+    // Query for pending stickers created before 8:00 AM today
+    const { data: oldPendingStickers, error } = await supabase
+      .from('stickers')
+      .select('id, user_number, created_at')
+      .eq('status', 'pendente')
+      .lt('created_at', today8am.toISOString())
+      .limit(100);
+
+    if (error) {
+      logger.error({
+        msg: '[RECOVERY] Error querying pending stickers',
+        error: error.message,
+      });
+      return;
+    }
+
+    if (!oldPendingStickers || oldPendingStickers.length === 0) {
+      logger.info({
+        msg: '[RECOVERY] No old pending stickers found',
+        currentHour,
+        cutoffTime: today8am.toISOString(),
+      });
+      return;
+    }
+
+    // Found old pending stickers - run recovery
+    logger.warn({
+      msg: '[RECOVERY] Found old pending stickers - running recovery job',
+      count: oldPendingStickers.length,
+      oldestCreatedAt: oldPendingStickers[oldPendingStickers.length - 1]?.created_at,
+      newestCreatedAt: oldPendingStickers[0]?.created_at,
+      cutoffTime: today8am.toISOString(),
+    });
+
+    // Run the pending stickers job
+    const result = await sendPendingStickersJob();
+
+    logger.info({
+      msg: '[RECOVERY] Recovery job completed',
+      result,
+    });
+  } catch (error) {
+    logger.error({
+      msg: '[RECOVERY] Recovery check failed',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    // Don't throw - recovery failure shouldn't prevent server startup
   }
 }

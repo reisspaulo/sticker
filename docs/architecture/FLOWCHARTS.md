@@ -1240,6 +1240,35 @@ WHERE status = 'pendente'
 ORDER BY created_at ASC;
 ```
 
+**Recovery on Startup:**
+```typescript
+// Executa na inicialização do servidor (após deploy/restart)
+// Se for depois das 8h e houver pendentes antigos, envia imediatamente
+checkPendingStickersRecovery();
+```
+
+```mermaid
+flowchart TD
+    START([Server Startup]) --> CHECK_TIME{Hora atual<br/>≥ 8:00 AM?}
+
+    CHECK_TIME -->|Não| SKIP[Skip recovery]
+    CHECK_TIME -->|Sim| QUERY[Query stickers pendentes<br/>criados antes das 8h]
+
+    QUERY --> HAS_OLD{Encontrou<br/>pendentes antigos?}
+
+    HAS_OLD -->|Não| LOG_CLEAN[Log: No old pending]
+    HAS_OLD -->|Sim| RUN_JOB[🔄 Executa sendPendingStickersJob]
+
+    RUN_JOB --> LOG_RECOVERY[Log: Recovery completed]
+
+    SKIP --> END([Continua startup])
+    LOG_CLEAN --> END
+    LOG_RECOVERY --> END
+
+    style RUN_JOB fill:#fff3e0
+    style LOG_RECOVERY fill:#c8e6c9
+```
+
 ---
 
 ## 20. Text Message Strategy - Conversão Silenciosa
@@ -1446,4 +1475,4 @@ flowchart TD
 
 ---
 
-**Última atualização:** 09/01/2026 - Adicionada notificação "Figurinha Guardada" quando bônus esgotados (pendingCount < 2)
+**Última atualização:** 09/01/2026 - Adicionado recovery automático de stickers pendentes no startup do servidor

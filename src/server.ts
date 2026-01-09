@@ -6,7 +6,7 @@ import webhookRoutes from './routes/webhook';
 import healthRoutes from './routes/health';
 import statsRoutes from './routes/stats';
 import stripeWebhookRoutes from './routes/stripeWebhook';
-import { initializeScheduledJobs } from './jobs';
+import { initializeScheduledJobs, checkPendingStickersRecovery } from './jobs';
 
 // Load environment variables
 config();
@@ -59,6 +59,10 @@ const start = async () => {
     // Initialize scheduled jobs
     initializeScheduledJobs();
     logger.info('⏰ Scheduled jobs initialized');
+
+    // Run recovery check for pending stickers (in case 8:00 AM job was missed)
+    checkPendingStickersRecovery();
+    logger.info('🔄 Pending stickers recovery check initiated');
   } catch (error) {
     logger.error(error);
     process.exit(1);

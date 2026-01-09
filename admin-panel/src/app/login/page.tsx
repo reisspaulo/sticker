@@ -20,16 +20,23 @@ export default function LoginPage() {
     setError('')
 
     try {
-      console.log('🔐 Tentando login...')
+      console.log('🔐 Tentando login...', { email })
+      console.log('🔑 Supabase client:', supabase)
 
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
+      const loginPromise = supabase.auth.signInWithPassword({
         email,
         password,
       })
 
+      console.log('⏳ Aguardando resposta do Supabase...')
+
+      const { data, error: authError } = await loginPromise
+
       console.log('📧 Resposta do Supabase:', {
         hasUser: !!data?.user,
-        error: authError?.message
+        hasSession: !!data?.session,
+        error: authError?.message,
+        errorDetails: authError
       })
 
     if (authError) {
@@ -60,8 +67,8 @@ export default function LoginPage() {
       }
 
       console.log('✅ Admin verificado, redirecionando...')
-      router.push('/')
-      router.refresh()
+      // Usar window.location para forçar reload completo e middleware ver a sessão
+      window.location.href = '/'
     }
     } catch (err) {
       console.error('💥 Erro não tratado:', err)

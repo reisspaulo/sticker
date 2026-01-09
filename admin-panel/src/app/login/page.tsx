@@ -61,8 +61,9 @@ export default function LoginPage() {
       console.log('👤 Usuário autenticado, redirecionando...')
       console.log('ℹ️ O middleware verificará se é admin')
 
-      // Middleware verificará o role, apenas redirecionar
-      router.push('/')
+      // MUST use window.location.href to trigger middleware
+      // router.push() won't work because it's client-side navigation
+      window.location.href = '/'
     }
     } catch (err) {
       console.error('💥 Erro não tratado:', err)

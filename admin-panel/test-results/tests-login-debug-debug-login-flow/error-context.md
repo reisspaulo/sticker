@@ -9,10 +9,10 @@
     - generic [ref=e8]:
       - generic [ref=e9]:
         - text: Email
-        - textbox "seu@email.com" [ref=e10]
+        - textbox "seu@email.com" [ref=e10]: paulo.reis@ytem.com.br
       - generic [ref=e11]:
         - text: Senha
-        - textbox "********" [ref=e12]
+        - textbox "********" [ref=e12]: Admin@2026
       - button "Entrar" [ref=e13]
   - alert [ref=e14]
 ```

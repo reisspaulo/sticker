@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +19,8 @@ interface CelebrityStat {
 export default function CelebritiesPage() {
   const [celebrities, setCelebrities] = useState<CelebrityStat[]>([])
   const [loading, setLoading] = useState(true)
+
+  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
     async function loadCelebrities() {

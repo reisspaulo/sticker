@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AreaChart } from '@/components/charts/area-chart'
@@ -117,6 +117,8 @@ export default function DashboardPage() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
   const [chartsLoading, setChartsLoading] = useState(true)
+
+  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
     async function loadStats() {

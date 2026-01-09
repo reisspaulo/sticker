@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabase, getStickerUrl, type Sticker, type Celebrity } from '@/lib/supabase'
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
+import { getStickerUrl, type Sticker, type Celebrity } from '@/lib/supabase'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -66,13 +67,15 @@ export default function EmotionsPage() {
   const [newTag, setNewTag] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const supabase = getSupabaseBrowserClient()
+
   const loadCelebrities = useCallback(async () => {
     const { data } = await supabase
       .from('celebrities')
       .select('id, name, slug')
       .order('name')
     if (data) setCelebrities(data)
-  }, [])
+  }, [supabase])
 
   const loadStats = useCallback(async () => {
     const [totalRes, classifiedRes, approvedRes] = await Promise.all([
@@ -85,7 +88,7 @@ export default function EmotionsPage() {
       classified: classifiedRes.count || 0,
       approved: approvedRes.count || 0,
     })
-  }, [])
+  }, [supabase])
 
   const loadStickers = useCallback(async () => {
     setLoading(true)
@@ -131,7 +134,7 @@ export default function EmotionsPage() {
     }
 
     setLoading(false)
-  }, [filterStatus, filterCelebrity, searchTag, currentPage])
+  }, [supabase, filterStatus, filterCelebrity, searchTag, currentPage])
 
   useEffect(() => {
     loadCelebrities()

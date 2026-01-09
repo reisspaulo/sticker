@@ -128,10 +128,10 @@ export default function ExperimentsPage() {
 
     // Get user assignments for this experiment
     const { data: assignments } = await supabase
-      .from('experiment_assignments')
+      .from('user_experiments')
       .select('*')
       .eq('experiment_id', selectedExperiment)
-      .gte('created_at', startDate.toISOString())
+      .gte('assigned_at', startDate.toISOString())
 
     if (!events || !assignments) {
       setLoading(false)

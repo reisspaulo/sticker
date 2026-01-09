@@ -24,31 +24,25 @@ Garantir que **100% das midias** sejam baixadas enquanto ainda estao disponiveis
 
 ## Problema Detalhado
 
-### Bug 1: JobId Duplicado (CRITICO - Descoberto em 09/01/2026)
+### Bug 1: JobId Duplicado ✅ CORRIGIDO (09/01/2026)
+
+**Status:** ✅ Fix deployado em 09/01/2026
 
 **Caso real:** Usuario Arielle enviou 11 imagens, apenas 4 foram processadas!
 
 ```typescript
-// webhook.ts L1726 - BUG!
+// webhook.ts L1726 - ANTES (BUG):
 jobId: `${userNumber}-${Date.now()}`,
+
+// DEPOIS (FIX):
+jobId: `${userNumber}-${Date.now()}-${body.data.key.id}`,
 ```
 
 **Problema:** `Date.now()` tem precisao de milissegundos. Se 2 imagens chegam no mesmo milissegundo, elas tem o **mesmo jobId**. BullMQ rejeita jobIds duplicados silenciosamente!
 
-```
-19:13:01.500 - Imagem 1 → jobId: "554399288110-1736449981500" ✅ Criado
-19:13:01.500 - Imagem 2 → jobId: "554399288110-1736449981500" ❌ DUPLICADO!
-19:13:01.501 - Imagem 3 → jobId: "554399288110-1736449981501" ✅ Criado
-19:13:01.501 - Imagem 4 → jobId: "554399288110-1736449981501" ❌ DUPLICADO!
-```
+**Commit:** `01abc10` - fix(webhook): prevent jobId collision when multiple images arrive simultaneously
 
-**Fix simples:**
-```typescript
-// Adicionar messageId para garantir unicidade
-jobId: `${userNumber}-${Date.now()}-${body.data.key.id}`,
-```
-
-**Impacto:** ~30-50% das imagens perdidas quando usuario envia multiplas de uma vez.
+**Impacto corrigido:** ~30-50% das imagens perdidas quando usuario envia multiplas de uma vez.
 
 ---
 

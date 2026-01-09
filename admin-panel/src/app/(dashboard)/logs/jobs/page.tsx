@@ -262,7 +262,7 @@ export default function JobLogsPage() {
                   {stats.lastReset ? (
                     <>
                       <p className="text-lg font-bold text-purple-400">
-                        {(stats.lastReset.result as Record<string, unknown>)?.users_reset || 0} usuarios
+                        {String((stats.lastReset.result as Record<string, unknown>)?.users_reset ?? 0)} usuarios
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {formatTimeAgo(stats.lastReset.created_at)}
@@ -286,7 +286,7 @@ export default function JobLogsPage() {
                   {stats.lastSendPending ? (
                     <>
                       <p className="text-lg font-bold text-blue-400">
-                        {(stats.lastSendPending.result as Record<string, unknown>)?.sent || 0} enviados
+                        {String((stats.lastSendPending.result as Record<string, unknown>)?.sent ?? 0)} enviados
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {formatTimeAgo(stats.lastSendPending.created_at)}

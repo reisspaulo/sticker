@@ -4,6 +4,8 @@
 **Data Inicio:** 09/01/2026
 **Ultima Atualizacao:** 09/01/2026
 
+> **PRIMEIRO USO EM PRODUCAO:** `onboardingService.ts` usando `set_twitter_feature_shown_atomic` - corrigiu bug de menu duplicado!
+
 ---
 
 ## Resumo Executivo
@@ -86,7 +88,7 @@ Como a funcao retorna `boolean`, o erro foi lancado.
 │  ┌─────────────────────────────────────────────────────────────┐   │
 │  │  RPC_REGISTRY (Single Source of Truth)                      │   │
 │  │                                                             │   │
-│  │  - 13 funcoes RPC mapeadas                                  │   │
+│  │  - 14 funcoes RPC mapeadas                                  │   │
 │  │  - Tipo de retorno (SCALAR/TABLE/VOID)                      │   │
 │  │  - Tipos TypeScript dos parametros e retorno                │   │
 │  └─────────────────────────────────────────────────────────────┘   │
@@ -105,6 +107,7 @@ Como a funcao retorna `boolean`, o erro foi lancado.
 │  ┌─────────────────────────────────────────────────────────────┐   │
 │  │  Services (Consomem via rpc<T>())                           │   │
 │  │                                                             │   │
+│  │  - onboardingService.ts ✅                                  │   │
 │  │  - userService.ts                                           │   │
 │  │  - experimentService.ts                                     │   │
 │  │  - atomicLimitService.ts                                    │   │
@@ -163,10 +166,11 @@ const count = await rpc('increment_daily_count', { p_user_id: userId });
 | Build passa | OK | `npm run build` |
 | Testes passam | OK | 21/21 testes |
 
-### Fase 2: Migrar Services (PENDENTE)
+### Fase 2: Migrar Services (EM ANDAMENTO)
 
 | Service | Chamadas Diretas | Wrapper Antigo | Status |
 |---------|-----------------|----------------|--------|
+| `onboardingService.ts` | 0 | 0 | **MIGRADO** |
 | `userService.ts` | 4 | 0 | PENDENTE |
 | `experimentService.ts` | 5 | 0 | PENDENTE |
 | `twitterLimits.ts` | 1 | 0 | PENDENTE |
@@ -175,6 +179,9 @@ const count = await rpc('increment_daily_count', { p_user_id: userId });
 **Funcoes a migrar:**
 
 ```
+onboardingService.ts: (MIGRADO)
+└── set_twitter_feature_shown_atomic (L149) ✅
+
 userService.ts:
 ├── increment_daily_count (L269)
 ├── reset_all_daily_counters (L305)
@@ -305,7 +312,7 @@ it('my_new_function returns correct type', () => {
 
 | Antes | Depois |
 |-------|--------|
-| 13 funcoes espalhadas em 4 services | 1 registry centralizado |
+| 14 funcoes espalhadas em 5 services | 1 registry centralizado |
 | Erro so em runtime | Erro em compile time |
 | Duplicacao de codigo | Single source of truth |
 | Manual type casting | Inferencia automatica |
@@ -341,3 +348,5 @@ it('my_new_function returns correct type', () => {
 |------|---------|-------|
 | 09/01/2026 | Criacao do documento | Claude Opus 4.5 |
 | 09/01/2026 | Fase 1 concluida | Claude Opus 4.5 |
+| 09/01/2026 | `onboardingService.ts` migrado - primeiro uso em producao! | Claude Opus 4.5 |
+| 09/01/2026 | Bug de menu duplicado corrigido via `set_twitter_feature_shown_atomic` | Claude Opus 4.5 |

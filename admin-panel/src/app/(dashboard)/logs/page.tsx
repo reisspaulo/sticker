@@ -28,6 +28,7 @@ import {
   MessageSquare,
   Image,
   Crown,
+  CalendarClock,
 } from 'lucide-react'
 import { formatDistanceToNow, format, subDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -278,6 +279,12 @@ export default function LogsPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Link href="/logs/jobs">
+              <Button variant="outline">
+                <CalendarClock className="mr-2 h-4 w-4 text-blue-500" />
+                Jobs Agendados
+              </Button>
+            </Link>
             <Link href="/logs/errors">
               <Button variant="outline">
                 <AlertCircle className="mr-2 h-4 w-4 text-red-500" />

@@ -70,6 +70,7 @@ const navigation: NavItem[] = [
     icon: FileText,
     children: [
       { title: 'Sistema', href: '/logs' },
+      { title: 'Jobs Agendados', href: '/logs/jobs' },
       { title: 'Erros', href: '/logs/errors' },
     ],
   },

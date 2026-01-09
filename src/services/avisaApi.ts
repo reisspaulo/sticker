@@ -116,15 +116,29 @@ export async function sendButtons(request: SendButtonsRequest): Promise<AvisaApi
       title: request.title,
     });
 
+    // Map button IDs to universal commands
+    const buttonIdToCommand: Record<string, string> = {
+      'button_upgrade_premium': 'premium',
+      'button_upgrade_ultra': 'ultra',
+      'button_use_bonus': 'bonus',
+      'button_dismiss_upgrade': 'agora não',
+    };
+
     // Build text message from button data
     let textMessage = '';
     if (request.title) textMessage += `${request.title}\n\n`;
     if (request.desc) textMessage += `${request.desc}\n\n`;
 
-    // Add button options as text
-    textMessage += `📋 *Opções:*\n`;
-    request.buttons.forEach((btn, index) => {
-      textMessage += `${index + 1}. ${btn.text}\n`;
+    // Add button options as commands (not numbers)
+    textMessage += `📋 *Opções (digite o comando):*\n`;
+    request.buttons.forEach((btn) => {
+      const command = buttonIdToCommand[btn.id];
+      if (command) {
+        textMessage += `• Digite *${command}* → ${btn.text}\n`;
+      } else {
+        // For unknown buttons, just show the text
+        textMessage += `• ${btn.text}\n`;
+      }
     });
 
     if (request.footer) textMessage += `\n_${request.footer}_`;
@@ -363,15 +377,31 @@ export async function sendList(request: SendListRequest): Promise<AvisaApiRespon
       buttontext: request.buttontext,
     });
 
+    // Map list RowIds to universal commands
+    const rowIdToCommand: Record<string, string> = {
+      'plan_premium': 'premium',
+      'plan_ultra': 'ultra',
+      'plan_free': 'planos',
+      'payment_card': 'cartao',
+      'payment_boleto': 'boleto',
+      'payment_pix': 'pix',
+    };
+
     // Build text message from list data
     let textMessage = '';
     if (request.toptext) textMessage += `${request.toptext}\n\n`;
     if (request.desc) textMessage += `${request.desc}\n\n`;
 
-    // Add list items as numbered options
-    textMessage += `📋 *${request.buttontext}:*\n`;
-    request.list.forEach((item, index) => {
-      textMessage += `${index + 1}. *${item.title}*`;
+    // Add list items as commands (not numbers)
+    textMessage += `📋 *${request.buttontext} (digite o comando):*\n`;
+    request.list.forEach((item) => {
+      const command = rowIdToCommand[item.RowId];
+      if (command) {
+        textMessage += `• Digite *${command}* → ${item.title}`;
+      } else {
+        // For unknown items, just show the title
+        textMessage += `• ${item.title}`;
+      }
       if (item.desc) textMessage += ` - ${item.desc}`;
       textMessage += `\n`;
     });

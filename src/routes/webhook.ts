@@ -854,6 +854,169 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         return reply.status(200).send({ status: 'help_sent' });
       }
 
+      // Universal commands for direct plan upgrade (works for BR and international users)
+      if (normalizedText === 'premium') {
+        logMenuInteraction(userNumber, 'direct_upgrade_premium');
+        fastify.log.info({
+          msg: 'User typed premium command',
+          userNumber,
+        });
+        await sendPaymentMethodList(userNumber, 'premium');
+        // Save context for payment method selection (same as button flow)
+        await saveConversationContext(userNumber, 'awaiting_payment_method', {
+          selected_plan: 'premium',
+        });
+        return reply.status(200).send({ status: 'payment_methods_sent', plan: 'premium' });
+      }
+
+      if (normalizedText === 'ultra') {
+        logMenuInteraction(userNumber, 'direct_upgrade_ultra');
+        fastify.log.info({
+          msg: 'User typed ultra command',
+          userNumber,
+        });
+        await sendPaymentMethodList(userNumber, 'ultra');
+        // Save context for payment method selection (same as button flow)
+        await saveConversationContext(userNumber, 'awaiting_payment_method', {
+          selected_plan: 'ultra',
+        });
+        return reply.status(200).send({ status: 'payment_methods_sent', plan: 'ultra' });
+      }
+
+      // Universal commands for payment method selection (works for BR and international users)
+      if (normalizedText === 'pix' || normalizedText === 'cartao' || normalizedText === 'cartão' || normalizedText === 'boleto') {
+        const paymentMethod = normalizedText === 'cartao' || normalizedText === 'cartão' ? 'card' : normalizedText;
+
+        // Get selected plan from conversation context
+        const context = await getConversationContext(userNumber);
+        const planFromContext = context?.metadata?.selected_plan as PlanType | undefined;
+
+        if (!planFromContext || planFromContext === 'free') {
+          await sendText(
+            userNumber,
+            `❌ *Erro*\n\nPrimeiro escolha um plano.\n\nDigite *premium* ou *ultra* para começar.`
+          );
+          return reply.status(200).send({ status: 'plan_not_selected' });
+        }
+
+        const selectedPlan = planFromContext as 'premium' | 'ultra';
+        logMenuInteraction(userNumber, 'payment_method_command', paymentMethod);
+
+        fastify.log.info({
+          msg: 'User typed payment method command',
+          userNumber,
+          paymentMethod,
+          selectedPlan,
+        });
+
+        // Handle PIX payment
+        if (paymentMethod === 'pix') {
+          try {
+            const payment = await createPendingPixPayment(
+              userNumber,
+              userName,
+              user.id,
+              selectedPlan
+            );
+
+            await sendPixPaymentWithButton(userNumber, payment.pixKey, selectedPlan);
+            await clearConversationContext(userNumber);
+
+            return reply.status(200).send({
+              status: 'pix_payment_initiated',
+              plan: selectedPlan,
+              pixKey: payment.pixKey,
+            });
+          } catch (error) {
+            fastify.log.error({
+              msg: 'Error creating PIX payment from command',
+              error: error instanceof Error ? error.message : 'Unknown error',
+              userNumber,
+              selectedPlan,
+            });
+
+            await sendText(
+              userNumber,
+              `❌ *Erro ao gerar PIX*\n\nOcorreu um erro ao gerar seu pagamento.\n\nTente novamente digitando *pix*.`
+            );
+
+            return reply.status(500).send({ status: 'pix_error' });
+          }
+        }
+
+        // Handle Card/Boleto payment (Stripe link)
+        await sendText(
+          userNumber,
+          getPaymentLinkMessage(selectedPlan, userNumber)
+        );
+
+        await clearConversationContext(userNumber);
+
+        return reply.status(200).send({
+          status: 'stripe_link_sent',
+          plan: selectedPlan,
+          paymentMethod,
+        });
+      }
+
+      // Universal command for bonus activation (works for BR and international users)
+      if (normalizedText === 'bonus') {
+        fastify.log.info({
+          msg: 'User typed bonus command',
+          userNumber,
+          userId: user.id,
+          currentBonusUsed: user.bonus_credits_today || 0,
+          abTestGroup: user.ab_test_group,
+        });
+
+        // Validate user is in bonus group
+        if (user.ab_test_group !== 'bonus') {
+          fastify.log.warn({
+            msg: 'User tried to use bonus command but not in bonus group',
+            userNumber,
+            abTestGroup: user.ab_test_group,
+          });
+
+          await sendText(
+            userNumber,
+            `❌ *Bônus não disponível*\n\nVocê não tem créditos bônus disponíveis.\n\nDigite *planos* para ver opções de upgrade.`
+          );
+
+          return reply.status(200).send({ status: 'bonus_not_available' });
+        }
+
+        // Check if user has bonus credits remaining
+        const bonusUsed = user.bonus_credits_today || 0;
+        if (bonusUsed >= 2) {
+          await sendText(
+            userNumber,
+            `❌ *Limite de Bônus Atingido*\n\nVocê já usou seus *2 créditos extras* de hoje.\n\nSeu limite será renovado às *00:00* (horário de Brasília).\n\nDigite *planos* para fazer upgrade e ter mais!`
+          );
+
+          return reply.status(200).send({ status: 'bonus_limit_reached' });
+        }
+
+        // Grant bonus credit (increment bonus_credits_today)
+        const { incrementBonusCredit } = await import('../services/userService');
+        const newBonusCount = await incrementBonusCredit(user.id);
+
+        const bonusRemaining = 2 - newBonusCount;
+
+        // Track bonus usage
+        logMenuInteraction(userNumber, 'bonus_command_used', `${newBonusCount}/2`);
+
+        await sendText(
+          userNumber,
+          `🎁 *Bônus Ativado!*\n\n✅ Você ganhou *+1 crédito extra* agora!\n\n${bonusRemaining > 0 ? `Você ainda pode usar *+${bonusRemaining} bônus* hoje.` : `Você usou todos os seus bônus extras de hoje.`}\n\nEnvie sua imagem, vídeo ou GIF! 🎨`
+        );
+
+        return reply.status(200).send({
+          status: 'bonus_granted',
+          bonusUsed: newBonusCount,
+          bonusRemaining,
+        });
+      }
+
       // Check for pending video selection BEFORE ignoring "other" messages
       if (detectedType === 'other') {
         const videoContext = await getVideoSelectionContext(userNumber);

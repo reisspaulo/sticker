@@ -62,7 +62,7 @@ export default function LoginPage() {
       console.log('ℹ️ O middleware verificará se é admin')
 
       // Middleware verificará o role, apenas redirecionar
-      window.location.href = '/'
+      router.push('/')
     }
     } catch (err) {
       console.error('💥 Erro não tratado:', err)

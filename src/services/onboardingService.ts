@@ -2,6 +2,7 @@ import { supabase } from '../config/supabase';
 import { sendText } from './evolutionApi';
 import { sendButtons } from './avisaApi';
 import logger from '../config/logger';
+import { rpc } from '../rpc/index.js';
 
 /**
  * Onboarding Service
@@ -126,6 +127,10 @@ Continue enviando suas mídias! 🚀`;
 /**
  * Verifica se deve apresentar a funcionalidade Twitter
  * Trigger: após 3ª figurinha
+ *
+ * IMPORTANTE: Usa RPC atômico para evitar race condition quando
+ * usuário envia múltiplas imagens de uma vez. Apenas o primeiro
+ * job a executar o RPC vai enviar a mensagem.
  */
 export async function checkTwitterFeaturePresentation(
   userNumber: string,
@@ -138,17 +143,29 @@ export async function checkTwitterFeaturePresentation(
       return;
     }
 
-    // Verifica se já foi apresentado
-    const status = await getOnboardingStatus(userNumber);
-    if (!status || status.twitterFeatureShown) {
+    // Tenta marcar atomicamente como apresentado
+    // Retorna TRUE se foi o primeiro (devemos enviar)
+    // Retorna FALSE se já estava marcado (não enviar)
+    const shouldSend = await rpc('set_twitter_feature_shown_atomic', {
+      p_user_number: userNumber,
+    });
+
+    if (!shouldSend) {
+      logger.debug({
+        msg: 'Twitter feature already shown (atomic check), skipping',
+        userNumber,
+      });
       return;
     }
 
-    // Apresenta a funcionalidade Twitter com botões interativos
-    await sendTwitterFeaturePresentation(userNumber, userName);
+    // Somos o primeiro! Enviar a apresentação
+    logger.info({
+      msg: 'Twitter feature presentation - first to mark, sending',
+      userNumber,
+      userName,
+    });
 
-    // Marca como apresentado
-    await markTwitterFeatureAsShown(userNumber);
+    await sendTwitterFeaturePresentation(userNumber, userName);
   } catch (error) {
     logger.error({ error, userNumber }, 'Error checking Twitter feature presentation');
   }
@@ -187,30 +204,6 @@ Escolha o que você quer fazer:`,
   } catch (error) {
     logger.error({ error, userNumber }, 'Error sending Twitter feature presentation');
     throw error;
-  }
-}
-
-/**
- * Marca a funcionalidade Twitter como apresentada
- */
-async function markTwitterFeatureAsShown(userNumber: string): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('users')
-      .update({
-        twitter_feature_shown: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('whatsapp_number', userNumber);
-
-    if (error) {
-      logger.error({ error, userNumber }, 'Failed to mark Twitter feature as shown');
-      throw error;
-    }
-
-    logger.info({ userNumber }, 'Twitter feature marked as shown');
-  } catch (error) {
-    logger.error({ error, userNumber }, 'Error marking Twitter feature as shown');
   }
 }
 

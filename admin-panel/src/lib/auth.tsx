@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { supabase } from './supabase'
 import type { User } from '@supabase/supabase-js'
 
@@ -24,7 +24,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const pathname = usePathname()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -40,23 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('id', session.user.id)
           .single()
 
-        if (profile?.role === 'admin') {
-          setRole(profile.role)
-        } else {
-          // Não é admin, fazer logout
-          await supabase.auth.signOut()
-          setUser(null)
-          setRole(null)
-          if (pathname !== '/login') {
-            router.push('/login')
-          }
-        }
-      } else {
-        setUser(null)
-        setRole(null)
-        if (pathname !== '/login') {
-          router.push('/login')
-        }
+        setRole(profile?.role || null)
       }
 
       setLoading(false)
@@ -73,6 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('id', session.user.id)
           .single()
         setRole(profile?.role || null)
+
+        // Redirecionar para dashboard após login
+        router.push('/')
       } else if (event === 'SIGNED_OUT') {
         setUser(null)
         setRole(null)
@@ -81,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [router, pathname])
+  }, [router])
 
   const signOut = async () => {
     await supabase.auth.signOut()

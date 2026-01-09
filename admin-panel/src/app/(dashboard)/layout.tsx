@@ -1,6 +1,5 @@
 'use client'
 
-import { useAuth } from '@/lib/auth'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 
@@ -9,23 +8,6 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user, loading } = useAuth()
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null // AuthProvider vai redirecionar para /login
-  }
-
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar - hidden on mobile */}

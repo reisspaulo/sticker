@@ -19,32 +19,46 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
+    console.log('🔐 Tentando login...')
+
     const { data, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
+    console.log('📧 Resposta do Supabase:', {
+      hasUser: !!data?.user,
+      error: authError?.message
+    })
+
     if (authError) {
+      console.error('❌ Erro de autenticação:', authError)
       setError(authError.message)
       setLoading(false)
       return
     }
 
     if (data.user) {
+      console.log('👤 Usuário autenticado, verificando role...')
+
       // Verificar se é admin
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
         .select('role')
         .eq('id', data.user.id)
         .single()
 
+      console.log('👔 Profile:', { role: profile?.role, error: profileError?.message })
+
       if (profile?.role !== 'admin') {
+        console.warn('⛔ Usuário não é admin')
         await supabase.auth.signOut()
         setError('Acesso negado. Apenas administradores podem acessar.')
         setLoading(false)
         return
       }
 
+      console.log('✅ Admin verificado, redirecionando...')
       router.push('/')
       router.refresh()
     }

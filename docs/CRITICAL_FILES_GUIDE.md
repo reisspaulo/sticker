@@ -277,14 +277,44 @@ free: 5  // ← MUDANÇA!
 
 ---
 
+## 🚀 Deploy: Como NÃO Esquecer o Processo
+
+### O Problema que Aconteceu (09/01/2026)
+
+**Situação**: Claude tentou fazer deploy do admin panel usando Vercel (❌ errado) e esqueceu de fazer commits.
+
+**Root cause**: Falta de guia rápido dedicado ao admin panel.
+
+### ✅ Solução Implementada
+
+**NOVO**: Criado `docs/setup/ADMIN-DEPLOY.md` com processo completo.
+
+### Processo Correto
+
+| Sistema | Comando | Documentação |
+|---------|---------|--------------|
+| **Backend/Worker** | `git push origin main` (se mudou `src/**`) | [QUICK-DEPLOY.md](./setup/QUICK-DEPLOY.md) |
+| **Admin Panel** | `git push origin main` (se mudou `admin-panel/**`) | [ADMIN-DEPLOY.md](./setup/ADMIN-DEPLOY.md) |
+
+**Regra de ouro**:
+1. ✅ Sempre commitar primeiro
+2. ✅ Sempre fazer push
+3. ✅ GitHub Actions faz o resto
+4. ❌ NUNCA usar Vercel, deploy manual, ou outras ferramentas
+
+---
+
 ## 📚 Referências
 
 - [DOCUMENTATION_GUIDE.md](./DOCUMENTATION_GUIDE.md) - Filosofia de documentação viva
 - [FASE_1_IMPLEMENTADA.md](../FASE_1_IMPLEMENTADA.md) - Sistema de proteção atual
 - [ADR 004](./decisions/004-silent-stickers-strategy.md) - Exemplo de como documentar decisões
+- [QUICK-DEPLOY.md](./setup/QUICK-DEPLOY.md) - Deploy do backend/worker
+- [ADMIN-DEPLOY.md](./setup/ADMIN-DEPLOY.md) - Deploy do admin panel ⭐ NOVO!
+- [CI-CD-WORKFLOW.md](./setup/CI-CD-WORKFLOW.md) - Overview completo do CI/CD
 
 ---
 
 **Última atualização**: 2026-01-09
-**Versão**: 1.0
+**Versão**: 1.1
 **Responsável**: Sistema de Documentação Viva

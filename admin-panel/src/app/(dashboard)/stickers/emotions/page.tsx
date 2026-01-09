@@ -49,6 +49,9 @@ const PAGE_SIZE = 30
 
 type FilterStatus = 'pending' | 'all' | 'approved' | 'no_emotion'
 
+// Criar cliente Supabase no nível do módulo (não dentro do componente)
+const supabase = getSupabaseBrowserClient()
+
 export default function EmotionsPage() {
   const [stickers, setStickers] = useState<Sticker[]>([])
   const [celebrities, setCelebrities] = useState<Celebrity[]>([])
@@ -67,15 +70,13 @@ export default function EmotionsPage() {
   const [newTag, setNewTag] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const supabase = getSupabaseBrowserClient()
-
   const loadCelebrities = useCallback(async () => {
     const { data } = await supabase
       .from('celebrities')
       .select('id, name, slug')
       .order('name')
     if (data) setCelebrities(data)
-  }, [supabase])
+  }, [])
 
   const loadStats = useCallback(async () => {
     const [totalRes, classifiedRes, approvedRes] = await Promise.all([
@@ -88,7 +89,7 @@ export default function EmotionsPage() {
       classified: classifiedRes.count || 0,
       approved: approvedRes.count || 0,
     })
-  }, [supabase])
+  }, [])
 
   const loadStickers = useCallback(async () => {
     setLoading(true)
@@ -134,7 +135,7 @@ export default function EmotionsPage() {
     }
 
     setLoading(false)
-  }, [supabase, filterStatus, filterCelebrity, searchTag, currentPage])
+  }, [filterStatus, filterCelebrity, searchTag, currentPage])
 
   useEffect(() => {
     loadCelebrities()

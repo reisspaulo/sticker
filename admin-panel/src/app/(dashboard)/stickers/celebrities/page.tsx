@@ -7,6 +7,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Star } from 'lucide-react'
 
+// Criar cliente Supabase no nível do módulo
+const supabase = getSupabaseBrowserClient()
+
 interface CelebrityStat {
   id: string
   name: string
@@ -19,8 +22,6 @@ interface CelebrityStat {
 export default function CelebritiesPage() {
   const [celebrities, setCelebrities] = useState<CelebrityStat[]>([])
   const [loading, setLoading] = useState(true)
-
-  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
     async function loadCelebrities() {

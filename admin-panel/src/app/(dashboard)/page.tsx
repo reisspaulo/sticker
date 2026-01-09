@@ -18,6 +18,9 @@ import {
 import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
+// Criar cliente Supabase no nível do módulo
+const supabase = getSupabaseBrowserClient()
+
 interface Stats {
   usersToday: number
   usersYesterday: number
@@ -117,8 +120,6 @@ export default function DashboardPage() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
   const [chartsLoading, setChartsLoading] = useState(true)
-
-  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
     async function loadStats() {

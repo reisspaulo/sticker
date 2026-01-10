@@ -1,4 +1,4 @@
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
 import { getStickerUrl, type Sticker } from '@/lib/supabase'
 import { format } from 'date-fns'
@@ -14,9 +14,8 @@ export function HoverPreviewTooltip({ sticker, children }: HoverPreviewTooltipPr
     : sticker.celebrities?.name
 
   return (
-    <TooltipProvider delayDuration={300}>
-      <Tooltip>
-        <TooltipTrigger asChild>{children}</TooltipTrigger>
+    <Tooltip delayDuration={300}>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
         <TooltipContent side="right" className="w-80 p-0" sideOffset={10}>
           <div className="space-y-3 p-4">
             {/* Large preview image */}
@@ -78,7 +77,6 @@ export function HoverPreviewTooltip({ sticker, children }: HoverPreviewTooltipPr
             </div>
           </div>
         </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    </Tooltip>
   )
 }

@@ -21,6 +21,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 const PAGE_SIZE = 30
@@ -160,22 +161,23 @@ export default function StickersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Todos os Stickers</h1>
-        <Button
-          variant={batchMode ? 'default' : 'outline'}
-          onClick={() => {
-            setBatchMode(!batchMode)
-            if (batchMode) {
-              clearSelection()
-            }
-          }}
-        >
-          {batchMode ? 'Sair do modo seleção' : 'Selecionar múltiplos'}
-        </Button>
-      </div>
+    <TooltipProvider delayDuration={300}>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Todos os Stickers</h1>
+          <Button
+            variant={batchMode ? 'default' : 'outline'}
+            onClick={() => {
+              setBatchMode(!batchMode)
+              if (batchMode) {
+                clearSelection()
+              }
+            }}
+          >
+            {batchMode ? 'Sair do modo seleção' : 'Selecionar múltiplos'}
+          </Button>
+        </div>
 
       {/* Filters */}
       <StickerFilters
@@ -307,6 +309,7 @@ export default function StickersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </TooltipProvider>
   )
 }

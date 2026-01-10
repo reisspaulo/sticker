@@ -176,12 +176,34 @@ export async function sendScheduledRemindersJob(): Promise<{
       const reminderStartTime = Date.now();
 
       try {
+        // ATOMIC LOCK: Try to claim this reminder by updating status to 'processing'
+        // This prevents race conditions when multiple workers run simultaneously
+        const { data: claimedReminder, error: claimError } = await supabase
+          .from('scheduled_reminders')
+          .update({ status: 'processing', updated_at: new Date().toISOString() })
+          .eq('id', reminder.id)
+          .eq('status', 'pending') // Only update if still pending
+          .select()
+          .single();
+
+        if (claimError || !claimedReminder) {
+          // Another worker already claimed this reminder
+          logger.debug({
+            msg: '[REMINDERS-JOB] Reminder already claimed by another worker, skipping',
+            reminderId: reminder.id,
+            workerId,
+          });
+          skipped++;
+          continue;
+        }
+
         logger.info({
-          msg: '[REMINDERS-JOB] Processing reminder',
+          msg: '[REMINDERS-JOB] Processing reminder (claimed)',
           reminderId: reminder.id,
           userNumber: reminder.user_number,
           scheduledFor: reminder.scheduled_for,
           position: `${totalProcessed}/${reminders.length}`,
+          workerId,
         });
 
         // Get user's current state

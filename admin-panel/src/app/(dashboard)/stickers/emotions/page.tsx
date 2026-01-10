@@ -92,6 +92,7 @@ export default function EmotionsPage() {
 
   const loadStickers = useCallback(async () => {
     setLoading(true)
+    const supabase = getSupabaseBrowserClient()
 
     let query = supabase
       .from('stickers')

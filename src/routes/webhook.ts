@@ -394,31 +394,38 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           const limitCheck = await checkAndIncrementDailyLimitAtomic(user.id);
 
           if (!limitCheck.allowed) {
-            // User reached limit - check if already notified today (without updating yet)
-            const wasAlreadyNotified = user.limit_notified_at
-              ? new Date(user.limit_notified_at).toDateString() === new Date().toDateString()
-              : false;
+            // ATOMIC: Mark as notified FIRST (prevents race condition when multiple images sent simultaneously)
+            // Returns true if already notified today, false if first notification
+            let wasAlreadyNotified = false;
+
+            try {
+              wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
+            } catch (error) {
+              fastify.log.error({
+                msg: 'Failed to set limit notified timestamp - Twitter conversion',
+                userNumber,
+                error: error instanceof Error ? error.message : 'Unknown error',
+              });
+              // Continue without sending message on atomic operation failure
+            }
 
             if (!wasAlreadyNotified) {
               try {
-                // Try to send message FIRST
+                // Send message only if this is the first notification today
                 const { sendText } = await import('../services/evolutionApi');
                 await sendText(
                   userNumber,
                   `❌ *Limite Diário Atingido*\n\nVocê já usou todas as suas figurinhas de hoje!\n\n💎 Faça upgrade para continuar criando.`
                 );
 
-                // Only mark as notified if message was sent successfully
-                await setLimitNotifiedAtomic(user.id);
-
                 fastify.log.info({
                   msg: 'Limit reached notification sent - Twitter conversion',
                   userNumber,
                 });
               } catch (error) {
-                // If message send fails, don't mark as notified so user can retry
+                // Message send failed but user was already marked as notified (to prevent duplicate messages)
                 fastify.log.error({
-                  msg: 'Failed to send Twitter conversion limit message - user NOT marked as notified',
+                  msg: 'Failed to send Twitter conversion limit message (user already marked as notified)',
                   userNumber,
                   error: error instanceof Error ? error.message : 'Unknown error',
                 });
@@ -1724,21 +1731,27 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             abTestGroup: 'control',
           });
 
-          // Check if user was already notified today (without updating yet)
-          const wasAlreadyNotified = user.limit_notified_at
-            ? new Date(user.limit_notified_at).toDateString() === new Date().toDateString()
-            : false;
-
+          // ATOMIC: Mark as notified FIRST (prevents race condition when multiple images sent simultaneously)
+          // Returns true if already notified today, false if first notification
+          let wasAlreadyNotified = false;
           let messageSent = false;
+
+          try {
+            wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
+          } catch (error) {
+            fastify.log.error({
+              msg: 'Failed to set limit notified timestamp - CONTROL group',
+              userNumber,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+            // Continue without sending message on atomic operation failure
+          }
 
           if (!wasAlreadyNotified) {
             try {
-              // Try to send message FIRST
+              // Send message only if this is the first notification today
               const { sendLimitReachedMessage } = await import('../services/messageService');
               await sendLimitReachedMessage(userNumber, userName, 0);
-
-              // Only mark as notified if message was sent successfully
-              await setLimitNotifiedAtomic(user.id);
               messageSent = true;
 
               fastify.log.info({
@@ -1746,9 +1759,9 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
                 userNumber,
               });
             } catch (error) {
-              // If message send fails, don't mark as notified so user can retry
+              // Message send failed but user was already marked as notified (to prevent duplicate messages)
               fastify.log.error({
-                msg: 'Failed to send limit message - user NOT marked as notified',
+                msg: 'Failed to send limit message (user already marked as notified)',
                 userNumber,
                 error: error instanceof Error ? error.message : 'Unknown error',
               });
@@ -1852,17 +1865,27 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           // No bonus available - check pending stickers
           if (pendingCount >= 2) {
             // Already has 2 pending AND no bonus - block with notification throttle
-            // Check if already notified today WITHOUT updating database
-            const wasAlreadyNotified = user.limit_notified_at
-              ? new Date(user.limit_notified_at).toDateString() === new Date().toDateString()
-              : false;
+            // ATOMIC: Mark as notified FIRST (prevents race condition when multiple images sent simultaneously)
+            // Returns true if already notified today, false if first notification
+            let wasAlreadyNotified = false;
+
+            try {
+              wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
+            } catch (error) {
+              fastify.log.error({
+                msg: 'Failed to set limit notified timestamp - BONUS group max pending',
+                userNumber,
+                error: error instanceof Error ? error.message : 'Unknown error',
+              });
+              // Continue without sending message on atomic operation failure
+            }
 
             if (!wasAlreadyNotified) {
               const { sendLimitReachedMenu } = await import('../services/menuService');
               const currentPlan = await getUserPlan(user.id);
 
               try {
-                // CRITICAL: Send message FIRST, before marking as notified
+                // Send message only if this is the first notification today
                 await sendLimitReachedMenu(userNumber, {
                   userId: user.id,
                   userName,
@@ -1874,9 +1897,6 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
                   bonusCreditsUsed: bonusUsed,
                 });
 
-                // Only mark as notified if message sent successfully
-                await setLimitNotifiedAtomic(user.id);
-
                 fastify.log.info({
                   msg: 'Max pending + no bonus - menu sent once',
                   userNumber,
@@ -1884,9 +1904,9 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
                   messageSent: true,
                 });
               } catch (error) {
-                // If message send fails, don't mark as notified (allows retry)
+                // Message send failed but user was already marked as notified (to prevent duplicate messages)
                 fastify.log.error({
-                  msg: 'Failed to send BONUS limit menu - user NOT marked as notified',
+                  msg: 'Failed to send BONUS limit menu (user already marked as notified)',
                   userNumber,
                   error: error instanceof Error ? error.message : 'Unknown error',
                   stack: error instanceof Error ? error.stack : undefined,

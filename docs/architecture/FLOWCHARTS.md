@@ -1475,4 +1475,4 @@ flowchart TD
 
 ---
 
-**Última atualização:** 09/01/2026 - Adicionado recovery automático de stickers pendentes no startup do servidor
+**Última atualização:** 10/01/2026 - Corrigida race condition em notificações de limite (inversão de ordem: marca como notificado ANTES de enviar mensagem, prevenindo duplicações quando usuário envia múltiplas imagens rapidamente)

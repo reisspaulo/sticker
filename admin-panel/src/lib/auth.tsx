@@ -5,9 +5,6 @@ import { useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from './supabase-browser'
 import type { User } from '@supabase/supabase-js'
 
-// Criar cliente Supabase no nível do módulo
-const supabase = getSupabaseBrowserClient()
-
 interface AuthContextType {
   user: User | null
   role: string | null
@@ -29,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
+    const supabase = getSupabaseBrowserClient()
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
 
@@ -74,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = async () => {
+    const supabase = getSupabaseBrowserClient()
     await supabase.auth.signOut()
     setUser(null)
     setRole(null)

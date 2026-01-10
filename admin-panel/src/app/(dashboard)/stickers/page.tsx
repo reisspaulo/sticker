@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { StickerGrid } from '@/components/stickers/StickerGrid'
 import { StickerFilters, type StickerFiltersConfig } from '@/components/stickers/StickerFilters'
@@ -57,11 +57,13 @@ export default function StickersPage() {
   }, [])
 
   // Hooks
-  const { stickers, loading, totalCount, refetch } = useStickers({
+  const stickerOptions = useMemo(() => ({
     ...filters,
     pageSize: PAGE_SIZE,
     page,
-  })
+  }), [filters.tipo, filters.search, filters.dateFrom, filters.dateTo, page])
+
+  const { stickers, loading, totalCount, refetch } = useStickers(stickerOptions)
 
   const { selectedIds, toggleSelection, selectAll, clearSelection, isSelected } =
     useStickerSelection(stickers.map((s) => s.id))

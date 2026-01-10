@@ -12,12 +12,9 @@ declare global {
 }
 
 export function getSupabaseBrowserClient() {
+  // NUNCA criar cliente no servidor - apenas no cliente
   if (typeof window === 'undefined') {
-    // No servidor, criar nova instância (não importa pois é descartada)
-    return createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    throw new Error('getSupabaseBrowserClient() can only be called in the browser')
   }
 
   // No cliente, usar singleton verdadeiro via window com lock para prevenir race conditions

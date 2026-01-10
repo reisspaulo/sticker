@@ -13,8 +13,6 @@ export interface UseBatchActionsResult {
 const MAX_BATCH_SIZE = 50
 
 export function useBatchActions(): UseBatchActionsResult {
-  const supabase = getSupabaseBrowserClient()
-
   const approveStickers = useCallback(
     async (ids: string[]) => {
       if (ids.length === 0) {
@@ -26,6 +24,7 @@ export function useBatchActions(): UseBatchActionsResult {
       }
 
       try {
+        const supabase = getSupabaseBrowserClient()
         const { error } = await supabase
           .from('stickers')
           .update({ emotion_approved: true })
@@ -42,7 +41,7 @@ export function useBatchActions(): UseBatchActionsResult {
         }
       }
     },
-    [supabase]
+    []
   )
 
   const rejectStickers = useCallback(
@@ -56,6 +55,7 @@ export function useBatchActions(): UseBatchActionsResult {
       }
 
       try {
+        const supabase = getSupabaseBrowserClient()
         const { error } = await supabase
           .from('stickers')
           .update({
@@ -75,7 +75,7 @@ export function useBatchActions(): UseBatchActionsResult {
         }
       }
     },
-    [supabase]
+    []
   )
 
   const deleteStickers = useCallback(
@@ -93,6 +93,7 @@ export function useBatchActions(): UseBatchActionsResult {
       }
 
       try {
+        const supabase = getSupabaseBrowserClient()
         // Delete from database first
         const { error: dbError } = await supabase
           .from('stickers')
@@ -123,7 +124,7 @@ export function useBatchActions(): UseBatchActionsResult {
         }
       }
     },
-    [supabase]
+    []
   )
 
   const addTagsToStickers = useCallback(
@@ -141,6 +142,7 @@ export function useBatchActions(): UseBatchActionsResult {
       }
 
       try {
+        const supabase = getSupabaseBrowserClient()
         // Get current stickers to merge tags
         const stickersToUpdate = existingStickers.filter((s) => ids.includes(s.id))
 
@@ -171,7 +173,7 @@ export function useBatchActions(): UseBatchActionsResult {
         }
       }
     },
-    [supabase]
+    []
   )
 
   const assignCelebrity = useCallback(
@@ -185,6 +187,7 @@ export function useBatchActions(): UseBatchActionsResult {
       }
 
       try {
+        const supabase = getSupabaseBrowserClient()
         const { error } = await supabase
           .from('stickers')
           .update({ celebrity_id: celebrityId === 'none' ? null : celebrityId })
@@ -201,7 +204,7 @@ export function useBatchActions(): UseBatchActionsResult {
         }
       }
     },
-    [supabase]
+    []
   )
 
   return {

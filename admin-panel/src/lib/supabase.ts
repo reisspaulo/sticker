@@ -1,22 +1,12 @@
-'use client'
-
-import { createClient } from '@supabase/supabase-js'
+// Type definitions and utility functions for Supabase
+// No client is created here to avoid SSR hydration issues
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-if (typeof window !== 'undefined') {
-  if (!supabaseUrl || !supabaseKey) {
-    console.error('❌ Supabase env vars missing:', {
-      url: supabaseUrl ? 'ok' : 'MISSING',
-      key: supabaseKey ? 'ok' : 'MISSING'
-    })
-  } else {
-    console.log('✅ Supabase configured:', supabaseUrl)
-  }
-}
-
-export const supabase = createClient(supabaseUrl, supabaseKey)
+// Note: Do not create a module-level Supabase client here!
+// Creating a client at module level causes multiple GoTrueClient instances
+// (one during SSR, one during CSR) which leads to React hydration errors.
+// Use getSupabaseBrowserClient() instead for client-side operations.
 
 export interface Sticker {
   id: string

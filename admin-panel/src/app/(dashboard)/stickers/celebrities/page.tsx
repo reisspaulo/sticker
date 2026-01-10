@@ -11,9 +11,6 @@ import { CelebrityDialog } from '@/components/stickers/CelebrityDialog'
 import type { Celebrity } from '@/lib/supabase'
 import { toast } from 'sonner'
 
-// Criar cliente Supabase no nível do módulo
-const supabase = getSupabaseBrowserClient()
-
 interface CelebrityStat {
   id: string
   name: string
@@ -31,6 +28,7 @@ export default function CelebritiesPage() {
 
   const loadCelebrities = async () => {
     setLoading(true)
+    const supabase = getSupabaseBrowserClient()
 
     // Load celebrities with sticker counts
     const { data: celebs } = await supabase
@@ -95,6 +93,7 @@ export default function CelebritiesPage() {
     }
 
     try {
+      const supabase = getSupabaseBrowserClient()
       const { error } = await supabase.from('celebrities').delete().eq('id', celeb.id)
 
       if (error) throw error

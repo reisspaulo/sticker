@@ -43,10 +43,9 @@ export default function StickersPage() {
   const [selectedCelebrityId, setSelectedCelebrityId] = useState<string>('none')
   const [celebrities, setCelebrities] = useState<Celebrity[]>([])
 
-  const supabase = getSupabaseBrowserClient()
-
   // Load celebrities
   useEffect(() => {
+    const supabase = getSupabaseBrowserClient()
     async function loadCelebrities() {
       const { data } = await supabase
         .from('celebrities')
@@ -55,7 +54,7 @@ export default function StickersPage() {
       if (data) setCelebrities(data)
     }
     loadCelebrities()
-  }, [supabase])
+  }, [])
 
   // Hooks
   const { stickers, loading, totalCount, refetch } = useStickers({

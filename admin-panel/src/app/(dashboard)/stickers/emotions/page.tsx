@@ -49,9 +49,6 @@ const PAGE_SIZE = 30
 
 type FilterStatus = 'pending' | 'all' | 'approved' | 'no_emotion'
 
-// Criar cliente Supabase no nível do módulo (não dentro do componente)
-const supabase = getSupabaseBrowserClient()
-
 export default function EmotionsPage() {
   const [stickers, setStickers] = useState<Sticker[]>([])
   const [celebrities, setCelebrities] = useState<Celebrity[]>([])
@@ -71,6 +68,7 @@ export default function EmotionsPage() {
   const [saving, setSaving] = useState(false)
 
   const loadCelebrities = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
     const { data } = await supabase
       .from('celebrities')
       .select('id, name, slug')
@@ -79,6 +77,7 @@ export default function EmotionsPage() {
   }, [])
 
   const loadStats = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
     const [totalRes, classifiedRes, approvedRes] = await Promise.all([
       supabase.from('stickers').select('*', { count: 'exact', head: true }).eq('face_detected', true),
       supabase.from('stickers').select('*', { count: 'exact', head: true }).eq('face_detected', true).not('emotion_tags', 'is', null),
@@ -175,6 +174,7 @@ export default function EmotionsPage() {
   const saveSticker = async (approve: boolean = false) => {
     if (!selectedSticker) return
     setSaving(true)
+    const supabase = getSupabaseBrowserClient()
 
     const { error } = await supabase
       .from('stickers')
@@ -201,6 +201,7 @@ export default function EmotionsPage() {
     if (!selectedSticker) return
     if (!confirm('Remover todas as tags deste sticker?')) return
     setSaving(true)
+    const supabase = getSupabaseBrowserClient()
 
     const { error } = await supabase
       .from('stickers')

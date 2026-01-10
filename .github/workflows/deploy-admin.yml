@@ -50,10 +50,14 @@ jobs:
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.0
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: SUPABASE_URL,SUPABASE_KEY
           script: |
             echo "Logging into GHCR..."
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -63,6 +67,8 @@ jobs:
               echo "Updating existing service..."
               docker service update \
                 --with-registry-auth \
+                --env-add NEXT_PUBLIC_SUPABASE_URL="$SUPABASE_URL" \
+                --env-add NEXT_PUBLIC_SUPABASE_ANON_KEY="$SUPABASE_KEY" \
                 --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
                 sticker_admin
             else
@@ -72,6 +78,8 @@ jobs:
                 --network traefik-public \
                 --replicas 1 \
                 --with-registry-auth \
+                --env NEXT_PUBLIC_SUPABASE_URL="$SUPABASE_URL" \
+                --env NEXT_PUBLIC_SUPABASE_ANON_KEY="$SUPABASE_KEY" \
                 --label traefik.enable=true \
                 --label "traefik.http.routers.sticker-admin.rule=Host(\`admin-stickers.ytem.com.br\`)" \
                 --label traefik.http.routers.sticker-admin.entrypoints=websecure \

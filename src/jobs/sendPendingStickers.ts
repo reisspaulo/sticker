@@ -18,6 +18,7 @@ export async function sendPendingStickersJob(): Promise<{
   totalProcessed: number;
   sent: number;
   failed: number;
+  skipped: number;
   errors: Array<{ stickerId: string; error: string }>;
 }> {
   const startTime = Date.now();
@@ -35,6 +36,7 @@ export async function sendPendingStickersJob(): Promise<{
   let totalProcessed = 0;
   let sent = 0;
   let failed = 0;
+  let skipped = 0;
   const errors: Array<{ stickerId: string; error: string }> = [];
 
   try {
@@ -58,7 +60,7 @@ export async function sendPendingStickersJob(): Promise<{
         msg: '[SEND-PENDING-JOB] No pending stickers to send',
         workerId,
       });
-      return { totalProcessed: 0, sent: 0, failed: 0, errors: [] };
+      return { totalProcessed: 0, sent: 0, failed: 0, skipped: 0, errors: [] };
     }
 
     logger.info({
@@ -72,15 +74,37 @@ export async function sendPendingStickersJob(): Promise<{
       totalProcessed++;
       const stickerStartTime = Date.now();
 
-      logger.info({
-        msg: '[SEND-PENDING-JOB] Processing pending sticker',
-        stickerId: sticker.id,
-        userNumber: sticker.user_number,
-        createdAt: sticker.created_at,
-        position: `${totalProcessed}/${pendingStickers.length}`,
-      });
-
       try {
+        // ATOMIC LOCK: Try to claim this sticker by updating status to 'sending'
+        // This prevents race conditions when multiple workers run simultaneously
+        const { data: claimedSticker, error: claimError } = await supabase
+          .from('stickers')
+          .update({ status: 'sending' })
+          .eq('id', sticker.id)
+          .eq('status', 'pendente') // Only update if still pending
+          .select()
+          .single();
+
+        if (claimError || !claimedSticker) {
+          // Another worker already claimed this sticker
+          logger.debug({
+            msg: '[SEND-PENDING-JOB] Sticker already claimed by another worker, skipping',
+            stickerId: sticker.id,
+            workerId,
+          });
+          skipped++;
+          continue;
+        }
+
+        logger.info({
+          msg: '[SEND-PENDING-JOB] Processing pending sticker (claimed)',
+          stickerId: sticker.id,
+          userNumber: sticker.user_number,
+          createdAt: sticker.created_at,
+          position: `${totalProcessed}/${pendingStickers.length}`,
+          workerId,
+        });
+
         // Get user_id from users table
         const { data: userData } = await supabase
           .from('users')
@@ -185,6 +209,13 @@ export async function sendPendingStickersJob(): Promise<{
           errorCode,
         });
 
+        // Revert sticker status back to 'pendente' for retry
+        await supabase
+          .from('stickers')
+          .update({ status: 'pendente' })
+          .eq('id', sticker.id)
+          .eq('status', 'sending'); // Only revert if still in 'sending' state
+
         // Update log entry to 'failed'
         const { data: failedLogEntry } = await supabase
           .from('pending_sticker_sends')
@@ -221,6 +252,7 @@ export async function sendPendingStickersJob(): Promise<{
       total_processed: totalProcessed,
       sent,
       failed,
+      skipped,
       success_rate: totalProcessed > 0 ? `${((sent / totalProcessed) * 100).toFixed(1)}%` : '0%',
     }, totalTimeMs);
 
@@ -230,11 +262,12 @@ export async function sendPendingStickersJob(): Promise<{
       totalProcessed,
       sent,
       failed,
+      skipped,
       totalTimeMs,
       successRate: totalProcessed > 0 ? `${((sent / totalProcessed) * 100).toFixed(1)}%` : '0%',
     });
 
-    return { totalProcessed, sent, failed, errors };
+    return { totalProcessed, sent, failed, skipped, errors };
 
   } catch (error) {
     const totalTimeMs = Date.now() - startTime;

@@ -566,36 +566,50 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             return reply.status(200).send({ status: 'bonus_not_available' });
           }
 
-          // Check if user has bonus credits remaining
-          const bonusUsed = user.bonus_credits_today || 0;
-          if (bonusUsed >= 2) {
+          // Grant bonus credit (increment bonus_credits_today)
+          // ✅ ATOMIC: RPC validates limit with FOR UPDATE lock
+          const { incrementBonusCredit } = await import('../services/userService');
+
+          try {
+            const newBonusCount = await incrementBonusCredit(user.id);
+
+            const bonusRemaining = 2 - newBonusCount;
+
+            // Track A/B test bonus usage
+            logMenuInteraction(userNumber, 'ab_test_bonus_used', `${newBonusCount}/2`);
+
             await sendText(
               userNumber,
-              `❌ *Limite de Bônus Atingido*\n\nVocê já usou seus *2 créditos extras* de hoje.\n\nSeu limite será renovado às *00:00* (horário de Brasília).\n\nDigite *planos* para fazer upgrade e ter mais!`
+              `🎁 *Bônus Concedido!*\n\n✅ Você ganhou *+1 crédito extra* agora!\n\n${bonusRemaining > 0 ? `Você ainda pode usar *+${bonusRemaining} bônus* hoje.` : `Você usou todos os seus bônus extras de hoje.`}\n\nEnvie sua imagem, vídeo ou GIF! 🎨`
             );
 
-            return reply.status(200).send({ status: 'bonus_limit_reached' });
+            return reply.status(200).send({
+              status: 'bonus_granted',
+              bonusUsed: newBonusCount,
+              bonusRemaining,
+            });
+          } catch (error) {
+            // Handle atomic limit validation failure
+            const errorMessage = error instanceof Error ? error.message : '';
+
+            if (errorMessage.includes('bonus_limit_reached')) {
+              fastify.log.info({
+                msg: 'Bonus limit reached (caught by atomic RPC)',
+                userNumber,
+                userId: user.id,
+              });
+
+              await sendText(
+                userNumber,
+                `❌ *Limite de Bônus Atingido*\n\nVocê já usou seus *2 créditos extras* de hoje.\n\nSeu limite será renovado às *00:00* (horário de Brasília).\n\nDigite *planos* para fazer upgrade e ter mais!`
+              );
+
+              return reply.status(200).send({ status: 'bonus_limit_reached' });
+            }
+
+            // Re-throw other errors
+            throw error;
           }
-
-          // Grant bonus credit (increment bonus_credits_today)
-          const { incrementBonusCredit } = await import('../services/userService');
-          const newBonusCount = await incrementBonusCredit(user.id);
-
-          const bonusRemaining = 2 - newBonusCount;
-
-          // Track A/B test bonus usage
-          logMenuInteraction(userNumber, 'ab_test_bonus_used', `${newBonusCount}/2`);
-
-          await sendText(
-            userNumber,
-            `🎁 *Bônus Concedido!*\n\n✅ Você ganhou *+1 crédito extra* agora!\n\n${bonusRemaining > 0 ? `Você ainda pode usar *+${bonusRemaining} bônus* hoje.` : `Você usou todos os seus bônus extras de hoje.`}\n\nEnvie sua imagem, vídeo ou GIF! 🎨`
-          );
-
-          return reply.status(200).send({
-            status: 'bonus_granted',
-            bonusUsed: newBonusCount,
-            bonusRemaining,
-          });
         }
 
         // Handle dismiss upgrade button (control variant)

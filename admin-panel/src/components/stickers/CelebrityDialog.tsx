@@ -26,7 +26,6 @@ export function CelebrityDialog({ open, onOpenChange, celebrity, onSuccess }: Ce
   const [slug, setSlug] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const supabase = getSupabaseBrowserClient()
   const isEditing = !!celebrity
 
   // Reset form when dialog opens/closes or celebrity changes
@@ -71,6 +70,7 @@ export function CelebrityDialog({ open, onOpenChange, celebrity, onSuccess }: Ce
     setSaving(true)
 
     try {
+      const supabase = getSupabaseBrowserClient()
       if (isEditing) {
         // Update existing celebrity
         const { error } = await supabase

@@ -28,6 +28,7 @@ export interface Sticker {
   face_detected?: boolean
   celebrity_id: string | null
   celebrities?: { name: string } | { name: string }[] | null
+  created_at?: string
 }
 
 export interface Celebrity {

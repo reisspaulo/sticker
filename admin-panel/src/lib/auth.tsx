@@ -58,18 +58,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .single()
         setRole(profile?.role || null)
 
-        // Redirecionar para dashboard após login
-        router.push('/')
+        // Redirecionar apenas se não estiver na página atual
+        if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+          router.push('/')
+        }
       } else if (event === 'SIGNED_OUT') {
         setUser(null)
         setRole(null)
-        router.push('/login')
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          router.push('/login')
+        }
       }
     })
 
     return () => subscription.unsubscribe()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [router])
 
   const signOut = async () => {
     const supabase = getSupabaseBrowserClient()

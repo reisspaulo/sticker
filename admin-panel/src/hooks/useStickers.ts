@@ -28,13 +28,12 @@ export function useStickers(options: UseStickersOptions): UseStickersResult {
   const [error, setError] = useState<Error | null>(null)
   const [totalCount, setTotalCount] = useState(0)
 
-  const supabase = getSupabaseBrowserClient()
-
   const fetchStickers = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
+      const supabase = getSupabaseBrowserClient()
       let query = supabase
         .from('stickers')
         .select('id, storage_path, tipo, emotion_tags, emotion_approved, celebrity_id, face_detected, created_at, celebrities(name)', { count: 'exact' })
@@ -110,7 +109,6 @@ export function useStickers(options: UseStickersOptions): UseStickersResult {
       setLoading(false)
     }
   }, [
-    supabase,
     options.tipo,
     options.search,
     options.dateFrom,

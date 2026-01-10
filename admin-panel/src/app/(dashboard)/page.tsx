@@ -19,9 +19,6 @@ import {
 } from 'lucide-react'
 import { format, subDays, subMonths, startOfDay, eachDayOfInterval } from 'date-fns'
 
-// Criar cliente Supabase no nível do módulo
-const supabase = getSupabaseBrowserClient()
-
 interface Stats {
   usersToday: number
   usersYesterday: number
@@ -129,6 +126,8 @@ export default function DashboardPage() {
   const [chartsLoading, setChartsLoading] = useState(true)
 
   useEffect(() => {
+    const supabase = getSupabaseBrowserClient()
+
     async function loadStats() {
       const today = new Date()
       today.setHours(0, 0, 0, 0)

@@ -395,7 +395,7 @@ flowchart TB
     end
 
     subgraph limit["⚠️ LIMITE ATINGIDO"]
-        L1["⚠️ Limite Atingido!<br/><br/>Você usou 4/4 figurinhas hoje.<br/>Renova às 00:00<br/><br/>🎁 Usar Bônus (+2)<br/>💰 Premium R$5<br/>🚀 Ultra R$9,90"]
+        L1["⚠️ Limite Atingido!<br/><br/>Você usou X/X figurinhas hoje.<br/>Renova às 00:00<br/><br/>💰 Premium R$5<br/>🚀 Ultra R$9,90<br/><br/>(Sem botão dismiss - melhora conversão)"]
     end
 
     subgraph plans["💎 PLANOS"]

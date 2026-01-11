@@ -3,7 +3,6 @@ import logger from '../config/logger';
 import { sendList, sendButtons } from './avisaApi';
 import {
   getUpgradeDismissVariant,
-  hasPendingReminder,
   logExperimentEvent,
   type ExperimentVariantConfig,
 } from './experimentService';
@@ -174,26 +173,8 @@ export async function sendLimitReachedMenu(
     });
   }
 
-  // Dismiss button - use experiment config
-  if (buttons.length < 3) {
-    const showDismiss = expConfig?.show_dismiss_button !== false && expConfig?.show_button !== false;
-
-    if (showDismiss) {
-      const hasReminder = await hasPendingReminder(userId);
-
-      if (hasReminder && expConfig?.action === 'schedule_reminder') {
-        buttons.push({
-          id: 'button_reminder_pending',
-          text: '⏰ Lembrete agendado',
-        });
-      } else {
-        buttons.push({
-          id: expConfig?.button_dismiss_id || expConfig?.button_id || 'button_dismiss_upgrade',
-          text: expConfig?.button_dismiss_text || expConfig?.button_text || '❌ Agora Não',
-        });
-      }
-    }
-  }
+  // NOTE: Botão dismiss removido para melhorar conversão
+  // Usuário vê apenas Premium/Ultra - se não quiser, ignora a mensagem
 
   // === BUILD MESSAGE ===
   let messageTitle: string;

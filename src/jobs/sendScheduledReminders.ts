@@ -209,7 +209,7 @@ export async function sendScheduledRemindersJob(): Promise<{
         // Get user's current state
         const { data: user, error: userError } = await supabase
           .from('users')
-          .select('daily_count, subscription_plan, name')
+          .select('daily_count, subscription_plan, name, daily_limit')
           .eq('id', reminder.user_id)
           .single();
 

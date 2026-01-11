@@ -101,7 +101,28 @@ fi
 # ============================================================
 
 # Arquivos que afetam fluxos documentados
-FLOW_FILES="src/routes/webhook.ts src/services/menuService.ts src/worker.ts src/config/queue.ts"
+# IMPORTANTE: Adicione novos arquivos criticos aqui!
+# Ultima atualizacao: 11/01/2026
+FLOW_FILES="
+src/routes/webhook.ts
+src/worker.ts
+src/config/queue.ts
+src/services/menuService.ts
+src/services/subscriptionService.ts
+src/services/atomicLimitService.ts
+src/services/experimentService.ts
+src/services/onboardingService.ts
+src/services/pixPaymentService.ts
+src/services/userService.ts
+src/utils/supabaseRpc.ts
+src/types/subscription.ts
+src/jobs/resetDailyCounters.ts
+src/jobs/sendPendingStickers.ts
+src/jobs/sendScheduledReminders.ts
+"
+
+# Arquivos críticos do admin panel
+ADMIN_CRITICAL_FILES="admin-panel/src/lib/supabase/client.ts admin-panel/src/lib/supabase/server.ts admin-panel/middleware.ts admin-panel/src/hooks/useAuth.ts admin-panel/src/app/login/"
 
 # Verifica se algum desses arquivos foi modificado
 CHANGED_FLOW_FILES=""
@@ -111,7 +132,14 @@ for file in $FLOW_FILES; do
   fi
 done
 
-# Se houve mudancas, avisa o usuario
+CHANGED_ADMIN_FILES=""
+for file in $ADMIN_CRITICAL_FILES; do
+  if git diff --cached --name-only | grep -q "^$file"; then
+    CHANGED_ADMIN_FILES="$CHANGED_ADMIN_FILES\n  - $file"
+  fi
+done
+
+# Se houve mudancas no bot, avisa o usuario
 if [ -n "$CHANGED_FLOW_FILES" ]; then
   echo ""
   echo "⚠️  ATENCAO: Voce alterou arquivos de fluxo do bot!"
@@ -121,6 +149,7 @@ if [ -n "$CHANGED_FLOW_FILES" ]; then
   echo "📋 Lembre-se de atualizar a documentacao:"
   echo "   -> docs/architecture/FLOWCHARTS.md"
   echo "   -> docs/architecture/ARCHITECTURE.md (se necessario)"
+  echo "   -> CHANGELOG.md"
   echo ""
 
   # Verifica se FLOWCHARTS.md foi modificado tambem
@@ -130,18 +159,97 @@ if [ -n "$CHANGED_FLOW_FILES" ]; then
   else
     echo "❌ FLOWCHARTS.md NAO foi modificado neste commit."
     echo ""
-    echo "   Deseja continuar mesmo assim? (y/n)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "⚠️  VOCE MODIFICOU FLUXOS CRITICOS DO BOT!"
+    echo ""
+    echo "📋 Antes de continuar, confirme:"
+    echo "   [ ] Li o codigo e entendi as mudancas"
+    echo "   [ ] Atualizarei FLOWCHARTS.md IMEDIATAMENTE apos este commit"
+    echo "   [ ] Esta e uma emergencia (hotfix critico em producao)"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Deseja continuar SEM atualizar a documentacao agora? (y/n)"
+    echo -n "→ "
     read -r response
 
     if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
       echo ""
       echo "❌ Commit cancelado. Atualize a documentacao e tente novamente."
       echo ""
+      echo "💡 Dica: Edite docs/architecture/FLOWCHARTS.md e rode 'git add' novamente"
+      echo ""
       exit 1
     fi
 
     echo ""
-    echo "⚠️  Prosseguindo com o commit. Nao esqueca de atualizar os docs depois!"
+    echo "⚠️  ATENCAO: Commit prosseguindo SEM documentacao atualizada!"
+    echo "⚠️  LEMBRE-SE: Atualize FLOWCHARTS.md no PROXIMO commit!"
+    echo ""
+  fi
+fi
+
+# Se houve mudancas no admin panel, avisa o usuario
+if [ -n "$CHANGED_ADMIN_FILES" ]; then
+  echo ""
+  echo "⚠️  ATENCAO: Voce alterou arquivos criticos do Admin Panel!"
+  echo ""
+  echo "📝 Arquivos modificados:$CHANGED_ADMIN_FILES"
+  echo ""
+  echo "📋 CHECKLIST OBRIGATORIO:"
+  echo "   ✅ Testou localmente? (doppler run -- npm run dev)"
+  echo "   ✅ Build passa? (npm run build)"
+  echo "   ✅ Login funciona?"
+  echo "   ✅ Queries executam?"
+  echo "   ✅ Atualizou CHANGELOG.md?"
+  echo ""
+  echo "📄 Documentacao:"
+  echo "   -> CHANGELOG.md"
+  echo "   -> docs/ADMIN_PANEL_DEPLOYMENT.md"
+  echo "   -> docs/decisions/ (se decisao arquitetural)"
+  echo ""
+
+  # Verifica se CHANGELOG foi modificado
+  if git diff --cached --name-only | grep -q "CHANGELOG.md"; then
+    echo "✅ CHANGELOG.md foi modificado neste commit. Otimo!"
+    echo ""
+  else
+    echo "❌ CHANGELOG.md NAO foi modificado neste commit."
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🚨 VOCE MODIFICOU ARQUIVOS CRITICOS DO ADMIN PANEL!"
+    echo ""
+    echo "⚠️  CONSEQUENCIAS de commit sem documentacao:"
+    echo "   • Dificuldade de debugging em producao"
+    echo "   • Time nao saberá o que mudou"
+    echo "   • Quebra do processo de deploy"
+    echo "   • Historico incompleto para auditorias"
+    echo ""
+    echo "📋 Checklist obrigatorio:"
+    echo "   [ ] Testei localmente (doppler run -- npm run dev)"
+    echo "   [ ] Build passa (npm run build)"
+    echo "   [ ] Login funciona"
+    echo "   [ ] Queries executam"
+    echo "   [ ] Esta e uma emergencia (hotfix em producao)"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Deseja continuar SEM atualizar CHANGELOG.md? (y/n)"
+    echo -n "→ "
+    read -r response
+
+    if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
+      echo ""
+      echo "❌ Commit cancelado. Atualize o CHANGELOG.md e tente novamente."
+      echo ""
+      echo "💡 Dica: Adicione entrada em CHANGELOG.md secao [Nao Publicado]"
+      echo ""
+      exit 1
+    fi
+
+    echo ""
+    echo "⚠️  ATENCAO: Commit prosseguindo SEM CHANGELOG atualizado!"
+    echo "🚨 CRITICO: Atualize CHANGELOG.md ANTES do deploy em producao!"
     echo ""
   fi
 fi

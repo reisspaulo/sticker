@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
+import { createClient } from '@/utils/supabase/client'
 import type { Sticker } from '@/lib/supabase'
 
 export interface UseStickersOptions {
@@ -33,7 +33,7 @@ export function useStickers(options: UseStickersOptions): UseStickersResult {
     setError(null)
 
     try {
-      const supabase = getSupabaseBrowserClient()
+      const supabase = createClient()
       let query = supabase
         .from('stickers')
         .select('id, storage_path, tipo, emotion_tags, emotion_approved, celebrity_id, face_detected, created_at, celebrities(name)', { count: 'exact' })

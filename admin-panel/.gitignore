@@ -30,8 +30,16 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# ============================================
+# SECRETS - NUNCA COMMITAR!
+# Use Doppler: doppler run -- npm run dev
+# ============================================
+.env
+.env.*
+!.env.example
+.env.local
+.env.production
+.env.development
 
 # vercel
 .vercel

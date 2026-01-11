@@ -8,7 +8,7 @@ import { BatchActionsBar } from '@/components/stickers/BatchActionsBar'
 import { useStickers } from '@/hooks/useStickers'
 import { useStickerSelection } from '@/hooks/useStickerSelection'
 import { useBatchActions } from '@/hooks/useBatchActions'
-import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
+import { createClient } from '@/utils/supabase/client'
 import type { Sticker, Celebrity } from '@/lib/supabase'
 import {
   Dialog,
@@ -45,7 +45,7 @@ export default function StickersPage() {
 
   // Load celebrities
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
     async function loadCelebrities() {
       const { data } = await supabase
         .from('celebrities')
@@ -58,15 +58,20 @@ export default function StickersPage() {
 
   // Hooks
   const stickerOptions = useMemo(() => ({
-    ...filters,
+    tipo: filters.tipo,
+    search: filters.search,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
     pageSize: PAGE_SIZE,
     page,
   }), [filters.tipo, filters.search, filters.dateFrom, filters.dateTo, page])
 
   const { stickers, loading, totalCount, refetch } = useStickers(stickerOptions)
 
+  const stickerIds = useMemo(() => stickers.map((s) => s.id), [stickers])
+
   const { selectedIds, toggleSelection, selectAll, clearSelection, isSelected } =
-    useStickerSelection(stickers.map((s) => s.id))
+    useStickerSelection(stickerIds)
 
   const batchActions = useBatchActions()
 

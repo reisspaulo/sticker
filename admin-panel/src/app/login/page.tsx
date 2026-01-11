@@ -1,29 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
+import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { signIn } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    // Verificar erro no URL sem useSearchParams (evita Suspense)
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const errorParam = params.get('error')
-      if (errorParam === 'not_admin') {
-        setError('Acesso negado. Apenas administradores podem acessar.')
-      }
-    }
-  }, [])
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,43 +22,35 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const supabase = getSupabaseBrowserClient()
+      await signIn(email, password)
 
-      console.log('🔐 Tentando login...', { email })
-
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      console.log('📧 Resposta do Supabase:', {
-        hasUser: !!data?.user,
-        hasSession: !!data?.session,
-        error: authError?.message,
-        errorDetails: authError
-      })
-
-    if (authError) {
-      console.error('❌ Erro de autenticação:', authError)
-      setError(authError.message)
+      // Login bem-sucedido - mostrar tela de transição e redirecionar
+      setIsRedirecting(true)
       setLoading(false)
-      return
-    }
 
-    if (data.user) {
-      console.log('👤 Usuário autenticado, redirecionando...')
-      console.log('ℹ️ O middleware verificará se é admin')
-
-      // MUST use window.location.href to trigger middleware
-      // router.push() won't work because it's client-side navigation
-      window.location.href = '/'
-    }
-    } catch (err) {
-      console.error('💥 Erro não tratado:', err)
-      setError('Erro ao fazer login. Verifique o console.')
-    } finally {
+      // Aguarda um pouco para garantir que cookie foi salvo, então força reload
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 500)
+    } catch (err: any) {
+      setError(err.message || 'Email ou senha incorretos')
       setLoading(false)
     }
+  }
+
+  // Tela de transição após login bem-sucedido
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="mb-4">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          </div>
+          <p className="text-lg font-medium">Login realizado!</p>
+          <p className="text-sm text-muted-foreground">Redirecionando...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

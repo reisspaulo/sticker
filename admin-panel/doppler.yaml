@@ -1,0 +1,7 @@
+# Doppler Configuration for Admin Panel
+# Run: doppler setup
+# Then: doppler run -- npm run dev
+
+setup:
+  project: sticker
+  config: dev

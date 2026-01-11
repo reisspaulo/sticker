@@ -16,7 +16,7 @@ cd admin-panel
 # Editar arquivos em src/app/, src/components/, etc.
 
 # 2. Testar localmente (OPCIONAL)
-npm run dev
+doppler run -- npm run dev
 # Abre http://localhost:3001
 
 # 3. Voltar para raiz do projeto
@@ -293,8 +293,8 @@ npm run build
 
 Antes de fazer push:
 
-- [ ] Código testado localmente (`npm run dev`)
-- [ ] Build passa (`npm run build`)
+- [ ] Código testado localmente (`doppler run -- npm run dev`)
+- [ ] Build passa (`doppler run -- npm run build`)
 - [ ] Testes passam (`npm run test`) - se tiver
 - [ ] Commit message claro e descritivo
 - [ ] Arquivos corretos staged (`git status`)
@@ -325,7 +325,7 @@ cd admin-panel
 code src/app/(dashboard)/users/page.tsx
 
 # 2. Testar
-npm run dev
+doppler run -- npm run dev
 # Verificar que bug foi corrigido
 
 # 3. Commit e deploy
@@ -349,10 +349,10 @@ code src/app/(dashboard)/new-feature/page.tsx
 code src/components/layout/sidebar.tsx
 
 # 3. Testar localmente
-npm run dev
+doppler run -- npm run dev
 
 # 4. Build de produção para garantir
-npm run build
+doppler run -- npm run build
 
 # 5. Commit e deploy
 cd ..

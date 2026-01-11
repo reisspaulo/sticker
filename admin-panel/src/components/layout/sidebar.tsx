@@ -21,7 +21,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/hooks/useAuth'
 
 interface NavItem {
   title: string

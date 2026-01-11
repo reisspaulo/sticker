@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { getSupabaseBrowserClient } from './supabase-browser'
+import { createClient } from '@/utils/supabase/client'
 import type { User } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -26,7 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
+
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
 
@@ -72,10 +73,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [router])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const signOut = async () => {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
     await supabase.auth.signOut()
     setUser(null)
     setRole(null)

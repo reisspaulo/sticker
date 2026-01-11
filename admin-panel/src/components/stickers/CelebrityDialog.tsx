@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
+import { createClient } from '@/utils/supabase/client'
 import type { Celebrity } from '@/lib/supabase'
 import { toast } from 'sonner'
 
@@ -70,7 +70,7 @@ export function CelebrityDialog({ open, onOpenChange, celebrity, onSuccess }: Ce
     setSaving(true)
 
     try {
-      const supabase = getSupabaseBrowserClient()
+      const supabase = createClient()
       if (isEditing) {
         // Update existing celebrity
         const { error } = await supabase

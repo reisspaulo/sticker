@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
+import { createClient } from '@/utils/supabase/client'
 import { getStickerUrl, type Sticker } from '@/lib/supabase'
 
 export interface UseBatchActionsResult {
@@ -24,7 +24,7 @@ export function useBatchActions(): UseBatchActionsResult {
       }
 
       try {
-        const supabase = getSupabaseBrowserClient()
+        const supabase = createClient()
         const { error } = await supabase
           .from('stickers')
           .update({ emotion_approved: true })
@@ -55,7 +55,7 @@ export function useBatchActions(): UseBatchActionsResult {
       }
 
       try {
-        const supabase = getSupabaseBrowserClient()
+        const supabase = createClient()
         const { error } = await supabase
           .from('stickers')
           .update({
@@ -93,7 +93,7 @@ export function useBatchActions(): UseBatchActionsResult {
       }
 
       try {
-        const supabase = getSupabaseBrowserClient()
+        const supabase = createClient()
         // Delete from database first
         const { error: dbError } = await supabase
           .from('stickers')
@@ -142,7 +142,7 @@ export function useBatchActions(): UseBatchActionsResult {
       }
 
       try {
-        const supabase = getSupabaseBrowserClient()
+        const supabase = createClient()
         // Get current stickers to merge tags
         const stickersToUpdate = existingStickers.filter((s) => ids.includes(s.id))
 
@@ -187,7 +187,7 @@ export function useBatchActions(): UseBatchActionsResult {
       }
 
       try {
-        const supabase = getSupabaseBrowserClient()
+        const supabase = createClient()
         const { error } = await supabase
           .from('stickers')
           .update({ celebrity_id: celebrityId === 'none' ? null : celebrityId })

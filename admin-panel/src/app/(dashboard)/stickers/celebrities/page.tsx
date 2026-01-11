@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
+import { createClient } from '@/utils/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
@@ -28,7 +28,7 @@ export default function CelebritiesPage() {
 
   const loadCelebrities = async () => {
     setLoading(true)
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
 
     // Load celebrities with sticker counts
     const { data: celebs } = await supabase
@@ -93,7 +93,7 @@ export default function CelebritiesPage() {
     }
 
     try {
-      const supabase = getSupabaseBrowserClient()
+      const supabase = createClient()
       const { error } = await supabase.from('celebrities').delete().eq('id', celeb.id)
 
       if (error) throw error

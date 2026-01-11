@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
+import { createClient } from '@/utils/supabase/client'
 import { getStickerUrl, type Sticker, type Celebrity } from '@/lib/supabase'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -68,7 +68,7 @@ export default function EmotionsPage() {
   const [saving, setSaving] = useState(false)
 
   const loadCelebrities = useCallback(async () => {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
     const { data } = await supabase
       .from('celebrities')
       .select('id, name, slug')
@@ -77,7 +77,7 @@ export default function EmotionsPage() {
   }, [])
 
   const loadStats = useCallback(async () => {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
     const [totalRes, classifiedRes, approvedRes] = await Promise.all([
       supabase.from('stickers').select('*', { count: 'exact', head: true }).eq('face_detected', true),
       supabase.from('stickers').select('*', { count: 'exact', head: true }).eq('face_detected', true).not('emotion_tags', 'is', null),
@@ -92,7 +92,7 @@ export default function EmotionsPage() {
 
   const loadStickers = useCallback(async () => {
     setLoading(true)
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
 
     let query = supabase
       .from('stickers')
@@ -175,7 +175,7 @@ export default function EmotionsPage() {
   const saveSticker = async (approve: boolean = false) => {
     if (!selectedSticker) return
     setSaving(true)
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
 
     const { error } = await supabase
       .from('stickers')
@@ -202,7 +202,7 @@ export default function EmotionsPage() {
     if (!selectedSticker) return
     if (!confirm('Remover todas as tags deste sticker?')) return
     setSaving(true)
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
 
     const { error } = await supabase
       .from('stickers')

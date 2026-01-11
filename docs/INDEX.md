@@ -10,6 +10,8 @@
 |-----------|-----------|
 | [**Guia de Operações**](operations/QUICK-CHANGES-GUIDE.md) | Como acessar VPS, ver logs, troubleshooting |
 | [**CI/CD Workflow**](setup/CI-CD-WORKFLOW.md) | Como fazer deploy (git push → produção) |
+| [**Admin Panel Deploy**](ADMIN_PANEL_DEPLOYMENT.md) | ⭐ Checklist obrigatório para deploy do Admin Panel |
+| [**CHANGELOG**](../CHANGELOG.md) | Registro de todas as mudanças do projeto |
 | [**Regras de Negócio**](business/BUSINESS_RULES.md) | 85+ regras do bot documentadas |
 
 ---
@@ -115,6 +117,17 @@ Histórico de desenvolvimento.
 
 ---
 
+### 🎯 Decisões Arquiteturais (`decisions/`)
+
+ADRs (Architecture Decision Records) - Por quê tomamos cada decisão.
+
+| Documento | Descrição |
+|-----------|-----------|
+| [auth-architecture-fix.md](decisions/auth-architecture-fix.md) | ⭐ Fix da autenticação do Admin Panel (2026-01-11) |
+| [Outros ADRs](decisions/) | Decisões arquiteturais documentadas |
+
+---
+
 ### 📦 Arquivados (`archive/`)
 
 Documentos antigos ou obsoletos.
@@ -134,6 +147,7 @@ Documentos antigos ou obsoletos.
 
 | Serviço | URL |
 |---------|-----|
+| **Admin Panel** | https://admin-stickers.ytem.com.br/ |
 | Supabase | https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje |
 | GitHub Actions | https://github.com/reisspaulo/sticker/actions |
 | Doppler | https://dashboard.doppler.com |
@@ -142,6 +156,7 @@ Documentos antigos ou obsoletos.
 
 | Endpoint | URL |
 |----------|-----|
+| **Admin Panel** | https://admin-stickers.ytem.com.br/ |
 | Health Check | https://stickers.ytem.com.br/health |
 | Webhook | https://stickers.ytem.com.br/webhook |
 | Evolution API | https://wa.ytem.com.br |
@@ -165,6 +180,7 @@ vps-ssh "docker service ls | grep sticker"
 
 | Componente | Status |
 |------------|--------|
+| **Admin Panel** | ✅ Desenvolvimento (queries funcionando) |
 | Backend (Fastify) | ✅ Produção |
 | Worker (BullMQ) | ✅ Produção |
 | Stickers estáticos | ✅ Funcionando |
@@ -176,4 +192,13 @@ vps-ssh "docker service ls | grep sticker"
 
 ---
 
-**Última atualização:** 07/01/2026
+## 🆕 Novos Documentos (2026-01-11)
+
+- [CHANGELOG.md](../CHANGELOG.md) - Registro de todas as mudanças
+- [ADMIN_PANEL_DEPLOYMENT.md](ADMIN_PANEL_DEPLOYMENT.md) - Checklist de deploy do admin panel
+- [FEATURE_TEMPLATE.md](FEATURE_TEMPLATE.md) - Template para documentar novas features
+- [decisions/auth-architecture-fix.md](decisions/auth-architecture-fix.md) - Fix da autenticação
+
+---
+
+**Última atualização:** 11/01/2026

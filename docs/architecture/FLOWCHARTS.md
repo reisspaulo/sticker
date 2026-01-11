@@ -479,7 +479,12 @@ flowchart LR
 
 ## 9. Fluxo A/B Test - Bonus Credits
 
-**Status**: ✅ ATIVO
+**Status**: 🚧 PAUSADO (11/01/2026)
+
+> ⚠️ **EXPERIMENTO PAUSADO**: Este A/B test foi pausado em favor do novo experimento de limite diário.
+> - Dados históricos preservados para análise
+> - Grupo `bonus` não recebe mais bônus extras
+> - Substituído pelo experimento `daily_limit_v1` (ver seção 23)
 
 ```mermaid
 flowchart TD
@@ -1403,7 +1408,12 @@ if (result.data.length === 0) {
 
 ## 22. Fluxo A/B Test - Message Variants (upgrade_message_v1)
 
-**Status**: ✅ ATIVO
+**Status**: 🚧 PAUSADO (11/01/2026)
+
+> ⚠️ **EXPERIMENTO PAUSADO**: Pausado para dar lugar ao experimento de limite diário.
+> - Variante `social_proof` teve melhor desempenho (12% click rate vs 1.2% control)
+> - Dados preservados para análise futura
+> - Ver seção 23 para experimento ativo
 
 ```mermaid
 flowchart TD
@@ -1475,4 +1485,113 @@ flowchart TD
 
 ---
 
-**Última atualização:** 10/01/2026 - Corrigida race condition em notificações de limite (inversão de ordem: marca como notificado ANTES de enviar mensagem, prevenindo duplicações quando usuário envia múltiplas imagens rapidamente)
+---
+
+## 23. Fluxo A/B Test - Limite Diário (daily_limit_v1)
+
+**Status**: ✅ ATIVO
+
+```mermaid
+flowchart TD
+    START([Novo usuário cadastrado]) --> TRIGGER[Trigger: assign_limit_variant]
+
+    TRIGGER --> RANDOM{Sorteia<br/>variante}
+
+    RANDOM -->|34%| LIMIT_4["limit_4<br/>4 stickers/dia"]
+    RANDOM -->|33%| LIMIT_3["limit_3<br/>3 stickers/dia"]
+    RANDOM -->|33%| LIMIT_2["limit_2<br/>2 stickers/dia"]
+
+    LIMIT_4 --> SAVE_DB[Salva em users.daily_limit]
+    LIMIT_3 --> SAVE_DB
+    LIMIT_2 --> SAVE_DB
+
+    SAVE_DB --> USE_LIMIT[Limite usado no RPC atômico]
+
+    subgraph RPC["⚡ check_and_increment_daily_limit_atomic"]
+        R1[Lê users.daily_limit]
+        R2[Compara com daily_count]
+        R3{daily_count >= daily_limit?}
+
+        R1 --> R2 --> R3
+        R3 -->|Sim| BLOCKED[Bloqueia + menu upgrade]
+        R3 -->|Não| ALLOWED[Permite + incrementa]
+    end
+
+    USE_LIMIT --> R1
+
+    BLOCKED --> LOG_LIMIT[Log: limit_reached]
+    ALLOWED --> LOG_STICKER[Log: sticker_created]
+
+    LOG_LIMIT --> TRACK_METRICS
+    LOG_STICKER --> TRACK_METRICS
+
+    subgraph TRACK_METRICS["📊 Métricas Rastreadas"]
+        M1[Conversão por variante]
+        M2[Retenção D1/D7/D30]
+        M3[Stickers criados por variante]
+        M4[Revenue por variante]
+    end
+
+    style LIMIT_4 fill:#c8e6c9
+    style LIMIT_3 fill:#fff9c4
+    style LIMIT_2 fill:#ffcdd2
+```
+
+**Objetivo:**
+Descobrir o limite diário ideal para usuários free que maximize:
+1. **Conversão** - % que faz upgrade para Premium/Ultra
+2. **Retenção** - % que volta no D1, D7, D30
+
+**Estrutura do Banco:**
+```sql
+-- Tabela users
+ALTER TABLE users ADD COLUMN daily_limit INTEGER DEFAULT 4;
+ALTER TABLE users ADD COLUMN limit_experiment_variant TEXT DEFAULT 'limit_4';
+
+-- Trigger para novos usuários
+CREATE TRIGGER assign_limit_on_insert
+  BEFORE INSERT ON users
+  FOR EACH ROW
+  EXECUTE FUNCTION assign_limit_variant();
+```
+
+**Distribuição:**
+| Variante | Limite | % Tráfego | Descrição |
+|----------|--------|-----------|-----------|
+| `limit_4` | 4/dia | 34% | Controle (limite atual) |
+| `limit_3` | 3/dia | 33% | Limite reduzido |
+| `limit_2` | 2/dia | 33% | Limite agressivo |
+
+**Grandfathering:**
+- 457 usuários existentes mantêm `limit_4`
+- Apenas novos usuários entram no experimento
+- Possibilidade futura de migrar usuários antigos
+
+**Queries de Análise:**
+```sql
+-- Conversão por variante
+SELECT
+  limit_experiment_variant,
+  COUNT(*) as total_users,
+  COUNT(*) FILTER (WHERE subscription_plan != 'free') as converted,
+  ROUND(100.0 * COUNT(*) FILTER (WHERE subscription_plan != 'free') / COUNT(*), 2) as conversion_rate
+FROM users
+GROUP BY limit_experiment_variant;
+
+-- Retenção D7 por variante
+SELECT
+  limit_experiment_variant,
+  COUNT(DISTINCT user_number) as users_d7_active
+FROM usage_logs
+WHERE created_at > NOW() - INTERVAL '7 days'
+GROUP BY limit_experiment_variant;
+```
+
+**Código Relevante:**
+- `src/services/subscriptionService.ts:getUserLimits()` - Retorna limite do usuário
+- `check_and_increment_daily_limit_atomic` - RPC que usa `users.daily_limit`
+- Trigger `assign_limit_variant()` - Atribui variante a novos usuários
+
+---
+
+**Última atualização:** 11/01/2026 - Adicionado experimento de limite diário (daily_limit_v1), pausados experimentos bonus/control e upgrade_message_v1

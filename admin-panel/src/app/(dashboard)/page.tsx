@@ -16,7 +16,14 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Activity,
+  Scan,
+  Brain,
+  CheckCircle,
+  Star,
+  Bot,
+  Clock,
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { format, subDays, subMonths, startOfDay, eachDayOfInterval } from 'date-fns'
 
 interface Stats {
@@ -28,6 +35,22 @@ interface Stats {
   totalStickers: number
   pendingClassification: number
   errorsToday: number
+}
+
+interface AIStats {
+  facesDetectedToday: number
+  facesDetectedYesterday: number
+  emotionsClassifiedToday: number
+  emotionsClassifiedYesterday: number
+  approvalRate: number
+  celebritiesIdentifiedToday: number
+}
+
+interface WorkerStatus {
+  name: string
+  lastRun: string | null
+  status: 'success' | 'error' | 'never'
+  processedCount: number
 }
 
 interface DailyData {
@@ -122,6 +145,15 @@ export default function DashboardPage() {
   const [topCelebrities, setTopCelebrities] = useState<{ name: string; value: number }[]>([])
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
   const [heatmapData, setHeatmapData] = useState<HeatmapData[]>([])
+  const [aiStats, setAIStats] = useState<AIStats>({
+    facesDetectedToday: 0,
+    facesDetectedYesterday: 0,
+    emotionsClassifiedToday: 0,
+    emotionsClassifiedYesterday: 0,
+    approvalRate: 0,
+    celebritiesIdentifiedToday: 0,
+  })
+  const [workerStatus, setWorkerStatus] = useState<WorkerStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [chartsLoading, setChartsLoading] = useState(true)
 
@@ -197,6 +229,107 @@ export default function DashboardPage() {
       })
 
       setRecentActivity(activityRes.data || [])
+
+      // Load AI Stats
+      const [
+        facesTodayRes,
+        facesYesterdayRes,
+        emotionsTodayRes,
+        emotionsYesterdayRes,
+        approvedRes,
+        totalClassifiedRes,
+        celebsTodayRes,
+      ] = await Promise.all([
+        // Rostos detectados hoje
+        supabase
+          .from('stickers')
+          .select('*', { count: 'exact', head: true })
+          .gte('face_classified_at', todayISO)
+          .eq('face_detected', true),
+        // Rostos detectados ontem
+        supabase
+          .from('stickers')
+          .select('*', { count: 'exact', head: true })
+          .gte('face_classified_at', yesterdayISO)
+          .lt('face_classified_at', todayISO)
+          .eq('face_detected', true),
+        // Emoções classificadas hoje
+        supabase
+          .from('stickers')
+          .select('*', { count: 'exact', head: true })
+          .gte('emotion_classified_at', todayISO)
+          .not('emotion_tags', 'is', null),
+        // Emoções classificadas ontem
+        supabase
+          .from('stickers')
+          .select('*', { count: 'exact', head: true })
+          .gte('emotion_classified_at', yesterdayISO)
+          .lt('emotion_classified_at', todayISO)
+          .not('emotion_tags', 'is', null),
+        // Total aprovados
+        supabase
+          .from('stickers')
+          .select('*', { count: 'exact', head: true })
+          .eq('emotion_approved', true),
+        // Total classificados
+        supabase
+          .from('stickers')
+          .select('*', { count: 'exact', head: true })
+          .not('emotion_tags', 'is', null),
+        // Celebridades identificadas hoje
+        supabase
+          .from('stickers')
+          .select('*', { count: 'exact', head: true })
+          .gte('face_classified_at', todayISO)
+          .not('celebrity_id', 'is', null),
+      ])
+
+      const totalClassified = totalClassifiedRes.count || 0
+      const totalApproved = approvedRes.count || 0
+      const approvalRate = totalClassified > 0 ? Math.round((totalApproved / totalClassified) * 100) : 0
+
+      setAIStats({
+        facesDetectedToday: facesTodayRes.count || 0,
+        facesDetectedYesterday: facesYesterdayRes.count || 0,
+        emotionsClassifiedToday: emotionsTodayRes.count || 0,
+        emotionsClassifiedYesterday: emotionsYesterdayRes.count || 0,
+        approvalRate,
+        celebritiesIdentifiedToday: celebsTodayRes.count || 0,
+      })
+
+      // Load Worker Status (using MAX timestamps from stickers as proxy)
+      const [lastFaceRun, lastEmotionRun] = await Promise.all([
+        supabase
+          .from('stickers')
+          .select('face_classified_at')
+          .not('face_classified_at', 'is', null)
+          .order('face_classified_at', { ascending: false })
+          .limit(1)
+          .single(),
+        supabase
+          .from('stickers')
+          .select('emotion_classified_at')
+          .not('emotion_classified_at', 'is', null)
+          .order('emotion_classified_at', { ascending: false })
+          .limit(1)
+          .single(),
+      ])
+
+      setWorkerStatus([
+        {
+          name: 'Face Worker',
+          lastRun: lastFaceRun.data?.face_classified_at || null,
+          status: lastFaceRun.data ? 'success' : 'never',
+          processedCount: facesTodayRes.count || 0,
+        },
+        {
+          name: 'Emotion Worker',
+          lastRun: lastEmotionRun.data?.emotion_classified_at || null,
+          status: lastEmotionRun.data ? 'success' : 'never',
+          processedCount: emotionsTodayRes.count || 0,
+        },
+      ])
+
       setLoading(false)
     }
 
@@ -395,6 +528,99 @@ export default function DashboardPage() {
           loading={loading}
         />
       </div>
+
+      {/* AI Stats Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Rostos Detectados Hoje"
+          value={aiStats.facesDetectedToday}
+          previousValue={aiStats.facesDetectedYesterday}
+          icon={Scan}
+          loading={loading}
+        />
+        <StatCard
+          title="Emoções IA Hoje"
+          value={aiStats.emotionsClassifiedToday}
+          previousValue={aiStats.emotionsClassifiedYesterday}
+          icon={Brain}
+          loading={loading}
+        />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Taxa de Aprovação
+            </CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{aiStats.approvalRate}%</div>
+                <p className="text-xs text-muted-foreground">
+                  Aprovados do total classificado
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        <StatCard
+          title="Celebridades Hoje"
+          value={aiStats.celebritiesIdentifiedToday}
+          icon={Star}
+          loading={loading}
+        />
+      </div>
+
+      {/* Workers Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Bot className="h-4 w-4" />
+            Status dos Workers de IA
+          </CardTitle>
+          <CardDescription>
+            Última execução e processamento dos workers
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex gap-4">
+              <Skeleton className="h-20 flex-1" />
+              <Skeleton className="h-20 flex-1" />
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {workerStatus.map((worker) => (
+                <div
+                  key={worker.name}
+                  className="flex items-center justify-between rounded-lg border p-4"
+                >
+                  <div className="space-y-1">
+                    <p className="font-medium">{worker.name}</p>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {worker.lastRun ? formatTimeAgo(worker.lastRun) : 'Nunca executou'}
+                    </div>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <Badge
+                      variant={worker.status === 'success' ? 'default' : 'secondary'}
+                      className={worker.status === 'success' ? 'bg-green-500/20 text-green-400' : ''}
+                    >
+                      {worker.status === 'success' ? 'Ativo' : 'Inativo'}
+                    </Badge>
+                    <p className="text-sm text-muted-foreground">
+                      {worker.processedCount} hoje
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Activity Heatmap */}
       <Card>

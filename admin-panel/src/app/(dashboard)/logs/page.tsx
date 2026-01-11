@@ -29,6 +29,7 @@ import {
   Image,
   Crown,
   CalendarClock,
+  Bot,
 } from 'lucide-react'
 import { formatDistanceToNow, format, subDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -283,6 +284,12 @@ export default function LogsPage() {
               <Button variant="outline">
                 <CalendarClock className="mr-2 h-4 w-4 text-blue-500" />
                 Jobs Agendados
+              </Button>
+            </Link>
+            <Link href="/logs/workers">
+              <Button variant="outline">
+                <Bot className="mr-2 h-4 w-4 text-purple-500" />
+                Workers IA
               </Button>
             </Link>
             <Link href="/logs/errors">

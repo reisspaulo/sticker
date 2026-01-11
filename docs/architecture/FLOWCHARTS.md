@@ -479,11 +479,13 @@ flowchart LR
 
 ## 9. Fluxo A/B Test - Bonus Credits
 
-**Status**: 🚧 PAUSADO (11/01/2026)
+**Status**: ❌ DESATIVADO (11/01/2026)
 
-> ⚠️ **EXPERIMENTO PAUSADO**: Este A/B test foi pausado em favor do novo experimento de limite diário.
+> ⚠️ **EXPERIMENTO DESATIVADO**: Este A/B test foi completamente desativado.
+> - Novos usuários sempre vão para grupo `control` (userService.ts)
+> - Botão "Usar Bônus" removido do menu de limite atingido (menuService.ts)
+> - Usuários antigos do grupo `bonus` não verão mais o botão
 > - Dados históricos preservados para análise
-> - Grupo `bonus` não recebe mais bônus extras
 > - Substituído pelo experimento `daily_limit_v1` (ver seção 23)
 
 ```mermaid

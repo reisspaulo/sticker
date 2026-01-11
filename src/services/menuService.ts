@@ -147,14 +147,8 @@ export async function sendLimitReachedMenu(
   // === BUILD BUTTONS ===
   const buttons: Array<{ id: string; text: string }> = [];
 
-  // Bonus button (only for bonus A/B group)
-  if (abTestGroup === 'bonus' && bonusCreditsUsed < 2) {
-    const bonusRemaining = 2 - bonusCreditsUsed;
-    buttons.push({
-      id: 'button_use_bonus',
-      text: `🎁 Usar Bônus (+${bonusRemaining})`,
-    });
-  }
+  // NOTE: Botão de bônus removido - experimento pausado
+  // Usuários antigos do grupo 'bonus' não verão mais o botão
 
   // Upgrade buttons - use experiment config if available
   if (currentPlan === 'free') {

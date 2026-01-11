@@ -54,8 +54,9 @@ export async function getUserOrCreate(phoneNumber: string, name: string): Promis
       return existingUser;
     }
 
-    // User doesn't exist - create new with random A/B group assignment
-    const ab_test_group = Math.random() < 0.5 ? 'control' : 'bonus';
+    // User doesn't exist - create new
+    // NOTE: Experimento bonus pausado - todos novos usuários vão para 'control'
+    const ab_test_group = 'control';
 
     const { data: newUser, error: insertError } = await supabase
       .from('users')

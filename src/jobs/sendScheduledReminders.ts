@@ -235,8 +235,13 @@ export async function sendScheduledRemindersJob(): Promise<{
         }
 
         // Determine daily limit based on plan
-        const dailyLimit =
-          PLAN_LIMITS[user.subscription_plan as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.free;
+        // For free users, use their daily_limit from experiment (if set)
+        let dailyLimit: number;
+        if (user.subscription_plan === 'free' || !user.subscription_plan) {
+          dailyLimit = user.daily_limit ?? PLAN_LIMITS.free;
+        } else {
+          dailyLimit = PLAN_LIMITS[user.subscription_plan as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.free;
+        }
 
         // Check if this is a payment reminder
         const isPaymentReminder = reminder.reminder_type?.startsWith('payment_reminder');

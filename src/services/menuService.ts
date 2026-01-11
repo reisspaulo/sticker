@@ -329,8 +329,12 @@ export async function sendLimitReachedMenu(
 
 /**
  * Plan details menu
+ * @param plan - premium or ultra
+ * @param userDailyLimit - User's current daily limit (from experiment)
  */
-export function getPlanDetailsMenu(plan: 'premium' | 'ultra'): string {
+export function getPlanDetailsMenu(plan: 'premium' | 'ultra', userDailyLimit: number = 4): string {
+  const premiumMultiplier = Math.round(20 / userDailyLimit);
+
   if (plan === 'premium') {
     return `💰 *PLANO PREMIUM*
 R$ 5,00/mês - Cancele quando quiser
@@ -339,11 +343,11 @@ R$ 5,00/mês - Cancele quando quiser
 ✅ 20 figurinhas por dia
 ✅ 15 vídeos do Twitter por dia
 ✅ Suporte prioritário
-✅ 5x mais que o plano gratuito!
+✅ ${premiumMultiplier}x mais que o plano gratuito!
 
 📊 *COMPARAÇÃO:*
-Plano Gratuito: 4 figurinhas/dia
-Plano Premium: 20 figurinhas/dia (+400%!)
+Plano Gratuito: ${userDailyLimit} figurinhas/dia
+Plano Premium: 20 figurinhas/dia (+${Math.round((20 / userDailyLimit - 1) * 100)}%!)
 
 🎯 *PERFEITO PARA:*
 • Quem usa figurinhas regularmente
@@ -365,7 +369,7 @@ R$ 9,90/mês - Cancele quando quiser
 ✅ Nunca mais espere!
 
 📊 *COMPARAÇÃO:*
-Plano Gratuito: 4 figurinhas/dia
+Plano Gratuito: ${userDailyLimit} figurinhas/dia
 Plano Premium: 20 figurinhas/dia
 Plano Ultra: *ILIMITADO* 🔥
 
@@ -382,7 +386,7 @@ Digite *VOLTAR* para ver outros planos.`;
 /**
  * Plans overview menu
  */
-export function getPlansOverviewMenu(): string {
+export function getPlansOverviewMenu(userDailyLimit: number = 4): string {
   return `💎 *PLANOS DISPONÍVEIS*
 
 [1] 💰 *Premium* - R$ 5,00/mês
@@ -397,8 +401,8 @@ export function getPlansOverviewMenu(): string {
     • *Mais popular!* 🔥
 
 🆓 *Plano Gratuito* (atual)
-    • 4 figurinhas/dia
-    • 4 vídeos Twitter/dia
+    • ${userDailyLimit} figurinhas/dia
+    • ${userDailyLimit} vídeos Twitter/dia
 
 Digite *1* ou *2* para ver detalhes e assinar!`;
 }
@@ -560,8 +564,10 @@ export function logMenuInteraction(
 
 /**
  * Send plan selection list via Avisa API
+ * @param userNumber - WhatsApp number
+ * @param userDailyLimit - User's current daily limit (from experiment)
  */
-export async function sendPlansListMenu(userNumber: string): Promise<void> {
+export async function sendPlansListMenu(userNumber: string, userDailyLimit: number = 4): Promise<void> {
   try {
     await sendList({
       number: userNumber,
@@ -572,7 +578,7 @@ export async function sendPlansListMenu(userNumber: string): Promise<void> {
         {
           RowId: 'plan_free',
           title: '🆓 Gratuito',
-          desc: '4 figurinhas/dia • 4 vídeos Twitter/dia',
+          desc: `${userDailyLimit} figurinhas/dia • ${userDailyLimit} vídeos Twitter/dia`,
         },
         {
           RowId: 'plan_premium',
@@ -762,8 +768,10 @@ export async function sendStickerEditButtons(userNumber: string): Promise<void> 
 
 /**
  * Get welcome message for NEW users (never created a sticker)
+ * @param userName - User's name
+ * @param userDailyLimit - User's daily limit (from experiment)
  */
-export function getWelcomeMessageForNewUser(userName: string): string {
+export function getWelcomeMessageForNewUser(userName: string, userDailyLimit: number = 4): string {
   const firstName = userName.split(' ')[0];
   return `👋 Olá, ${firstName}! Eu sou o *StickerBot*!
 
@@ -771,7 +779,7 @@ export function getWelcomeMessageForNewUser(userName: string): string {
 
 🐦 Também baixo vídeos do *Twitter/X* - é só enviar o link!
 
-🆓 Você tem *4 figurinhas grátis* por dia.
+🆓 Você tem *${userDailyLimit} figurinhas grátis* por dia.
 
 💡 Comandos: *planos* | *status* | *ajuda*`;
 }

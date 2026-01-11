@@ -233,10 +233,14 @@ export async function markTwitterFeatureAsUsed(userNumber: string): Promise<void
 
 /**
  * Handler para quando usuário clica em "Quero conhecer!" na apresentação do Twitter
+ * @param userNumber - WhatsApp number
+ * @param userName - User's name
+ * @param userDailyLimit - User's daily limit (from experiment)
  */
 export async function handleTwitterLearnMore(
   userNumber: string,
-  userName: string
+  userName: string,
+  userDailyLimit: number = 4
 ): Promise<void> {
   try {
     const message = `📱 *Perfeito, ${userName}!*
@@ -252,7 +256,7 @@ Depois que eu baixar, você escolhe se quer converter para figurinha animada.
 📋 *Exemplo de link:*
 https://x.com/usuario/status/123456789
 
-✨ *Seu plano gratuito:* 4 vídeos/dia
+✨ *Seu plano gratuito:* ${userDailyLimit} vídeos/dia
 
 Experimente agora! 🚀`;
 

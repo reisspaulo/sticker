@@ -15,6 +15,8 @@ export interface User {
   limit_notified_at?: string;
   onboarding_step?: number;
   first_sticker_at?: string; // NULL = never created a sticker (new user)
+  daily_limit?: number; // User's daily limit (from A/B experiment: 2, 3, or 4)
+  limit_experiment_variant?: 'limit_2' | 'limit_3' | 'limit_4'; // A/B test variant
 }
 
 /**

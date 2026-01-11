@@ -1592,6 +1592,30 @@ GROUP BY limit_experiment_variant;
 - `check_and_increment_daily_limit_atomic` - RPC que usa `users.daily_limit`
 - Trigger `assign_limit_variant()` - Atribui variante a novos usuários
 
+**Mensagens Dinâmicas (Atualizado 11/01/2026):**
+
+Todas as mensagens user-facing agora respeitam o limite dinâmico do usuário (`users.daily_limit`).
+As seguintes funções foram atualizadas para receber o parâmetro `userDailyLimit`:
+
+| Arquivo | Função | Exemplo de Uso |
+|---------|--------|----------------|
+| `menuService.ts` | `sendPlansListMenu(userNumber, userDailyLimit)` | Plano gratuito: {limit} figurinhas/dia |
+| `menuService.ts` | `getPlansOverviewMenu(userDailyLimit)` | 🆓 Gratuito - {limit}/dia |
+| `menuService.ts` | `getPlanDetailsMenu(plan, userDailyLimit)` | Comparação free vs premium |
+| `menuService.ts` | `getWelcomeMessageForNewUser(userName, userDailyLimit)` | Seu plano: {limit} figurinhas/dia |
+| `onboardingService.ts` | `handleTwitterLearnMore(userNumber, userName, userDailyLimit)` | ✨ Seu plano gratuito: {limit} vídeos/dia |
+| `sendScheduledReminders.ts` | Usa `user.daily_limit ?? PLAN_LIMITS.free` | Limite correto para cada usuário |
+
+**Chamadas no webhook.ts:**
+```typescript
+// Todos os callsites passam user.daily_limit ?? 4
+await sendPlansListMenu(userNumber, user.daily_limit ?? 4);
+const welcomeMsg = getWelcomeMessageForNewUser(user.name, user.daily_limit ?? 4);
+await handleTwitterLearnMore(userNumber, user.name, user.daily_limit ?? 4);
+```
+
+Isso garante que usuários com `limit_2` vejam "2 figurinhas/dia", usuários com `limit_3` vejam "3 figurinhas/dia", etc.
+
 ---
 
-**Última atualização:** 11/01/2026 - Adicionado experimento de limite diário (daily_limit_v1), pausados experimentos bonus/control e upgrade_message_v1
+**Última atualização:** 11/01/2026 - Adicionado experimento de limite diário (daily_limit_v1), pausados experimentos bonus/control e upgrade_message_v1, mensagens dinâmicas implementadas

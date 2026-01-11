@@ -353,7 +353,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         // Handle Twitter feature presentation buttons
         if (interactive.id === 'button_twitter_learn') {
           const { handleTwitterLearnMore } = await import('../services/onboardingService');
-          await handleTwitterLearnMore(userNumber, userName);
+          const userLimit = user.daily_limit ?? 4;
+          await handleTwitterLearnMore(userNumber, userName, userLimit);
 
           fastify.log.info({
             msg: 'Twitter learn more button clicked',
@@ -772,9 +773,10 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
           // If free plan selected, just acknowledge
           if (selectedPlan === 'free') {
+            const userLimit = user.daily_limit ?? 4;
             await sendText(
               userNumber,
-              `✅ *Plano Gratuito*\n\nVocê já está usando o plano gratuito!\n\n🎁 *Benefícios:*\n• 4 figurinhas por dia\n• 4 vídeos do Twitter por dia\n\nQuer mais? Digite *planos* para fazer upgrade!`
+              `✅ *Plano Gratuito*\n\nVocê já está usando o plano gratuito!\n\n🎁 *Benefícios:*\n• ${userLimit} figurinhas por dia\n• ${userLimit} vídeos do Twitter por dia\n\nQuer mais? Digite *planos* para fazer upgrade!`
             );
             return reply.status(200).send({ status: 'free_plan_selected' });
           }
@@ -1082,8 +1084,9 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
       // Handle global text commands
       if (normalizedText === 'planos' || normalizedText === 'plans') {
         logMenuInteraction(userNumber, 'plans_overview');
-        // Send interactive list via Avisa API
-        await sendPlansListMenu(userNumber);
+        // Send interactive list via Avisa API (pass user's daily limit)
+        const userLimit = user.daily_limit ?? 4;
+        await sendPlansListMenu(userNumber, userLimit);
         return reply.status(200).send({ status: 'menu_sent', menuType: 'plans_overview' });
       }
 
@@ -1092,9 +1095,10 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
         const hasActive = await hasActiveSubscription(user.id);
         if (!hasActive) {
+          const userLimit = user.daily_limit ?? 4;
           await sendText(
             userNumber,
-            `📊 *Seu Status*\n\nPlano: Gratuito 🆓\n\nVocê tem 4 figurinhas e 4 vídeos do Twitter por dia.\n\nQuer mais? Digite *planos* para fazer upgrade!`
+            `📊 *Seu Status*\n\nPlano: Gratuito 🆓\n\nVocê tem ${userLimit} figurinhas e ${userLimit} vídeos do Twitter por dia.\n\nQuer mais? Digite *planos* para fazer upgrade!`
           );
         } else {
           const currentPlan = await getUserPlan(user.id);
@@ -1477,7 +1481,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
         // 1. NEW USER (never used bot) → Welcome message
         if (user.onboarding_step === 0) {
-          await sendText(userNumber, getWelcomeMessageForNewUser(userName));
+          const userLimit = user.daily_limit ?? 4;
+          await sendText(userNumber, getWelcomeMessageForNewUser(userName, userLimit));
           fastify.log.info({
             msg: 'Sent welcome message to new user (text input)',
             userNumber,

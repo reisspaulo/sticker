@@ -31,12 +31,13 @@ export async function getUserSubscription(userId: string): Promise<Subscription 
 
 /**
  * Get user's subscription plan and limits
+ * For free users, respects the daily_limit from the A/B experiment
  */
 export async function getUserLimits(userId: string): Promise<UserLimits> {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('subscription_plan, subscription_status, subscription_ends_at')
+      .select('subscription_plan, subscription_status, subscription_ends_at, daily_limit')
       .eq('id', userId)
       .single();
 
@@ -51,6 +52,14 @@ export async function getUserLimits(userId: string): Promise<UserLimits> {
       new Date(user.subscription_ends_at) > new Date();
 
     const plan: PlanType = isActive && user.subscription_plan ? user.subscription_plan : 'free';
+
+    // For free users, use their daily_limit from the experiment
+    if (plan === 'free') {
+      return {
+        ...PLAN_LIMITS.free,
+        daily_sticker_limit: user.daily_limit ?? 4, // Default 4 if not set
+      };
+    }
 
     return PLAN_LIMITS[plan];
   } catch (error) {

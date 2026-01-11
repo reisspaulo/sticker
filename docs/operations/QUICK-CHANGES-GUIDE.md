@@ -192,7 +192,12 @@ ghcr.io/reisspaulo/sticker-admin:latest        # Admin Panel (Next.js)
 
 ## 🔄 Processo de Deploy
 
-### **Deploy Completo (Passo a Passo)**
+> **⚠️ IMPORTANTE:** Sempre use CI/CD via GitHub Actions como primeira opção!
+> O deploy manual só deve ser usado em emergências.
+
+### **Deploy via CI/CD (Opção Padrão)** ✅
+
+Esta é a forma **recomendada** de fazer deploy. Basta fazer commit e push para a branch `main`.
 
 #### **1. Fazer Alterações no Código**
 
@@ -201,53 +206,31 @@ ghcr.io/reisspaulo/sticker-admin:latest        # Admin Panel (Next.js)
 code src/services/messageService.ts  # Exemplo
 ```
 
-#### **2. Testar Localmente (Opcional)**
+#### **2. Testar Localmente (Recomendado)**
 
 ```bash
 npm run build  # Verifica se compila
 npm test       # Se tiver testes
 ```
 
-#### **3. Build TypeScript**
+#### **3. Commit e Push**
 
 ```bash
-npm run build
+git add .
+git commit -m "fix: descrição da mudança"
+git push origin main
 ```
 
-Isso gera a pasta `dist/` com o código JavaScript compilado.
+#### **4. Acompanhar Deploy**
 
-#### **4. Build e Push da Imagem Docker**
+O GitHub Actions fará automaticamente:
+- Build da imagem Docker
+- Push para GitHub Container Registry
+- Deploy na VPS
 
-```bash
-# Build para arquitetura AMD64 (VPS) e push para GitHub Container Registry
-docker buildx build \
-  --platform linux/amd64 \
-  -t ghcr.io/reisspaulo/sticker-bot-backend:latest \
-  -t ghcr.io/reisspaulo/sticker-bot-worker:latest \
-  . \
-  --push
-```
+**Acompanhe em:** https://github.com/reisspaulo/sticker/actions
 
-**⚠️ IMPORTANTE:**
-- Usar `--platform linux/amd64` (servidor é Linux AMD64, não ARM64)
-- As duas tags são a mesma imagem (backend e worker usam o mesmo código)
-
-#### **5. Atualizar Serviços na VPS**
-
-```bash
-# Conecta na VPS e atualiza os serviços
-vps-ssh "docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/sticker-bot-backend:latest sticker_backend && \
-  docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/sticker-bot-worker:latest sticker_worker"
-```
-
-**O que isso faz:**
-- `--force`: Força atualização mesmo se imagem não mudou
-- `--with-registry-auth`: Usa credenciais do Docker para puxar imagem privada
-- Atualiza backend e worker em paralelo
-
-#### **6. Verificar Saúde**
+#### **5. Verificar Saúde (após ~3-5 min)**
 
 ```bash
 # Health check
@@ -264,7 +247,7 @@ curl https://stickers.ytem.com.br/health | jq '.'
 }
 ```
 
-#### **7. Verificar Logs**
+#### **6. Verificar Logs**
 
 ```bash
 # Backend logs
@@ -276,9 +259,50 @@ vps-ssh "docker service logs sticker_worker --tail 50"
 
 ---
 
-### **Deploy Rápido (Script Automatizado)**
+### **Deploy Manual (Apenas Emergência)** ⚠️
 
-Use o script já criado:
+> **Use apenas quando:** CI/CD está fora do ar, precisa de deploy urgente sem esperar pipeline, ou está debugando problemas de build.
+
+#### **1. Build TypeScript**
+
+```bash
+npm run build
+```
+
+#### **2. Build e Push da Imagem Docker**
+
+```bash
+# Build para arquitetura AMD64 (VPS) e push para GitHub Container Registry
+docker buildx build \
+  --platform linux/amd64 \
+  -t ghcr.io/reisspaulo/sticker-bot-backend:latest \
+  -t ghcr.io/reisspaulo/sticker-bot-worker:latest \
+  . \
+  --push
+```
+
+**Notas:**
+- Usar `--platform linux/amd64` (servidor é Linux AMD64, não ARM64)
+- As duas tags são a mesma imagem (backend e worker usam o mesmo código)
+
+#### **3. Atualizar Serviços na VPS**
+
+```bash
+vps-ssh "docker service update --force --with-registry-auth \
+  --image ghcr.io/reisspaulo/sticker-bot-backend:latest sticker_backend && \
+  docker service update --force --with-registry-auth \
+  --image ghcr.io/reisspaulo/sticker-bot-worker:latest sticker_worker"
+```
+
+#### **4. Verificar Saúde e Logs**
+
+Mesmos passos 5 e 6 do deploy via CI/CD.
+
+---
+
+### **Deploy de Stack (Mudanças de Infraestrutura)**
+
+Use quando precisar alterar variáveis de ambiente ou configuração do Docker Swarm:
 
 ```bash
 ./deploy/deploy-sticker.sh prd
@@ -292,7 +316,7 @@ Use o script já criado:
 5. ✅ Aguarda convergência
 6. ✅ Testa health check
 
-**Mas atenção:** Esse script **NÃO faz build da imagem**! Você precisa fazer o passo 4 antes.
+**Nota:** Esse script **NÃO faz build da imagem**! Use após CI/CD ou deploy manual.
 
 ---
 

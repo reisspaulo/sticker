@@ -335,8 +335,9 @@ export async function checkAndIncrementLimitAtomic(
  * Retorna boolean indicando se já foi notificado hoje
  */
 export async function setLimitNotifiedAtomic(userId: string): Promise<boolean> {
-  // RPC returns boolean directly (scalar), not TABLE
-  return await callScalarRpc<boolean>(
+  // RPC returns object with OUT parameter: { was_already_notified: boolean }
+  // NOT a direct boolean, despite RETURNS boolean in SQL
+  const result = await callScalarRpc<{ was_already_notified: boolean }>(
     'set_limit_notified_atomic',
     {
       p_user_id: userId,
@@ -346,6 +347,9 @@ export async function setLimitNotifiedAtomic(userId: string): Promise<boolean> {
       logParams: false,
     }
   );
+
+  // Extract the boolean from the OUT parameter object
+  return result.was_already_notified;
 }
 
 /**

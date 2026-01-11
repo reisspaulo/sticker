@@ -23,6 +23,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
+import { CelebrityDialog } from '@/components/stickers/CelebrityDialog'
+import { Plus } from 'lucide-react'
 
 const PAGE_SIZE = 30
 
@@ -42,17 +44,20 @@ export default function StickersPage() {
   const [assignCelebrityDialog, setAssignCelebrityDialog] = useState(false)
   const [selectedCelebrityId, setSelectedCelebrityId] = useState<string>('none')
   const [celebrities, setCelebrities] = useState<Celebrity[]>([])
+  const [newCelebrityDialog, setNewCelebrityDialog] = useState(false)
 
-  // Load celebrities
-  useEffect(() => {
+  // Load celebrities function (reusable)
+  const loadCelebrities = async () => {
     const supabase = createClient()
-    async function loadCelebrities() {
-      const { data } = await supabase
-        .from('celebrities')
-        .select('id, name, slug')
-        .order('name')
-      if (data) setCelebrities(data)
-    }
+    const { data } = await supabase
+      .from('celebrities')
+      .select('id, name, slug')
+      .order('name')
+    if (data) setCelebrities(data)
+  }
+
+  // Load celebrities on mount
+  useEffect(() => {
     loadCelebrities()
   }, [])
 
@@ -70,7 +75,7 @@ export default function StickersPage() {
 
   const stickerIds = useMemo(() => stickers.map((s) => s.id), [stickers])
 
-  const { selectedIds, toggleSelection, selectAll, clearSelection, isSelected } =
+  const { selectedIds, toggleSelection, selectAll, clearSelection, isSelected, selectedOnCurrentPage } =
     useStickerSelection(stickerIds)
 
   const batchActions = useBatchActions()
@@ -237,6 +242,7 @@ export default function StickersPage() {
       {batchMode && selectedIds.length > 0 && (
         <BatchActionsBar
           selectedCount={selectedIds.length}
+          selectedOnCurrentPage={selectedOnCurrentPage}
           onAction={handleBatchAction}
           onClearSelection={clearSelection}
           onSelectAll={selectAll}
@@ -298,23 +304,48 @@ export default function StickersPage() {
                   ))}
                 </SelectContent>
               </Select>
-              {celebrities.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Nenhuma celebridade cadastrada. Crie uma em Stickers → Celebridades.
-                </p>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-2"
+                onClick={() => setNewCelebrityDialog(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Criar nova celebridade
+              </Button>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAssignCelebrityDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleAssignCelebrity} disabled={celebrities.length === 0}>
+            <Button onClick={handleAssignCelebrity}>
               Atribuir
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* New Celebrity Dialog */}
+      <CelebrityDialog
+        open={newCelebrityDialog}
+        onOpenChange={setNewCelebrityDialog}
+        celebrity={null}
+        onSuccess={async () => {
+          await loadCelebrities()
+          // Select the newly created celebrity (it will be the last one added)
+          const supabase = createClient()
+          const { data } = await supabase
+            .from('celebrities')
+            .select('id')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single()
+          if (data) {
+            setSelectedCelebrityId(data.id)
+          }
+        }}
+      />
       </div>
     </TooltipProvider>
   )

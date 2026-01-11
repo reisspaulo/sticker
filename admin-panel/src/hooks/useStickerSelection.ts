@@ -1,20 +1,20 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 
 export interface UseStickerSelectionResult {
   selectedIds: string[]
   toggleSelection: (id: string) => void
   selectAll: () => void
+  selectAllOnPage: () => void
   clearSelection: () => void
   isSelected: (id: string) => boolean
+  selectedOnCurrentPage: number
 }
 
 export function useStickerSelection(availableIds: string[]): UseStickerSelectionResult {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
-  // Clear selection when available IDs change (e.g., page change)
-  useEffect(() => {
-    setSelectedIds((prev) => prev.filter((id) => availableIds.includes(id)))
-  }, [availableIds])
+  // Count how many selected items are on current page
+  const selectedOnCurrentPage = selectedIds.filter((id) => availableIds.includes(id)).length
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -27,7 +27,19 @@ export function useStickerSelection(availableIds: string[]): UseStickerSelection
   }, [])
 
   const selectAll = useCallback(() => {
-    setSelectedIds([...availableIds])
+    // Add all available IDs to selection (keeps existing selections from other pages)
+    setSelectedIds((prev) => {
+      const newIds = availableIds.filter((id) => !prev.includes(id))
+      return [...prev, ...newIds]
+    })
+  }, [availableIds])
+
+  const selectAllOnPage = useCallback(() => {
+    // Select all on current page (same as selectAll but clearer name)
+    setSelectedIds((prev) => {
+      const newIds = availableIds.filter((id) => !prev.includes(id))
+      return [...prev, ...newIds]
+    })
   }, [availableIds])
 
   const clearSelection = useCallback(() => {
@@ -45,7 +57,9 @@ export function useStickerSelection(availableIds: string[]): UseStickerSelection
     selectedIds,
     toggleSelection,
     selectAll,
+    selectAllOnPage,
     clearSelection,
     isSelected,
+    selectedOnCurrentPage,
   }
 }

@@ -67,30 +67,23 @@ export function CelebrityDialog({ open, onOpenChange, celebrity, onSuccess }: Ce
 
   const loadExistingPhotos = async (celebrityId: string) => {
     setLoadingPhotos(true)
-    const supabase = createClient()
 
     try {
-      const { data, error } = await supabase
-        .from('celebrity_photos')
-        .select('id, storage_path, file_name')
-        .eq('celebrity_id', celebrityId)
-        .order('created_at')
+      // Use API route to fetch photos with signed URLs
+      const response = await fetch(`/api/celebrities/${celebrityId}/photos`)
 
-      if (error) throw error
+      if (!response.ok) {
+        throw new Error('Failed to load photos')
+      }
 
-      // Generate signed URLs for each photo
-      const photosWithUrls: UploadedPhoto[] = await Promise.all(
-        (data || []).map(async (photo) => {
-          const { data: urlData } = await supabase.storage
-            .from('celebrity-training')
-            .createSignedUrl(photo.storage_path, 3600)
+      const { photos: photosData } = await response.json()
 
-          return {
-            id: photo.id,
-            storage_path: photo.storage_path,
-            file_name: photo.file_name,
-            url: urlData?.signedUrl || '',
-          }
+      const photosWithUrls: UploadedPhoto[] = (photosData || []).map(
+        (photo: { id: string; storage_path: string; file_name: string; url: string }) => ({
+          id: photo.id,
+          storage_path: photo.storage_path,
+          file_name: photo.file_name,
+          url: photo.url,
         })
       )
 
@@ -333,6 +326,7 @@ export function CelebrityDialog({ open, onOpenChange, celebrity, onSuccess }: Ce
               <>
                 <PhotoUpload
                   celebritySlug={slug || 'temp'}
+                  celebrityId={isEditing ? celebrity?.id : undefined}
                   photos={photos}
                   onPhotosChange={setPhotos}
                   disabled={saving || !slug}

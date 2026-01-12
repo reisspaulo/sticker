@@ -18,6 +18,7 @@ export interface UploadedPhoto {
 
 interface PhotoUploadProps {
   celebritySlug: string
+  celebrityId?: string // If provided, uses API routes for upload/delete
   photos: UploadedPhoto[]
   onPhotosChange: (photos: UploadedPhoto[]) => void
   disabled?: boolean
@@ -26,6 +27,7 @@ interface PhotoUploadProps {
 
 export function PhotoUpload({
   celebritySlug,
+  celebrityId,
   photos,
   onPhotosChange,
   disabled = false,
@@ -33,35 +35,62 @@ export function PhotoUpload({
 }: PhotoUploadProps) {
   const [uploading, setUploading] = useState(false)
 
+  // Upload via API (when celebrity exists) or direct to storage (new celebrity)
   const uploadFile = async (file: File): Promise<UploadedPhoto | null> => {
-    const supabase = createClient()
-
-    // Generate unique filename
-    const timestamp = Date.now()
-    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-    const fileName = `${celebritySlug}_${timestamp}.${extension}`
-    const storagePath = `${celebritySlug}/${fileName}`
-
     try {
-      const { error } = await supabase.storage
-        .from('celebrity-training')
-        .upload(storagePath, file, {
-          cacheControl: '3600',
-          upsert: false,
+      if (celebrityId) {
+        // Use API route for existing celebrities
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const response = await fetch(`/api/celebrities/${celebrityId}/photos`, {
+          method: 'POST',
+          body: formData,
         })
 
-      if (error) throw error
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Upload failed')
+        }
 
-      // Get public URL (bucket is private, but we can generate signed URLs)
-      const { data: urlData } = await supabase.storage
-        .from('celebrity-training')
-        .createSignedUrl(storagePath, 3600) // 1 hour expiry
+        const { photo } = await response.json()
+        return {
+          id: photo.id,
+          storage_path: photo.storage_path,
+          file_name: photo.file_name,
+          url: photo.url,
+          isNew: true,
+        }
+      } else {
+        // Direct upload for new celebrities (no ID yet)
+        const supabase = createClient()
 
-      return {
-        storage_path: storagePath,
-        file_name: file.name,
-        url: urlData?.signedUrl || '',
-        isNew: true,
+        // Generate unique filename
+        const timestamp = Date.now()
+        const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const fileName = `${celebritySlug}_${timestamp}.${extension}`
+        const storagePath = `${celebritySlug}/${fileName}`
+
+        const { error } = await supabase.storage
+          .from('celebrity-training')
+          .upload(storagePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+          })
+
+        if (error) throw error
+
+        // Get signed URL
+        const { data: urlData } = await supabase.storage
+          .from('celebrity-training')
+          .createSignedUrl(storagePath, 3600)
+
+        return {
+          storage_path: storagePath,
+          file_name: file.name,
+          url: urlData?.signedUrl || '',
+          isNew: true,
+        }
       }
     } catch (error) {
       console.error('Error uploading file:', error)
@@ -105,14 +134,30 @@ export function PhotoUpload({
   const removePhoto = async (photo: UploadedPhoto) => {
     if (disabled) return
 
-    // If it's a new photo, remove from storage
-    if (photo.isNew) {
-      const supabase = createClient()
-      await supabase.storage.from('celebrity-training').remove([photo.storage_path])
-    }
+    try {
+      if (celebrityId && photo.id) {
+        // Use API route for existing celebrities with saved photos
+        const response = await fetch(
+          `/api/celebrities/${celebrityId}/photos/${photo.id}`,
+          { method: 'DELETE' }
+        )
 
-    onPhotosChange(photos.filter((p) => p.storage_path !== photo.storage_path))
-    toast.success('Foto removida')
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Delete failed')
+        }
+      } else if (photo.isNew) {
+        // Direct delete for new photos not yet saved to database
+        const supabase = createClient()
+        await supabase.storage.from('celebrity-training').remove([photo.storage_path])
+      }
+
+      onPhotosChange(photos.filter((p) => p.storage_path !== photo.storage_path))
+      toast.success('Foto removida')
+    } catch (error) {
+      console.error('Error removing photo:', error)
+      toast.error('Erro ao remover foto')
+    }
   }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

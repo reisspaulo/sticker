@@ -22,7 +22,10 @@ export type UsageAction =
   | 'button_clicked'
   | 'message_sent'
   | 'menu_sent'
-  | 'pix_button_sent';
+  | 'pix_button_sent'
+  | 'upgrade_clicked'
+  | 'payment_started'
+  | 'payment_confirmed';
 
 interface LogUsageParams {
   userNumber: string;
@@ -537,6 +540,85 @@ export async function logLimitMenuSent(params: {
       buttons_shown: params.buttonsShown,
       success: params.success,
       error_message: params.errorMessage,
+    },
+  });
+}
+
+// ========================================
+// CONVERSION FUNNEL LOGGING
+// ========================================
+
+/**
+ * Log when user clicks an upgrade button (Premium or Ultra)
+ * This is the first step in the conversion funnel
+ */
+export async function logUpgradeClicked(params: {
+  userNumber: string;
+  userName?: string;
+  planClicked: 'premium' | 'ultra';
+  currentPlan: string;
+  dailyCount?: number;
+  dailyLimit?: number;
+  source?: 'limit_menu' | 'plans_menu' | 'text_command' | 'other';
+}): Promise<void> {
+  await logUsage({
+    userNumber: params.userNumber,
+    action: 'upgrade_clicked',
+    details: {
+      user_name: params.userName,
+      plan_clicked: params.planClicked,
+      current_plan: params.currentPlan,
+      daily_count: params.dailyCount,
+      daily_limit: params.dailyLimit,
+      source: params.source,
+    },
+  });
+}
+
+/**
+ * Log when user starts a payment (selects PIX, Card, or Boleto)
+ * This is the second step in the conversion funnel
+ */
+export async function logPaymentStarted(params: {
+  userNumber: string;
+  userName?: string;
+  plan: 'premium' | 'ultra';
+  paymentMethod: 'pix' | 'card' | 'boleto';
+  amount?: number;
+}): Promise<void> {
+  await logUsage({
+    userNumber: params.userNumber,
+    action: 'payment_started',
+    details: {
+      user_name: params.userName,
+      plan: params.plan,
+      payment_method: params.paymentMethod,
+      amount: params.amount,
+    },
+  });
+}
+
+/**
+ * Log when payment is confirmed (PIX confirmed or Stripe webhook)
+ * This is the final step in the conversion funnel
+ */
+export async function logPaymentConfirmed(params: {
+  userNumber: string;
+  userName?: string;
+  plan: 'premium' | 'ultra';
+  paymentMethod: 'pix' | 'card' | 'boleto';
+  amount: number;
+  paymentId?: string;
+}): Promise<void> {
+  await logUsage({
+    userNumber: params.userNumber,
+    action: 'payment_confirmed',
+    details: {
+      user_name: params.userName,
+      plan: params.plan,
+      payment_method: params.paymentMethod,
+      amount: params.amount,
+      payment_id: params.paymentId,
     },
   });
 }

@@ -1546,16 +1546,20 @@ Descobrir o limite diário ideal para usuários free que maximize:
 
 **Estrutura do Banco:**
 ```sql
--- Tabela users
-ALTER TABLE users ADD COLUMN daily_limit INTEGER DEFAULT 4;
-ALTER TABLE users ADD COLUMN limit_experiment_variant TEXT DEFAULT 'limit_4';
+-- Tabela users (colunas SEM DEFAULT para trigger funcionar)
+ALTER TABLE users ADD COLUMN daily_limit INTEGER;
+ALTER TABLE users ADD COLUMN limit_experiment_variant TEXT;
 
--- Trigger para novos usuários
+-- Trigger para novos usuários (atribui variante aleatória)
 CREATE TRIGGER assign_limit_on_insert
   BEFORE INSERT ON users
   FOR EACH ROW
   EXECUTE FUNCTION assign_limit_variant();
 ```
+
+> **Nota:** As colunas `daily_limit` e `limit_experiment_variant` NÃO têm DEFAULT.
+> Isso é intencional - o PostgreSQL aplica defaults ANTES do trigger BEFORE INSERT,
+> então sem DEFAULT o trigger recebe NULL e consegue atribuir a variante corretamente.
 
 **Distribuição:**
 | Variante | Limite | % Tráfego | Descrição |
@@ -1565,8 +1569,8 @@ CREATE TRIGGER assign_limit_on_insert
 | `limit_2` | 2/dia | 33% | Limite agressivo |
 
 **Grandfathering:**
-- 457 usuários existentes mantêm `limit_4`
-- Apenas novos usuários entram no experimento
+- 475 usuários existentes (até 11/01/2026) mantêm `limit_4`
+- Novos usuários a partir de 12/01/2026 entram no experimento com variantes aleatórias
 - Possibilidade futura de migrar usuários antigos
 
 **Queries de Análise:**
@@ -1620,4 +1624,4 @@ Isso garante que usuários com `limit_2` vejam "2 figurinhas/dia", usuários com
 
 ---
 
-**Última atualização:** 11/01/2026 - Adicionado experimento de limite diário (daily_limit_v1), pausados experimentos bonus/control e upgrade_message_v1, mensagens dinâmicas implementadas
+**Última atualização:** 12/01/2026 - Corrigido bug do experimento de limite diário (removidos DEFAULTs das colunas para trigger funcionar), experimento agora ativo para novos usuários

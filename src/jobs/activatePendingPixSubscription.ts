@@ -4,6 +4,7 @@ import { activatePixSubscription, ActivationResult } from '../services/pixPaymen
 import { sendText } from '../services/evolutionApi';
 import { sendButtons } from '../services/avisaApi';
 import { getSubscriptionActivatedMessage } from '../services/menuService';
+import { logPaymentConfirmed } from '../services/usageLogs';
 import { PlanType } from '../types/subscription';
 
 export interface ActivatePixJobData {
@@ -137,6 +138,16 @@ export async function activatePendingPixSubscriptionJob(
   // Handle successful activation
   if (result.success) {
     await sendText(userNumber, getSubscriptionActivatedMessage(plan));
+
+    // Log to usage_logs for funnel analysis
+    const planPrices = { premium: 5, ultra: 9.9 } as const;
+    logPaymentConfirmed({
+      userNumber,
+      userName,
+      plan: plan as 'premium' | 'ultra',
+      paymentMethod: 'pix',
+      amount: planPrices[plan as keyof typeof planPrices] ?? 0,
+    });
 
     // Log experiment event for converted
     try {

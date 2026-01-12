@@ -9,7 +9,7 @@ import { getTwitterDownloadCount } from '../services/twitterLimits';
 import { getUserLimits } from '../services/subscriptionService';
 import { sendWelcomeMessage } from '../services/messageService';
 import { sendText, sendVideo } from '../services/evolutionApi';
-import { logWebhookReceived, logMessageReceived, logTextMessageReceived, logError, logButtonClicked, logLimitReached } from '../services/usageLogs';
+import { logWebhookReceived, logMessageReceived, logTextMessageReceived, logError, logButtonClicked, logLimitReached, logUpgradeClicked, logPaymentStarted } from '../services/usageLogs';
 import { extractTweetInfo } from '../utils/urlDetector';
 import {
   getVideoSelectionContext,
@@ -494,6 +494,17 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           // Track A/B test conversion attempt
           logMenuInteraction(userNumber, 'ab_test_upgrade_click', selectedPlan);
 
+          // Log to usage_logs for funnel analysis
+          logUpgradeClicked({
+            userNumber,
+            userName: user.name ?? undefined,
+            planClicked: selectedPlan,
+            currentPlan: 'free', // Users clicking upgrade are typically on free plan
+            dailyCount: user.daily_count ?? undefined,
+            dailyLimit: user.daily_limit ?? undefined,
+            source: 'limit_menu',
+          });
+
           // Log experiment event for upgrade_clicked
           const { logExperimentEvent, getUpgradeDismissVariant } = await import(
             '../services/experimentService'
@@ -771,6 +782,19 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
           logMenuInteraction(userNumber, 'plan_selected', selectedPlan);
 
+          // Log to usage_logs for funnel analysis (only for paid plans)
+          if (selectedPlan === 'premium' || selectedPlan === 'ultra') {
+            logUpgradeClicked({
+              userNumber,
+              userName: user.name ?? undefined,
+              planClicked: selectedPlan,
+              currentPlan: 'free', // Users selecting paid plans are typically on free plan
+              dailyCount: user.daily_count ?? undefined,
+              dailyLimit: user.daily_limit ?? undefined,
+              source: 'plans_menu',
+            });
+          }
+
           // If free plan selected, just acknowledge
           if (selectedPlan === 'free') {
             const userLimit = user.daily_limit ?? 4;
@@ -839,6 +863,16 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           const selectedPlan = planFromContext as 'premium' | 'ultra';
 
           logMenuInteraction(userNumber, 'payment_method_selected', paymentMethod);
+
+          // Log to usage_logs for funnel analysis
+          const planPrices = { premium: 5, ultra: 9.9 };
+          logPaymentStarted({
+            userNumber,
+            userName: user.name ?? undefined,
+            plan: selectedPlan,
+            paymentMethod: paymentMethod as 'pix' | 'card' | 'boleto',
+            amount: planPrices[selectedPlan],
+          });
 
           // Cancel payment reminders (user is proceeding with payment)
           const { cancelPaymentReminders, logExperimentEvent, getUpgradeDismissVariant } = await import(
@@ -1127,6 +1161,15 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
       // Universal commands for direct plan upgrade (works for BR and international users)
       if (normalizedText === 'premium') {
         logMenuInteraction(userNumber, 'direct_upgrade_premium');
+        logUpgradeClicked({
+          userNumber,
+          userName: user.name ?? undefined,
+          planClicked: 'premium',
+          currentPlan: 'free', // Users typing 'premium' are typically on free plan
+          dailyCount: user.daily_count ?? undefined,
+          dailyLimit: user.daily_limit ?? undefined,
+          source: 'text_command',
+        });
         fastify.log.info({
           msg: 'User typed premium command',
           userNumber,
@@ -1160,6 +1203,15 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
       if (normalizedText === 'ultra') {
         logMenuInteraction(userNumber, 'direct_upgrade_ultra');
+        logUpgradeClicked({
+          userNumber,
+          userName: user.name ?? undefined,
+          planClicked: 'ultra',
+          currentPlan: 'free', // Users typing 'ultra' are typically on free plan
+          dailyCount: user.daily_count ?? undefined,
+          dailyLimit: user.daily_limit ?? undefined,
+          source: 'text_command',
+        });
         fastify.log.info({
           msg: 'User typed ultra command',
           userNumber,

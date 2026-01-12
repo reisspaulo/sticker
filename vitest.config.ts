@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 
+// Test configuration for Sticker Bot
 export default defineConfig({
   test: {
     globals: true,

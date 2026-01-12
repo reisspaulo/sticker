@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import logger from '../config/logger';
+import { rpc } from '../rpc';
 
 export interface User {
   id: string;
@@ -269,15 +270,8 @@ export async function incrementDailyCount(userId: string): Promise<number> {
   try {
     logger.debug({ msg: 'Incrementing daily count', userId });
 
-    const { data, error } = await supabase.rpc('increment_daily_count', {
-      p_user_id: userId,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    const newCount = data as number;
+    // ✅ Type-safe RPC call
+    const newCount = await rpc('increment_daily_count', { p_user_id: userId });
 
     logger.info({
       msg: 'Daily count incremented',
@@ -305,13 +299,8 @@ export async function resetAllDailyCounters(): Promise<number> {
   try {
     logger.info({ msg: 'Resetting all daily counters' });
 
-    const { data, error } = await supabase.rpc('reset_all_daily_counters');
-
-    if (error) {
-      throw error;
-    }
-
-    const resetCount = data as number;
+    // ✅ Type-safe RPC call (no params needed)
+    const resetCount = await rpc('reset_all_daily_counters', {});
 
     logger.info({
       msg: 'All daily counters reset',
@@ -439,15 +428,8 @@ export async function incrementBonusCredit(userId: string): Promise<number> {
   try {
     logger.debug({ msg: 'Incrementing bonus credit', userId });
 
-    const { data, error } = await supabase.rpc('increment_bonus_credit', {
-      p_user_id: userId,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    const newCount = data as number;
+    // ✅ Type-safe RPC call
+    const newCount = await rpc('increment_bonus_credit', { p_user_id: userId });
 
     logger.info({
       msg: 'Bonus credit incremented',
@@ -507,15 +489,8 @@ export async function incrementTwitterDownloadCount(userId: string): Promise<num
   try {
     logger.debug({ msg: 'Incrementing Twitter download count', userId });
 
-    const { data, error } = await supabase.rpc('increment_twitter_download_count', {
-      p_user_id: userId,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    const newCount = data as number;
+    // ✅ Type-safe RPC call
+    const newCount = await rpc('increment_twitter_download_count', { p_user_id: userId });
 
     logger.info({
       msg: 'Twitter download count incremented',

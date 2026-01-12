@@ -1635,4 +1635,62 @@ Isso garante que usuários com `limit_2` vejam "2 figurinhas/dia", usuários com
 
 ---
 
-**Última atualização:** 12/01/2026 - Corrigido bug do experimento de limite diário (removidos DEFAULTs das colunas para trigger funcionar), experimento agora ativo para novos usuários
+## 15. Arquitetura RPC Type-Safe
+
+**Status:** ✅ ATIVO (Sprint 14 concluída em 12/01/2026)
+
+### Problema Resolvido
+
+Bugs de RPC causaram downtime em produção:
+- Código confundia retorno SCALAR vs TABLE
+- Sem validação de tipos em compile time
+- Fácil usar `supabase.rpc()` com tipo errado
+
+### Solução
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  RPC TYPE-SAFE ARCHITECTURE                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   src/rpc/                                                  │
+│   ├── registry.ts   → Single source of truth (14 funções)  │
+│   ├── client.ts     → Função rpc() type-safe               │
+│   ├── types.ts      → Interfaces de retorno                │
+│   └── errors.ts     → Classes de erro padronizadas         │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Proteções em Camadas
+
+| Camada | Proteção | Quando |
+|--------|----------|--------|
+| TypeScript | Tipos inferidos do registry | Compile time |
+| ESLint | Bloqueia `supabase.rpc()` direto | CI |
+| Runtime | Valida SCALAR vs TABLE | Execução |
+| Testes | Valida registry sincronizado | CI |
+
+### Uso Correto
+
+```typescript
+// ❌ BLOQUEADO pelo ESLint
+const { data } = await supabase.rpc('increment_daily_count', {...});
+
+// ✅ CORRETO
+import { rpc } from '../rpc';
+const count = await rpc('increment_daily_count', { p_user_id: userId });
+// TypeScript sabe que count é number
+```
+
+### Código Relevante
+- `src/rpc/` - Módulo completo
+- `.eslintrc.json` - Regra `no-restricted-syntax`
+- `.github/workflows/ci.yml` - CI pipeline
+- `tests/rpc/rpc.test.ts` - Testes de sync
+
+**Documentação completa:** [Sprint 14 - RPC Type-Safe](../sprints/SPRINT-14-RPC-TYPE-SAFE.md)
+
+---
+
+**Última atualização:** 12/01/2026 - Sprint 14 concluída (RPC type-safe), CI pipeline adicionado, corrigido bug do experimento de limite diário

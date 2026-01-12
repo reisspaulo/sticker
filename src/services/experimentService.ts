@@ -12,6 +12,7 @@
 import { supabase } from '../config/supabase';
 import logger from '../config/logger';
 import { isBrazilianNumber } from './avisaApi';
+import { rpc, rpcOptional, rpcAll } from '../rpc';
 
 // ============================================
 // TYPES
@@ -85,30 +86,20 @@ export async function getUpgradeDismissVariant(
       isBrazilian,
     });
 
-    const { data, error } = await supabase.rpc('assign_experiment_variant', {
+    // ✅ Type-safe RPC call - returns first row or null
+    const result = await rpcOptional('assign_experiment_variant', {
       p_user_id: userId,
       p_experiment_name: 'upgrade_message_v1',
       p_is_brazilian: isBrazilian,
     });
 
-    if (error) {
-      logger.error({
-        msg: '[EXPERIMENT] RPC error',
-        error: error.message,
-        userId,
-      });
-      return null;
-    }
-
-    if (!data || data.length === 0) {
+    if (!result) {
       logger.warn({
         msg: '[EXPERIMENT] No active experiment found',
         userId,
       });
       return null;
     }
-
-    const result = data[0] as ExperimentVariantResult;
 
     if (result.is_new_assignment) {
       logger.info({
@@ -158,23 +149,14 @@ export async function logExperimentEvent(
   metadata: Record<string, any> = {}
 ): Promise<void> {
   try {
-    const { error } = await supabase.rpc('log_experiment_event', {
+    // ✅ Type-safe RPC call (void function)
+    await rpc('log_experiment_event', {
       p_user_id: userId,
       p_experiment_id: experimentId,
       p_variant: variant,
       p_event_type: eventType,
       p_metadata: metadata,
     });
-
-    if (error) {
-      logger.error({
-        msg: '[EXPERIMENT] Error logging event',
-        error: error.message,
-        userId,
-        eventType,
-      });
-      return;
-    }
 
     logger.info({
       msg: '[EXPERIMENT] Event logged',
@@ -209,7 +191,8 @@ export async function scheduleReminder(
   variant: string | null = null
 ): Promise<string | null> {
   try {
-    const { data, error } = await supabase.rpc('schedule_reminder', {
+    // ✅ Type-safe RPC call (scalar - returns string)
+    const reminderId = await rpc('schedule_reminder', {
       p_user_id: userId,
       p_user_number: userNumber,
       p_delay_hours: delayHours,
@@ -217,24 +200,14 @@ export async function scheduleReminder(
       p_variant: variant,
     });
 
-    if (error) {
-      logger.error({
-        msg: '[EXPERIMENT] Error scheduling reminder',
-        error: error.message,
-        userId,
-        delayHours,
-      });
-      return null;
-    }
-
     logger.info({
       msg: '[EXPERIMENT] Reminder scheduled',
       userId,
       delayHours,
-      reminderId: data,
+      reminderId,
     });
 
-    return data as string;
+    return reminderId;
   } catch (error) {
     logger.error({
       msg: '[EXPERIMENT] Exception scheduling reminder',
@@ -253,24 +226,12 @@ export async function getPendingReminder(
   userId: string
 ): Promise<PendingReminder | null> {
   try {
-    const { data, error } = await supabase.rpc('get_pending_reminder', {
+    // ✅ Type-safe RPC call - returns first row or null
+    const result = await rpcOptional('get_pending_reminder', {
       p_user_id: userId,
     });
 
-    if (error) {
-      logger.error({
-        msg: '[EXPERIMENT] Error getting pending reminder',
-        error: error.message,
-        userId,
-      });
-      return null;
-    }
-
-    if (!data || data.length === 0) {
-      return null;
-    }
-
-    return data[0] as PendingReminder;
+    return result as PendingReminder | null;
   } catch (error) {
     logger.error({
       msg: '[EXPERIMENT] Exception getting pending reminder',
@@ -301,20 +262,12 @@ export async function getExperimentMetrics(
   experimentId: string
 ): Promise<ExperimentMetrics[]> {
   try {
-    const { data, error } = await supabase.rpc('get_experiment_metrics', {
+    // ✅ Type-safe RPC call - returns array
+    const metrics = await rpcAll('get_experiment_metrics', {
       p_experiment_id: experimentId,
     });
 
-    if (error) {
-      logger.error({
-        msg: '[EXPERIMENT] Error getting metrics',
-        error: error.message,
-        experimentId,
-      });
-      return [];
-    }
-
-    return (data || []) as ExperimentMetrics[];
+    return metrics as ExperimentMetrics[];
   } catch (error) {
     logger.error({
       msg: '[EXPERIMENT] Exception getting metrics',
@@ -377,30 +330,20 @@ export async function getPaymentReminderVariant(
       isBrazilian,
     });
 
-    const { data, error } = await supabase.rpc('assign_experiment_variant', {
+    // ✅ Type-safe RPC call - returns first row or null
+    const result = await rpcOptional('assign_experiment_variant', {
       p_user_id: userId,
       p_experiment_name: 'payment_intent_reminder_v1',
       p_is_brazilian: isBrazilian,
     });
 
-    if (error) {
-      logger.error({
-        msg: '[PAYMENT_REMINDER] RPC error',
-        error: error.message,
-        userId,
-      });
-      return null;
-    }
-
-    if (!data || data.length === 0) {
+    if (!result) {
       logger.warn({
         msg: '[PAYMENT_REMINDER] No active experiment found',
         userId,
       });
       return null;
     }
-
-    const result = data[0] as ExperimentVariantResult;
 
     if (result.is_new_assignment) {
       logger.info({

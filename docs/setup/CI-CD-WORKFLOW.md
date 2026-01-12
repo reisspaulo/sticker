@@ -1,12 +1,13 @@
 # 🚀 CI/CD Workflow - Guia de Deploy Automatizado
 
-**Última atualização:** 2026-01-05
+**Última atualização:** 2026-01-12
 **Status:** ✅ Implementado e testado com sucesso
 
 > **📚 Documentos relacionados:**
 > - [Guia de Operações (VPS, Logs, Troubleshooting)](../operations/QUICK-CHANGES-GUIDE.md)
 > - [Deploy Manual (Emergência)](./DEPLOYMENT-PROCESS.md)
 > - [Logs do Supabase](../operations/QUICK-CHANGES-GUIDE.md#logs-do-supabase)
+> - [Sprint 14 - RPC Type-Safe](../sprints/SPRINT-14-RPC-TYPE-SAFE.md) - Arquitetura de proteção RPC
 
 ---
 
@@ -1086,5 +1087,88 @@ WHERE email = 'seu@email.com';
 
 ---
 
-**Última atualização:** 08/01/2026
-**Testado e validado com:** Zero-downtime deployment test + GHCR authentication fix + BullMQ queue pattern + Admin Panel deployment
+## 🛡️ CI Pipeline (Lint, Build, Test)
+
+Além dos workflows de deploy, temos um **CI pipeline** que roda em cada push/PR para garantir qualidade do código.
+
+### Workflow: `.github/workflows/ci.yml`
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      CI Pipeline                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   1. LINT (ESLint)                                          │
+│      └── ❌ Bloqueia uso de supabase.rpc() direto           │
+│          (deve usar rpc() de src/rpc)                       │
+│                                                              │
+│   2. BUILD (TypeScript)                                     │
+│      └── ❌ Bloqueia erros de tipo                          │
+│          (params errados, tipos incompatíveis)              │
+│                                                              │
+│   3. TEST RPC                                               │
+│      └── ❌ Bloqueia se registry não sincronizado           │
+│          (faltando função no src/rpc/registry.ts)           │
+│                                                              │
+│   4. ALL TESTS                                              │
+│      └── Roda todos os testes do projeto                    │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Quando Roda
+
+| Evento | Branch | Resultado |
+|--------|--------|-----------|
+| Push | `main` | Roda CI |
+| Pull Request | `main` | **Bloqueia merge se falhar** |
+
+### Proteção RPC Type-Safe
+
+O CI garante que ninguém use `supabase.rpc()` diretamente. Se alguém tentar:
+
+```typescript
+// ❌ BLOQUEADO pelo ESLint
+const { data } = await supabase.rpc('increment_daily_count', { p_user_id: userId });
+
+// ✅ CORRETO - deve usar rpc() de src/rpc
+import { rpc } from '../rpc';
+const count = await rpc('increment_daily_count', { p_user_id: userId });
+```
+
+**Erro no CI:**
+```
+error  Use rpc() from src/rpc instead of supabase.rpc() directly.
+       See docs/sprints/SPRINT-14-RPC-TYPE-SAFE.md
+```
+
+### Adicionar Nova Função RPC
+
+Quando criar nova função RPC no Supabase:
+
+1. **Adicionar tipo** em `src/rpc/types.ts`
+2. **Adicionar no registry** em `src/rpc/registry.ts`
+3. **Atualizar teste** em `tests/rpc/rpc.test.ts`
+4. **Usar via rpc()** - nunca `supabase.rpc()` direto
+
+Se esquecer, o CI vai falhar com erro claro.
+
+### Ver Status do CI
+
+```bash
+# Via GitHub CLI
+gh run list --workflow=ci.yml --limit 5
+
+# Via browser
+# https://github.com/reisspaulo/sticker/actions/workflows/ci.yml
+```
+
+### Documentação Relacionada
+
+- [Sprint 14 - RPC Type-Safe](../sprints/SPRINT-14-RPC-TYPE-SAFE.md) - Arquitetura completa
+- [src/rpc/](../../src/rpc/) - Código do módulo RPC
+
+---
+
+**Última atualização:** 12/01/2026
+**Testado e validado com:** Zero-downtime deployment test + GHCR authentication fix + BullMQ queue pattern + Admin Panel deployment + CI Pipeline RPC Type-Safe

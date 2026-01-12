@@ -8,6 +8,7 @@ import { supabase } from '../config/supabase';
 import logger from '../config/logger';
 import { checkAndResetIfNeeded } from './userService';
 import { getUserLimits } from './subscriptionService';
+import { rpc } from '../rpc';
 
 /**
  * Check if user has reached Twitter daily download limit
@@ -94,15 +95,8 @@ export async function incrementTwitterDownloadCount(userId: string): Promise<num
   try {
     logger.debug({ msg: 'Incrementing Twitter download count', userId });
 
-    const { data, error } = await supabase.rpc('increment_twitter_download_count', {
-      p_user_id: userId,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    const newCount = data as number;
+    // ✅ Type-safe RPC call
+    const newCount = await rpc('increment_twitter_download_count', { p_user_id: userId });
 
     logger.info({
       msg: 'Twitter download count incremented',

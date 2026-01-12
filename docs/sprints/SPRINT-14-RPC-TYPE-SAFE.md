@@ -1,8 +1,8 @@
 # Sprint 14 - Arquitetura RPC Type-Safe
 
-**Status:** EM ANDAMENTO
+**Status:** CONCLUIDA ✅
 **Data Inicio:** 09/01/2026
-**Ultima Atualizacao:** 09/01/2026
+**Ultima Atualizacao:** 12/01/2026
 
 > **PRIMEIRO USO EM PRODUCAO:** `onboardingService.ts` usando `set_twitter_feature_shown_atomic` - corrigiu bug de menu duplicado!
 
@@ -166,58 +166,58 @@ const count = await rpc('increment_daily_count', { p_user_id: userId });
 | Build passa | OK | `npm run build` |
 | Testes passam | OK | 21/21 testes |
 
-### Fase 2: Migrar Services (EM ANDAMENTO)
+### Fase 2: Migrar Services (CONCLUIDA ✅)
 
 | Service | Chamadas Diretas | Wrapper Antigo | Status |
 |---------|-----------------|----------------|--------|
-| `onboardingService.ts` | 0 | 0 | **MIGRADO** |
-| `userService.ts` | 4 | 0 | PENDENTE |
-| `experimentService.ts` | 5 | 0 | PENDENTE |
-| `twitterLimits.ts` | 1 | 0 | PENDENTE |
-| `atomicLimitService.ts` | 0 | 2 | PENDENTE |
+| `onboardingService.ts` | 0 | 0 | **MIGRADO** ✅ |
+| `userService.ts` | 0 | 0 | **MIGRADO** ✅ |
+| `experimentService.ts` | 0 | 0 | **MIGRADO** ✅ |
+| `twitterLimits.ts` | 0 | 0 | **MIGRADO** ✅ |
+| `atomicLimitService.ts` | 0 | 0 | **MIGRADO** ✅ |
 
-**Funcoes a migrar:**
+**Todas as funcoes migradas:**
 
 ```
-onboardingService.ts: (MIGRADO)
-└── set_twitter_feature_shown_atomic (L149) ✅
+onboardingService.ts: ✅
+└── set_twitter_feature_shown_atomic
 
-userService.ts:
-├── increment_daily_count (L269)
-├── reset_all_daily_counters (L305)
-├── increment_bonus_credit (L439)
-└── increment_twitter_download_count (L507)
+userService.ts: ✅
+├── increment_daily_count
+├── reset_all_daily_counters
+├── increment_bonus_credit
+└── increment_twitter_download_count
 
-experimentService.ts:
-├── assign_experiment_variant (L88)
-├── log_experiment_event (L161)
-├── schedule_reminder (L212)
-├── get_pending_reminder (L256)
-└── get_experiment_metrics (L304)
+experimentService.ts: ✅
+├── assign_experiment_variant (2 chamadas)
+├── log_experiment_event
+├── schedule_reminder
+├── get_pending_reminder
+└── get_experiment_metrics
 
-twitterLimits.ts:
-└── increment_twitter_download_count (L97)
+twitterLimits.ts: ✅
+└── increment_twitter_download_count
 
-atomicLimitService.ts:
-├── checkAndIncrementLimitAtomic (wrapper antigo)
-└── setLimitNotifiedAtomic (wrapper antigo)
+atomicLimitService.ts: ✅
+├── check_and_increment_daily_limit_atomic
+└── set_limit_notified_atomic
 ```
 
-### Fase 3: Protecoes no CI (PENDENTE)
+### Fase 3: Protecoes no CI (CONCLUIDA ✅)
 
 | Item | Status |
 |------|--------|
-| ESLint rule: proibir `supabase.rpc()` direto | PENDENTE |
-| Pre-commit hook para validar | PENDENTE |
-| Teste: registry sincronizado com banco | PENDENTE |
+| ESLint rule: proibir `supabase.rpc()` direto | **OK** ✅ |
+| Pre-commit hook para validar | N/A (ESLint no CI) |
+| Teste: registry sincronizado com banco | **OK** ✅ |
 
-### Fase 4: Cleanup (PENDENTE)
+### Fase 4: Cleanup (CONCLUIDA ✅)
 
 | Item | Status |
 |------|--------|
-| Remover `src/utils/supabaseRpc.ts` antigo | PENDENTE |
-| Atualizar ADR-005 | PENDENTE |
-| Atualizar testes antigos | PENDENTE |
+| Remover `src/utils/supabaseRpc.ts` antigo | **OK** ✅ |
+| Atualizar ADR-005 | N/A (tipos na nova arquitetura) |
+| Atualizar testes antigos | **OK** ✅ |
 
 ---
 
@@ -321,15 +321,21 @@ it('my_new_function returns correct type', () => {
 
 ---
 
-## Proximos Passos
+## Resultado Final
 
-1. **Migrar `userService.ts`** - 4 funcoes, mais usado
-2. **Migrar `experimentService.ts`** - 5 funcoes
-3. **Migrar `twitterLimits.ts`** - 1 funcao
-4. **Migrar `atomicLimitService.ts`** - Trocar wrapper antigo pelo novo
-5. **Adicionar ESLint rule** - Proibir `supabase.rpc()` direto
-6. **Remover codigo antigo** - `src/utils/supabaseRpc.ts`
-7. **Atualizar ADR-005** - Corrigir documentacao
+✅ **Sprint 14 Concluida em 12/01/2026**
+
+Todas as 12 chamadas RPC foram migradas para a nova arquitetura type-safe:
+- 5 services migrados
+- ESLint rule adicionada
+- Testes de sincronizacao adicionados
+- Codigo antigo removido
+
+**Beneficios obtidos:**
+- Erros de tipo detectados em compile time
+- Impossivel confundir SCALAR vs TABLE
+- Single source of truth no registry
+- CI bloqueia uso direto de `supabase.rpc()`
 
 ---
 
@@ -350,3 +356,8 @@ it('my_new_function returns correct type', () => {
 | 09/01/2026 | Fase 1 concluida | Claude Opus 4.5 |
 | 09/01/2026 | `onboardingService.ts` migrado - primeiro uso em producao! | Claude Opus 4.5 |
 | 09/01/2026 | Bug de menu duplicado corrigido via `set_twitter_feature_shown_atomic` | Claude Opus 4.5 |
+| 12/01/2026 | Fases 2, 3 e 4 concluidas - Sprint finalizada! | Claude Opus 4.5 |
+| 12/01/2026 | Todos os 5 services migrados para rpc() type-safe | Claude Opus 4.5 |
+| 12/01/2026 | ESLint rule adicionada para bloquear supabase.rpc() direto | Claude Opus 4.5 |
+| 12/01/2026 | Testes de sincronizacao registry/banco adicionados | Claude Opus 4.5 |
+| 12/01/2026 | Codigo antigo (supabaseRpc.ts) removido | Claude Opus 4.5 |

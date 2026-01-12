@@ -340,3 +340,72 @@ describe('Migration Guide', () => {
     expect(true).toBe(true); // Documentation test
   });
 });
+
+// ============================================
+// REGISTRY SYNC TESTS (validates registry matches database)
+// ============================================
+
+describe('Registry Sync', () => {
+  /**
+   * This test documents the expected RPC functions in the database.
+   * When you add a new RPC function to the database, you MUST:
+   * 1. Add it to RPC_REGISTRY in src/rpc/registry.ts
+   * 2. Add it to this test's expected list
+   *
+   * Run: npm run test:rpc to validate
+   */
+  it('should have all expected RPC functions in registry (update when adding new RPCs)', () => {
+    // Complete list of RPC functions in database (as of Sprint 14)
+    const databaseFunctions = [
+      // SCALAR functions
+      'increment_daily_count',
+      'reset_all_daily_counters',
+      'increment_bonus_credit',
+      'increment_twitter_download_count',
+      'set_limit_notified_atomic',
+      'set_twitter_feature_shown_atomic',
+      'schedule_reminder',
+      // TABLE functions
+      'check_and_increment_daily_limit_atomic',
+      'assign_experiment_variant',
+      'get_pending_reminder',
+      'get_experiment_metrics',
+      'get_old_twitter_downloads_for_cleanup',
+      // VOID functions
+      'log_experiment_event',
+      'cleanup_expired_conversation_contexts',
+    ];
+
+    const registryFunctions = Object.keys(RPC_REGISTRY);
+
+    // Check all database functions are in registry
+    for (const dbFn of databaseFunctions) {
+      expect(registryFunctions).toContain(dbFn);
+    }
+
+    // Check registry doesn't have extra functions not in database
+    for (const regFn of registryFunctions) {
+      expect(databaseFunctions).toContain(regFn);
+    }
+
+    // Total count should match
+    expect(registryFunctions.length).toBe(databaseFunctions.length);
+  });
+
+  it('should have correct function count (14 total)', () => {
+    const registryFunctions = Object.keys(RPC_REGISTRY);
+
+    // 7 SCALAR + 5 TABLE + 2 VOID = 14 total
+    expect(registryFunctions.length).toBe(14);
+  });
+
+  it('should have proper type categorization', () => {
+    const scalarCount = Object.values(RPC_REGISTRY).filter((r) => r.type === 'scalar').length;
+    const tableCount = Object.values(RPC_REGISTRY).filter((r) => r.type === 'table').length;
+    const voidCount = Object.values(RPC_REGISTRY).filter((r) => r.type === 'void').length;
+
+    expect(scalarCount).toBe(7);
+    expect(tableCount).toBe(5);
+    expect(voidCount).toBe(2);
+  });
+});

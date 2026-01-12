@@ -1,9 +1,6 @@
 import logger from '../config/logger';
 import { alertRpcFailure } from './alertService';
-import {
-  checkAndIncrementLimitAtomic as checkAndIncrementLimitAtomicRpc,
-  type AtomicLimitCheckResult,
-} from '../utils/supabaseRpc';
+import { rpc, type AtomicLimitCheckResult } from '../rpc';
 
 // Re-export type for backwards compatibility
 export type { AtomicLimitCheckResult };
@@ -14,7 +11,7 @@ export type { AtomicLimitCheckResult };
  * Uses SELECT FOR UPDATE lock to ensure thread-safety
  * Now also updates onboarding_step atomically to prevent inconsistencies
  *
- * ✅ REFACTORED: Now uses type-safe RPC wrapper to prevent array access bugs
+ * ✅ REFACTORED: Now uses type-safe RPC from src/rpc module
  */
 export async function checkAndIncrementDailyLimitAtomic(
   userId: string
@@ -25,8 +22,10 @@ export async function checkAndIncrementDailyLimitAtomic(
       userId,
     });
 
-    // ✅ Uses safe wrapper that handles TABLE return type correctly
-    const result = await checkAndIncrementLimitAtomicRpc(userId);
+    // ✅ Type-safe RPC call - TABLE function returns first row
+    const result = await rpc('check_and_increment_daily_limit_atomic', {
+      p_user_id: userId,
+    });
 
     logger.info({
       msg: '[ATOMIC] Limit check + onboarding update completed',
@@ -67,7 +66,7 @@ export async function checkAndIncrementDailyLimitAtomic(
  * Atomically set limit_notified_at to prevent duplicate notifications
  * Returns true if user was already notified today
  *
- * ✅ REFACTORED: Now uses type-safe RPC wrapper to prevent array access bugs
+ * ✅ REFACTORED: Now uses type-safe RPC from src/rpc module
  */
 export async function setLimitNotifiedAtomic(userId: string): Promise<boolean> {
   try {
@@ -76,11 +75,10 @@ export async function setLimitNotifiedAtomic(userId: string): Promise<boolean> {
       userId,
     });
 
-    // ✅ Uses safe wrapper that handles TABLE return type correctly
-    const { setLimitNotifiedAtomic: setLimitNotifiedAtomicRpc } = await import(
-      '../utils/supabaseRpc.js'
-    );
-    const wasAlreadyNotified = await setLimitNotifiedAtomicRpc(userId);
+    // ✅ Type-safe RPC call - SCALAR function returns boolean directly
+    const wasAlreadyNotified = await rpc('set_limit_notified_atomic', {
+      p_user_id: userId,
+    });
 
     logger.info({
       msg: '[ATOMIC] Limit notified timestamp set',

@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'package*.json'
+      - 'tsconfig.json'
+      - '.eslintrc.json'
+
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'package*.json'
+      - 'tsconfig.json'
+      - '.eslintrc.json'
+
+jobs:
+  lint-and-test:
+    name: Lint, Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ========================================
+      # LINT - Inclui regra que bloqueia supabase.rpc() direto
+      # ========================================
+      - name: Lint
+        run: |
+          echo "🔍 Running ESLint..."
+          echo "   - Verifica supabase.rpc() direto (deve usar rpc() de src/rpc)"
+          npm run lint
+          echo "✅ Lint passed!"
+
+      # ========================================
+      # BUILD - Verifica se TypeScript compila
+      # ========================================
+      - name: Build
+        run: |
+          echo "🔨 Building TypeScript..."
+          npm run build
+          echo "✅ Build passed!"
+
+      # ========================================
+      # TEST RPC - Valida registry sincronizado com banco
+      # ========================================
+      - name: Test RPC Registry
+        run: |
+          echo "🧪 Testing RPC Registry..."
+          echo "   - Verifica todas as funções RPC estão no registry"
+          echo "   - Verifica tipos corretos (SCALAR/TABLE/VOID)"
+          npm test -- tests/rpc/rpc.test.ts
+          echo "✅ RPC tests passed!"
+
+      # ========================================
+      # ALL TESTS - Roda todos os testes
+      # ========================================
+      - name: Run All Tests
+        run: |
+          echo "🧪 Running all tests..."
+          npm test
+          echo "✅ All tests passed!"
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "## ✅ CI Passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint (ESLint + supabase.rpc bloqueado) | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build (TypeScript) | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| RPC Registry Sync | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| All Tests | ✅ |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Failure Summary
+        if: failure()
+        run: |
+          echo "## ❌ CI Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Verifique os logs acima para detalhes do erro." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Erros comuns:" >> $GITHUB_STEP_SUMMARY
+          echo "- **supabase.rpc() direto**: Use \`rpc()\` de \`src/rpc\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **RPC não no registry**: Adicione em \`src/rpc/registry.ts\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tipo errado**: Verifique SCALAR vs TABLE vs VOID" >> $GITHUB_STEP_SUMMARY

@@ -25,6 +25,8 @@ export interface Celebrity {
   id: string
   name: string
   slug: string
+  training_status?: string
+  embeddings_count?: number
 }
 
 export function getStickerUrl(sticker: Pick<Sticker, 'tipo' | 'storage_path'>): string {

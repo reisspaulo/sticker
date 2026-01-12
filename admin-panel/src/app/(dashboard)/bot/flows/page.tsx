@@ -526,6 +526,270 @@ const paymentFlowEdges: Edge[] = [
   },
 ]
 
+// Fluxo de Lembretes (Remarketing)
+const reminderFlowNodes: Node<FlowNodeData>[] = [
+  // Payment Reminder Branch
+  {
+    id: 'user_selects_plan',
+    type: 'custom',
+    position: { x: 300, y: 0 },
+    data: { label: 'Seleciona plano', type: 'trigger', description: 'Premium ou Ultra' },
+  },
+  {
+    id: 'schedule_reminders',
+    type: 'custom',
+    position: { x: 300, y: 120 },
+    data: { label: 'Agenda 3 lembretes', type: 'action', description: 'scheduled_reminders' },
+  },
+  {
+    id: 'wait_30min',
+    type: 'custom',
+    position: { x: 300, y: 240 },
+    data: { label: 'Aguarda 30min', type: 'action', description: 'Wave 1' },
+  },
+  {
+    id: 'check_paid_1',
+    type: 'custom',
+    position: { x: 300, y: 360 },
+    data: { label: 'Já pagou?', type: 'decision' },
+  },
+  {
+    id: 'wave1_msg',
+    type: 'custom',
+    position: { x: 50, y: 480 },
+    data: {
+      label: 'Lembrete Wave 1',
+      type: 'message',
+      message: {
+        content: `⏰ *Esqueceu de finalizar?*
+
+Você estava quase lá! O plano *Premium* te dá:
+
+✅ +16 figurinhas hoje
+✅ 20 por dia
+
+O pagamento PIX leva só 1 minuto!`,
+        buttons: [
+          { id: 'payment_pix', text: '🔑 Pagar com PIX' },
+          { id: 'payment_card', text: '💳 Pagar com Cartão' },
+        ],
+      },
+    },
+  },
+  {
+    id: 'cancel_reminders_1',
+    type: 'custom',
+    position: { x: 520, y: 480 },
+    data: { label: 'Cancela lembretes', type: 'end', description: 'Usuário pagou' },
+  },
+  {
+    id: 'wait_6h',
+    type: 'custom',
+    position: { x: 50, y: 600 },
+    data: { label: 'Aguarda 6h', type: 'action', description: 'Wave 2' },
+  },
+  {
+    id: 'check_paid_2',
+    type: 'custom',
+    position: { x: 50, y: 720 },
+    data: { label: 'Já pagou?', type: 'decision' },
+  },
+  {
+    id: 'wave2_msg',
+    type: 'custom',
+    position: { x: -180, y: 840 },
+    data: {
+      label: 'Lembrete Wave 2',
+      type: 'message',
+      message: {
+        content: `💭 *Ainda pensando?*
+
+Entendo! Mas olha só o que você pode estar perdendo:
+
+📊 Esta semana você poderia ter criado *83 figurinhas* com Premium!
+
+O que acha?`,
+        buttons: [
+          { id: 'payment_pix', text: '🔑 Quero o PIX!' },
+          { id: 'show_plans', text: '📋 Ver planos' },
+        ],
+      },
+    },
+  },
+  {
+    id: 'cancel_reminders_2',
+    type: 'custom',
+    position: { x: 250, y: 840 },
+    data: { label: 'Cancela lembretes', type: 'end', description: 'Usuário pagou' },
+  },
+  {
+    id: 'wait_48h',
+    type: 'custom',
+    position: { x: -180, y: 960 },
+    data: { label: 'Aguarda 48h', type: 'action', description: 'Wave 3 (última)' },
+  },
+  {
+    id: 'check_paid_3',
+    type: 'custom',
+    position: { x: -180, y: 1080 },
+    data: { label: 'Já pagou?', type: 'decision' },
+  },
+  {
+    id: 'wave3_msg',
+    type: 'custom',
+    position: { x: -400, y: 1200 },
+    data: {
+      label: 'Lembrete Wave 3',
+      type: 'message',
+      message: {
+        content: `🎯 *Última chance!*
+
+Faz 2 dias que você mostrou interesse no *Premium*.
+
+💡 Sem compromisso: você pode cancelar quando quiser!
+
+Que tal experimentar?`,
+        buttons: [
+          { id: 'payment_pix', text: '✅ Vou tentar!' },
+          { id: 'dismiss_payment_reminder', text: '❌ Não, obrigado' },
+        ],
+      },
+    },
+  },
+  {
+    id: 'cancel_reminders_3',
+    type: 'custom',
+    position: { x: 30, y: 1200 },
+    data: { label: 'Cancela lembretes', type: 'end', description: 'Usuário pagou' },
+  },
+  {
+    id: 'dismiss_end',
+    type: 'custom',
+    position: { x: -400, y: 1320 },
+    data: { label: 'Fim do remarketing', type: 'end', description: 'Usuário recusou' },
+  },
+]
+
+const reminderFlowEdges: Edge[] = [
+  {
+    id: 'r1',
+    source: 'user_selects_plan',
+    target: 'schedule_reminders',
+    animated: true,
+    style: { stroke: '#10b981', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#10b981' },
+  },
+  {
+    id: 'r2',
+    source: 'schedule_reminders',
+    target: 'wait_30min',
+    style: { stroke: '#3b82f6', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' },
+  },
+  {
+    id: 'r3',
+    source: 'wait_30min',
+    target: 'check_paid_1',
+    style: { stroke: '#3b82f6', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' },
+  },
+  {
+    id: 'r4',
+    source: 'check_paid_1',
+    target: 'wave1_msg',
+    label: 'Não',
+    labelBgStyle: { fill: '#ef4444', fillOpacity: 0.8 },
+    labelStyle: { fill: '#fff', fontWeight: 600, fontSize: 12 },
+    style: { stroke: '#ef4444', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#ef4444' },
+  },
+  {
+    id: 'r5',
+    source: 'check_paid_1',
+    target: 'cancel_reminders_1',
+    label: 'Sim',
+    labelBgStyle: { fill: '#10b981', fillOpacity: 0.8 },
+    labelStyle: { fill: '#fff', fontWeight: 600, fontSize: 12 },
+    style: { stroke: '#10b981', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#10b981' },
+  },
+  {
+    id: 'r6',
+    source: 'wave1_msg',
+    target: 'wait_6h',
+    style: { stroke: '#8b5cf6', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#8b5cf6' },
+  },
+  {
+    id: 'r7',
+    source: 'wait_6h',
+    target: 'check_paid_2',
+    style: { stroke: '#3b82f6', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' },
+  },
+  {
+    id: 'r8',
+    source: 'check_paid_2',
+    target: 'wave2_msg',
+    label: 'Não',
+    labelBgStyle: { fill: '#ef4444', fillOpacity: 0.8 },
+    labelStyle: { fill: '#fff', fontWeight: 600, fontSize: 12 },
+    style: { stroke: '#ef4444', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#ef4444' },
+  },
+  {
+    id: 'r9',
+    source: 'check_paid_2',
+    target: 'cancel_reminders_2',
+    label: 'Sim',
+    labelBgStyle: { fill: '#10b981', fillOpacity: 0.8 },
+    labelStyle: { fill: '#fff', fontWeight: 600, fontSize: 12 },
+    style: { stroke: '#10b981', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#10b981' },
+  },
+  {
+    id: 'r10',
+    source: 'wave2_msg',
+    target: 'wait_48h',
+    style: { stroke: '#8b5cf6', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#8b5cf6' },
+  },
+  {
+    id: 'r11',
+    source: 'wait_48h',
+    target: 'check_paid_3',
+    style: { stroke: '#3b82f6', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' },
+  },
+  {
+    id: 'r12',
+    source: 'check_paid_3',
+    target: 'wave3_msg',
+    label: 'Não',
+    labelBgStyle: { fill: '#ef4444', fillOpacity: 0.8 },
+    labelStyle: { fill: '#fff', fontWeight: 600, fontSize: 12 },
+    style: { stroke: '#ef4444', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#ef4444' },
+  },
+  {
+    id: 'r13',
+    source: 'check_paid_3',
+    target: 'cancel_reminders_3',
+    label: 'Sim',
+    labelBgStyle: { fill: '#10b981', fillOpacity: 0.8 },
+    labelStyle: { fill: '#fff', fontWeight: 600, fontSize: 12 },
+    style: { stroke: '#10b981', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#10b981' },
+  },
+  {
+    id: 'r14',
+    source: 'wave3_msg',
+    target: 'dismiss_end',
+    style: { stroke: '#8b5cf6', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#8b5cf6' },
+  },
+]
+
 // Fluxo Twitter
 const twitterFlowNodes: Node<FlowNodeData>[] = [
   {
@@ -838,6 +1102,7 @@ export default function BotFlowsPage() {
   const flows = {
     sticker: { nodes: stickerFlowNodes, edges: stickerFlowEdges },
     payment: { nodes: paymentFlowNodes, edges: paymentFlowEdges },
+    reminder: { nodes: reminderFlowNodes, edges: reminderFlowEdges },
     twitter: { nodes: twitterFlowNodes, edges: twitterFlowEdges },
   }
 
@@ -909,7 +1174,7 @@ export default function BotFlowsPage() {
 
       {/* Flow Tabs */}
       <Tabs value={selectedFlow} onValueChange={handleFlowChange}>
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-4 w-full max-w-xl">
           <TabsTrigger value="sticker" className="gap-2">
             <Image className="h-4 w-4" />
             Principal
@@ -917,6 +1182,10 @@ export default function BotFlowsPage() {
           <TabsTrigger value="payment" className="gap-2">
             <CreditCard className="h-4 w-4" />
             Pagamento
+          </TabsTrigger>
+          <TabsTrigger value="reminder" className="gap-2">
+            <Clock className="h-4 w-4" />
+            Lembretes
           </TabsTrigger>
           <TabsTrigger value="twitter" className="gap-2">
             <Twitter className="h-4 w-4" />

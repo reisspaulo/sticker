@@ -52,6 +52,7 @@ export function BarChart({
             tickLine={false}
             axisLine={false}
             tickFormatter={formatValue}
+            tick={{ fill: 'hsl(var(--muted-foreground))' }}
           />
           <YAxis
             type="category"
@@ -61,6 +62,7 @@ export function BarChart({
             tickLine={false}
             axisLine={false}
             width={80}
+            tick={{ fill: 'hsl(var(--muted-foreground))' }}
           />
           <Tooltip
             content={({ active, payload }) => {
@@ -101,6 +103,7 @@ export function BarChart({
           fontSize={12}
           tickLine={false}
           axisLine={false}
+          tick={{ fill: 'hsl(var(--muted-foreground))' }}
         />
         <YAxis
           stroke="hsl(var(--muted-foreground))"
@@ -108,6 +111,7 @@ export function BarChart({
           tickLine={false}
           axisLine={false}
           tickFormatter={formatValue}
+          tick={{ fill: 'hsl(var(--muted-foreground))' }}
         />
         <Tooltip
           content={({ active, payload }) => {

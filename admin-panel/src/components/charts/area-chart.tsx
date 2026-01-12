@@ -47,6 +47,7 @@ export function AreaChart({
           fontSize={12}
           tickLine={false}
           axisLine={false}
+          tick={{ fill: 'hsl(var(--muted-foreground))' }}
         />
         <YAxis
           stroke="hsl(var(--muted-foreground))"
@@ -54,6 +55,7 @@ export function AreaChart({
           tickLine={false}
           axisLine={false}
           tickFormatter={formatValue}
+          tick={{ fill: 'hsl(var(--muted-foreground))' }}
         />
         <Tooltip
           content={({ active, payload }) => {

@@ -56,7 +56,7 @@ export async function processStaticSticker(messageKey: MessageKey): Promise<Buff
     });
 
     // Process image: resize and convert to WebP
-    let sharpInstance = sharp(imageBuffer)
+    const sharpInstance = sharp(imageBuffer)
       .resize(resizeWidth, resizeHeight, {
         fit: 'contain',
         background: { r: 0, g: 0, b: 0, alpha: 0 }, // Transparent background
@@ -90,7 +90,7 @@ export async function processStaticSticker(messageKey: MessageKey): Promise<Buff
         newQuality: quality,
       });
 
-      let reducedSharpInstance = sharp(imageBuffer)
+      const reducedSharpInstance = sharp(imageBuffer)
         .resize(resizeWidth, resizeHeight, {
           fit: 'contain',
           background: { r: 0, g: 0, b: 0, alpha: 0 },

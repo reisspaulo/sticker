@@ -323,7 +323,7 @@ export async function activatePixSubscription(userNumber: string): Promise<Activ
       userNumber,
     });
 
-    let pending = await getPendingPixPayment(userNumber);
+    const pending = await getPendingPixPayment(userNumber);
     let paymentData: PendingPixPayment;
 
     if (!pending) {

@@ -54,13 +54,13 @@ async function processPaymentReminder(
   const benefitWeek = selectedPlan === 'premium' ? '83 figurinhas' : 'centenas de figurinhas';
   const totalWeek = '347';
 
-  let finalTitle = title
+  const finalTitle = title
     .replace('{plan_name}', planName)
     .replace('{benefit_today}', benefitToday)
     .replace('{benefit_week}', benefitWeek)
     .replace('{total_week}', totalWeek);
 
-  let finalBody = body
+  const finalBody = body
     .replace('{plan_name}', planName)
     .replace('{plan_benefit}', planBenefit)
     .replace('{benefit_today}', benefitToday)

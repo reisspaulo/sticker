@@ -38,6 +38,7 @@ interface User {
   subscription_status: string | null
   ab_test_group: string | null
   daily_count: number
+  daily_limit: number
   created_at: string
   last_interaction: string | null
   first_sticker_at: string | null
@@ -126,13 +127,20 @@ function getColumns(): ColumnDef<User>[] {
           className="-ml-4"
         >
           <Image className="mr-2 h-4 w-4" />
-          Hoje
+          Hoje/Limite
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => (
-        <div className="text-center">{row.original.daily_count}</div>
-      ),
+      cell: ({ row }) => {
+        const count = row.original.daily_count
+        const limit = row.original.daily_limit
+        const isAtLimit = count >= limit
+        return (
+          <div className={`text-center font-mono ${isAtLimit ? 'text-red-400' : ''}`}>
+            {count}/{limit}
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'sticker_count',

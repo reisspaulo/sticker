@@ -65,11 +65,18 @@ app = FastAPI(
 )
 
 
+class PhotoItem(BaseModel):
+    """Photo item with URL"""
+    filename: str
+    url: str
+
+
 class TrainRequest(BaseModel):
     """Request body for /train endpoint"""
     celebrity_slug: str
     celebrity_id: str
     callback_url: Optional[str] = None
+    photos: Optional[list[PhotoItem]] = None  # Signed URLs from admin panel
 
 
 class TrainResponse(BaseModel):
@@ -105,11 +112,13 @@ async def train_celebrity(
     """
     Start training for a celebrity.
 
-    Downloads photos from Supabase Storage and generates face embeddings.
+    If photos with signed URLs are provided, uses those directly.
+    Otherwise, downloads photos from Supabase Storage.
     Training runs in background and updates Supabase when complete.
     """
     celebrity_slug = request.celebrity_slug.lower().strip()
     celebrity_id = request.celebrity_id
+    photos = request.photos
 
     # Check if already training
     if celebrity_slug in active_jobs and active_jobs[celebrity_slug]["status"] == "training":
@@ -127,7 +136,13 @@ async def train_celebrity(
         "celebrity_id": celebrity_id
     }
 
-    logger.info(f"Starting training job {job_id} for {celebrity_slug}")
+    # Convert photos to dict format for background task
+    photos_dict = None
+    if photos:
+        photos_dict = [{"filename": p.filename, "url": p.url} for p in photos]
+        logger.info(f"Starting training job {job_id} for {celebrity_slug} with {len(photos_dict)} pre-signed URLs")
+    else:
+        logger.info(f"Starting training job {job_id} for {celebrity_slug} (will fetch from Supabase)")
 
     # Run training in background
     background_tasks.add_task(
@@ -135,7 +150,8 @@ async def train_celebrity(
         celebrity_slug=celebrity_slug,
         celebrity_id=celebrity_id,
         job_id=job_id,
-        callback_url=request.callback_url
+        callback_url=request.callback_url,
+        photos=photos_dict
     )
 
     return TrainResponse(
@@ -160,22 +176,28 @@ async def run_training(
     celebrity_slug: str,
     celebrity_id: str,
     job_id: str,
-    callback_url: Optional[str] = None
+    callback_url: Optional[str] = None,
+    photos: Optional[list[dict]] = None
 ):
     """
     Background task to run the training process.
 
-    1. Downloads photos from Supabase Storage
+    1. Downloads photos (from signed URLs or Supabase Storage)
     2. Generates face embeddings
     3. Updates Supabase with result
     """
-    from train_celebrity import train_celebrity_from_supabase
+    from train_celebrity import train_celebrity_from_supabase, train_celebrity_from_urls
 
     try:
         logger.info(f"[{job_id}] Starting training for {celebrity_slug}")
 
-        # Run training
-        result = await train_celebrity_from_supabase(celebrity_slug, celebrity_id)
+        # Use signed URLs if provided, otherwise fetch from Supabase
+        if photos:
+            logger.info(f"[{job_id}] Using {len(photos)} pre-signed URLs")
+            result = await train_celebrity_from_urls(celebrity_slug, celebrity_id, photos)
+        else:
+            logger.info(f"[{job_id}] Fetching photos from Supabase")
+            result = await train_celebrity_from_supabase(celebrity_slug, celebrity_id)
 
         # Update job status
         active_jobs[celebrity_slug]["status"] = "completed" if result["success"] else "failed"

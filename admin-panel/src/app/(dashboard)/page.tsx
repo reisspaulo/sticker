@@ -630,7 +630,7 @@ export default function DashboardPage() {
             Atividade Geral (12 meses)
           </CardTitle>
           <CardDescription>
-            Frequencia de criacao de stickers por dia
+            Frequência de criação de stickers por dia
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -659,7 +659,7 @@ export default function DashboardPage() {
             ) : (
               <AreaChart
                 data={usersDaily}
-                color="hsl(var(--primary))"
+                color="hsl(47, 100%, 50%)"
                 height={300}
               />
             )}

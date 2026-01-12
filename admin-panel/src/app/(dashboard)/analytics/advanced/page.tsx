@@ -4,30 +4,22 @@ import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { DatePickerWithRange } from '@/components/ui/date-picker'
 import {
   BarChart3,
   Users,
   Image,
   Clock,
-  Calendar,
   RefreshCw,
   Loader2,
-  Zap,
-  TrendingUp,
   Timer,
   Target,
 } from 'lucide-react'
-import { subDays, format, getHours, getDay, differenceInMinutes } from 'date-fns'
+import { subDays, format, getHours, getDay, differenceInMinutes, differenceInDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { DateRange } from 'react-day-picker'
 
 const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
@@ -65,7 +57,10 @@ interface RetentionCohort {
 
 export default function AdvancedAnalyticsPage() {
   const [loading, setLoading] = useState(true)
-  const [period, setPeriod] = useState('30')
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 30),
+    to: new Date(),
+  })
   const [activeTab, setActiveTab] = useState('heatmap')
 
   const [heatmapData, setHeatmapData] = useState<HeatmapData>({
@@ -83,32 +78,40 @@ export default function AdvancedAnalyticsPage() {
   })
 
   useEffect(() => {
-    fetchData()
-  }, [period])
+    if (dateRange?.from) {
+      fetchData()
+    }
+  }, [dateRange])
 
   async function fetchData() {
+    if (!dateRange?.from) return
+
     setLoading(true)
     const supabase = createClient()
-    const days = parseInt(period)
-    const startDate = subDays(new Date(), days)
+    const startDate = dateRange.from
+    const endDate = dateRange.to || new Date()
+    const days = differenceInDays(endDate, startDate) || 1
 
     // Fetch users
     const { data: users } = await supabase
       .from('users')
       .select('id, whatsapp_number, created_at, first_sticker_at, last_interaction, subscription_plan')
       .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString())
 
     // Fetch stickers
     const { data: stickers } = await supabase
       .from('stickers')
       .select('id, user_number, created_at, tipo')
       .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString())
 
     // Fetch usage logs for conversions and limit reached
     const { data: usageLogs } = await supabase
       .from('usage_logs')
       .select('user_number, action, details, created_at')
       .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString())
 
     if (!users || !stickers) {
       setLoading(false)
@@ -310,24 +313,15 @@ export default function AdvancedAnalyticsPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <BarChart3 className="h-6 w-6" />
-            Analytics Avancado
+            Analytics Avançado
           </h1>
-          <p className="text-muted-foreground">Analise detalhada por hora e dia da semana</p>
+          <p className="text-muted-foreground">Análise detalhada por hora e dia da semana</p>
         </div>
         <div className="flex items-center gap-4">
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-[150px]">
-              <Calendar className="mr-2 h-4 w-4" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Ultimos 7 dias</SelectItem>
-              <SelectItem value="14">Ultimos 14 dias</SelectItem>
-              <SelectItem value="30">Ultimos 30 dias</SelectItem>
-              <SelectItem value="60">Ultimos 60 dias</SelectItem>
-              <SelectItem value="90">Ultimos 90 dias</SelectItem>
-            </SelectContent>
-          </Select>
+          <DatePickerWithRange
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+          />
           <Button variant="outline" onClick={fetchData}>
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -379,7 +373,7 @@ export default function AdvancedAnalyticsPage() {
               <TabsTrigger value="heatmap">Heatmap</TabsTrigger>
               <TabsTrigger value="hourly">Por Hora</TabsTrigger>
               <TabsTrigger value="firstSticker">Primeiro Sticker</TabsTrigger>
-              <TabsTrigger value="retention">Retencao</TabsTrigger>
+              <TabsTrigger value="retention">Retenção</TabsTrigger>
             </TabsList>
 
             {/* Heatmap Tab */}
@@ -391,7 +385,7 @@ export default function AdvancedAnalyticsPage() {
                     <Image className="h-4 w-4" />
                     Stickers por Hora e Dia
                   </CardTitle>
-                  <CardDescription>Distribuicao de stickers criados</CardDescription>
+                  <CardDescription>Distribuição de stickers criados</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -441,7 +435,7 @@ export default function AdvancedAnalyticsPage() {
                     <Users className="h-4 w-4" />
                     Cadastros por Hora e Dia
                   </CardTitle>
-                  <CardDescription>Distribuicao de novos usuarios</CardDescription>
+                  <CardDescription>Distribuição de novos usuários</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -488,9 +482,9 @@ export default function AdvancedAnalyticsPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    Metricas por Hora do Dia
+                    Métricas por Hora do Dia
                   </CardTitle>
-                  <CardDescription>Agregado de todos os dias do periodo</CardDescription>
+                  <CardDescription>Agregado de todos os dias do período</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -545,9 +539,9 @@ export default function AdvancedAnalyticsPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Timer className="h-4 w-4" />
-                    Tempo ate o Primeiro Sticker
+                    Tempo até o Primeiro Sticker
                   </CardTitle>
-                  <CardDescription>Quanto tempo apos o cadastro o usuario cria o primeiro sticker</CardDescription>
+                  <CardDescription>Quanto tempo após o cadastro o usuário cria o primeiro sticker</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -574,7 +568,7 @@ export default function AdvancedAnalyticsPage() {
                       <p className="text-2xl font-bold text-emerald-500">
                         {timeToFirstSticker.slice(0, 3).reduce((sum, d) => sum + d.count, 0)}
                       </p>
-                      <p className="text-xs text-muted-foreground">Em ate 15 min</p>
+                      <p className="text-xs text-muted-foreground">Em até 15 min</p>
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-yellow-500">
@@ -599,9 +593,9 @@ export default function AdvancedAnalyticsPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Target className="h-4 w-4" />
-                    Retencao por Coorte
+                    Retenção por Coorte
                   </CardTitle>
-                  <CardDescription>Usuarios que voltaram apos D1, D7 e D30</CardDescription>
+                  <CardDescription>Usuários que voltaram após D1, D7 e D30</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -658,7 +652,7 @@ export default function AdvancedAnalyticsPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                      <span>Medio</span>
+                      <span>Médio</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <div className="w-3 h-3 rounded-full bg-red-500" />

@@ -69,10 +69,10 @@ const VARIANT_COLORS: Record<string, string> = {
 const VARIANT_LABELS: Record<string, string> = {
   control: 'Control (Original)',
   social_proof: 'Social Proof',
-  benefit: 'Beneficio Claro',
-  hybrid: 'Hibrido',
+  benefit: 'Benefício Claro',
+  hybrid: 'Híbrido',
   // Legacy
-  dismiss_now: 'Agora Nao',
+  dismiss_now: 'Agora Não',
   remind_2h: 'Lembrar em 2h',
   remind_6h: 'Lembrar em 6h',
 }
@@ -240,7 +240,7 @@ export default function ExperimentsPage() {
             <FlaskConical className="h-6 w-6" />
             Experimentos A/B
           </h1>
-          <p className="text-muted-foreground">Analise de variantes e conversao</p>
+          <p className="text-muted-foreground">Análise de variantes e conversão</p>
         </div>
         <div className="flex items-center gap-4">
           {experiments.length > 0 && (
@@ -269,10 +269,10 @@ export default function ExperimentsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7">Ultimos 7 dias</SelectItem>
-              <SelectItem value="14">Ultimos 14 dias</SelectItem>
-              <SelectItem value="30">Ultimos 30 dias</SelectItem>
-              <SelectItem value="90">Ultimos 90 dias</SelectItem>
+              <SelectItem value="7">Últimos 7 dias</SelectItem>
+              <SelectItem value="14">Últimos 14 dias</SelectItem>
+              <SelectItem value="30">Últimos 30 dias</SelectItem>
+              <SelectItem value="90">Últimos 90 dias</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={fetchMetrics}>
@@ -308,11 +308,11 @@ export default function ExperimentsPage() {
                     <span className="font-medium">{Object.keys(selectedExp.variants || {}).length}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Usuarios no periodo:</span>{' '}
+                    <span className="text-muted-foreground">Usuários no período:</span>{' '}
                     <span className="font-medium">{totalUsers}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Conversoes:</span>{' '}
+                    <span className="text-muted-foreground">Conversões:</span>{' '}
                     <span className="font-medium text-emerald-500">{totalConversions}</span>
                   </div>
                   <div>
@@ -345,7 +345,7 @@ export default function ExperimentsPage() {
                 <CardContent>
                   <div className="text-3xl font-bold">{m.conversion_rate.toFixed(2)}%</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {m.converted} conversoes de {m.menu_shown} visualizacoes
+                    {m.converted} conversões de {m.menu_shown} visualizações
                   </p>
                 </CardContent>
               </Card>
@@ -355,8 +355,8 @@ export default function ExperimentsPage() {
           {/* Comparison Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>Taxa de Conversao por Variante</CardTitle>
-              <CardDescription>Porcentagem de usuarios que converteram</CardDescription>
+              <CardTitle>Taxa de Conversão por Variante</CardTitle>
+              <CardDescription>Porcentagem de usuários que converteram</CardDescription>
             </CardHeader>
             <CardContent>
               {chartData.length > 0 ? (
@@ -367,7 +367,7 @@ export default function ExperimentsPage() {
                 />
               ) : (
                 <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-                  Sem dados para o periodo selecionado
+                  Sem dados para o período selecionado
                 </div>
               )}
             </CardContent>
@@ -377,7 +377,7 @@ export default function ExperimentsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Funil por Variante</CardTitle>
-              <CardDescription>Detalhamento do funil de conversao</CardDescription>
+              <CardDescription>Detalhamento do funil de conversão</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -388,7 +388,7 @@ export default function ExperimentsPage() {
                       <th className="text-center py-3 px-2 font-medium">
                         <div className="flex items-center justify-center gap-1">
                           <Users className="h-4 w-4" />
-                          Usuarios
+                          Usuários
                         </div>
                       </th>
                       <th className="text-center py-3 px-2 font-medium">
@@ -474,8 +474,8 @@ export default function ExperimentsPage() {
           {metrics.some(m => m.dismiss_clicked > 0) && (
             <Card>
               <CardHeader>
-                <CardTitle>Analise do Botao Dismiss</CardTitle>
-                <CardDescription>Quantos usuarios clicaram em "Agora Nao" ou similares</CardDescription>
+                <CardTitle>Análise do Botão Dismiss</CardTitle>
+                <CardDescription>Quantos usuários clicaram em "Agora Não" ou similares</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-4">

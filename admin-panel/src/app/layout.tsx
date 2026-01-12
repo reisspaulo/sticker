@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Stickers Admin",
-  description: "Gerenciamento de classificacao de stickers",
+  description: "Gerenciamento de classificação de stickers",
 };
 
 export default function RootLayout({

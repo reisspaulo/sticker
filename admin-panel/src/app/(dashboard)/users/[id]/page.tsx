@@ -190,7 +190,7 @@ export default function UserDetailPage() {
     return (
       <div className="flex h-96 flex-col items-center justify-center gap-4">
         <AlertCircle className="h-12 w-12 text-muted-foreground" />
-        <p className="text-muted-foreground">Usuario nao encontrado</p>
+        <p className="text-muted-foreground">Usuário não encontrado</p>
         <Button onClick={() => router.push('/users')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar
@@ -219,7 +219,7 @@ export default function UserDetailPage() {
           Voltar
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{user.name || 'Usuario'}</h1>
+          <h1 className="text-2xl font-bold">{user.name || 'Usuário'}</h1>
           <p className="font-mono text-sm text-muted-foreground">
             {formatPhone(user.whatsapp_number)}
           </p>
@@ -235,10 +235,10 @@ export default function UserDetailPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Activity className="h-4 w-4" />
-            Frequencia de Uso
+            Frequência de Uso
           </CardTitle>
           <CardDescription>
-            Stickers criados nos ultimos 12 meses
+            Stickers criados nos últimos 12 meses
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -257,7 +257,7 @@ export default function UserDetailPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <User className="h-4 w-4" />
-                Informacoes
+                Informações
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -272,7 +272,7 @@ export default function UserDetailPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Ultimo acesso</span>
+                <span className="text-sm text-muted-foreground">Último acesso</span>
                 <span className="text-sm">
                   {user.last_interaction
                     ? formatDistanceToNow(new Date(user.last_interaction), {
@@ -301,7 +301,7 @@ export default function UserDetailPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Image className="h-4 w-4" />
-                Estatisticas
+                Estatísticas
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -310,7 +310,7 @@ export default function UserDetailPage() {
                 <span className="text-xl font-bold">{user.daily_count}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Bonus hoje</span>
+                <span className="text-sm text-muted-foreground">Bônus hoje</span>
                 <span className="text-xl font-bold text-emerald-500">{user.bonus_credits_today}</span>
               </div>
               <div className="flex items-center justify-between">

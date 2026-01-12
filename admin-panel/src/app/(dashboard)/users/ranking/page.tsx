@@ -13,17 +13,15 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DatePickerWithRange } from '@/components/ui/date-picker'
 import {
   Trophy,
   Users,
   Image,
   Crown,
-  Zap,
-  Calendar,
   RefreshCw,
   Loader2,
   TrendingUp,
-  Clock,
   Medal,
   Search,
   ArrowUpDown,
@@ -31,6 +29,7 @@ import {
 } from 'lucide-react'
 import { subDays, format, differenceInDays, formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { DateRange } from 'react-day-picker'
 import Link from 'next/link'
 
 interface UserRanking {
@@ -61,7 +60,10 @@ type SortDirection = 'asc' | 'desc'
 
 export default function UserRankingPage() {
   const [loading, setLoading] = useState(true)
-  const [period, setPeriod] = useState('30')
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 30),
+    to: new Date(),
+  })
   const [planFilter, setPlanFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<SortField>('stickers_period')
@@ -77,14 +79,19 @@ export default function UserRankingPage() {
   })
 
   useEffect(() => {
-    fetchData()
-  }, [period])
+    if (dateRange?.from) {
+      fetchData()
+    }
+  }, [dateRange])
 
   async function fetchData() {
+    if (!dateRange?.from) return
+
     setLoading(true)
     const supabase = createClient()
-    const days = parseInt(period)
-    const startDate = subDays(new Date(), days)
+    const startDate = dateRange.from
+    const endDate = dateRange.to || new Date()
+    const days = differenceInDays(endDate, startDate) || 1
 
     // Fetch all users
     const { data: usersData } = await supabase
@@ -101,6 +108,7 @@ export default function UserRankingPage() {
       .from('stickers')
       .select('user_number, created_at')
       .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString())
 
     if (!usersData) {
       setLoading(false)
@@ -258,24 +266,15 @@ export default function UserRankingPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Trophy className="h-6 w-6" />
-            Ranking de Usuarios
+            Ranking de Usuários
           </h1>
-          <p className="text-muted-foreground">Top usuarios por uso e frequencia</p>
+          <p className="text-muted-foreground">Top usuários por uso e frequência</p>
         </div>
         <div className="flex items-center gap-4">
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-[150px]">
-              <Calendar className="mr-2 h-4 w-4" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Ultimos 7 dias</SelectItem>
-              <SelectItem value="14">Ultimos 14 dias</SelectItem>
-              <SelectItem value="30">Ultimos 30 dias</SelectItem>
-              <SelectItem value="60">Ultimos 60 dias</SelectItem>
-              <SelectItem value="90">Ultimos 90 dias</SelectItem>
-            </SelectContent>
-          </Select>
+          <DatePickerWithRange
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+          />
           <Button variant="outline" onClick={fetchData}>
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -294,7 +293,7 @@ export default function UserRankingPage() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Usuarios</p>
+                    <p className="text-sm text-muted-foreground">Total Usuários</p>
                     <p className="text-2xl font-bold">{totals.totalUsers}</p>
                   </div>
                   <Users className="h-8 w-8 text-muted-foreground/50" />
@@ -306,7 +305,7 @@ export default function UserRankingPage() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Stickers no Periodo</p>
+                    <p className="text-sm text-muted-foreground">Stickers no Período</p>
                     <p className="text-2xl font-bold">{totals.totalStickers}</p>
                   </div>
                   <Image className="h-8 w-8 text-muted-foreground/50" />
@@ -318,7 +317,7 @@ export default function UserRankingPage() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Media por Usuario</p>
+                    <p className="text-sm text-muted-foreground">Média por Usuário</p>
                     <p className="text-2xl font-bold">{totals.avgPerUser.toFixed(1)}</p>
                   </div>
                   <TrendingUp className="h-8 w-8 text-muted-foreground/50" />
@@ -330,7 +329,7 @@ export default function UserRankingPage() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Top Usuario</p>
+                    <p className="text-sm text-muted-foreground">Top Usuário</p>
                     <p className="text-2xl font-bold">{totals.topUserStickers}</p>
                     <p className="text-xs text-muted-foreground">stickers</p>
                   </div>
@@ -353,17 +352,17 @@ export default function UserRankingPage() {
                     ) : (
                       <span className="text-muted-foreground">Free</span>
                     )}
-                    <Badge variant="outline">{stat.count} usuarios</Badge>
+                    <Badge variant="outline">{stat.count} usuários</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-muted-foreground">Media stickers</p>
+                      <p className="text-muted-foreground">Média stickers</p>
                       <p className="text-lg font-semibold">{stat.avgStickers.toFixed(1)}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Freq. media</p>
+                      <p className="text-muted-foreground">Freq. média</p>
                       <p className="text-lg font-semibold">{stat.avgFrequency.toFixed(2)}/dia</p>
                     </div>
                   </div>
@@ -379,7 +378,7 @@ export default function UserRankingPage() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar por numero ou nome..."
+                    placeholder="Buscar por número ou nome..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="pl-10"
@@ -405,9 +404,9 @@ export default function UserRankingPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="h-4 w-4" />
-                Ranking ({filteredUsers.length} usuarios)
+                Ranking ({filteredUsers.length} usuários)
               </CardTitle>
-              <CardDescription>Ordenado por stickers no periodo</CardDescription>
+              <CardDescription>Ordenado por stickers no período</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -415,14 +414,14 @@ export default function UserRankingPage() {
                   <thead>
                     <tr className="border-b">
                       <th className="pb-3 text-left font-medium w-12">#</th>
-                      <th className="pb-3 text-left font-medium">Usuario</th>
+                      <th className="pb-3 text-left font-medium">Usuário</th>
                       <th className="pb-3 text-center font-medium">Plano</th>
                       <th
                         className="pb-3 text-center font-medium cursor-pointer hover:text-primary"
                         onClick={() => toggleSort('stickers_period')}
                       >
                         <div className="flex items-center justify-center gap-1">
-                          Periodo
+                          Período
                           <ArrowUpDown className="h-3 w-3" />
                         </div>
                       </th>
@@ -449,7 +448,7 @@ export default function UserRankingPage() {
                         onClick={() => toggleSort('last_interaction')}
                       >
                         <div className="flex items-center justify-center gap-1">
-                          Ultima Ativ.
+                          Última Ativ.
                           <ArrowUpDown className="h-3 w-3" />
                         </div>
                       </th>
@@ -507,7 +506,7 @@ export default function UserRankingPage() {
 
               {filteredUsers.length > 100 && (
                 <p className="text-center text-sm text-muted-foreground mt-4">
-                  Mostrando top 100 de {filteredUsers.length} usuarios
+                  Mostrando top 100 de {filteredUsers.length} usuários
                 </p>
               )}
             </CardContent>

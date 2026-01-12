@@ -177,10 +177,10 @@ export default function FunnelPage() {
     setDropoffReasons([
       { name: 'Nunca criou sticker', value: neverCreated, color: 'hsl(0 84% 60%)' },
       { name: 'Criou apenas 1-2', value: createdOnce, color: 'hsl(38 92% 50%)' },
-      { name: 'Nao retornou', value: didNotReturn, color: 'hsl(262 83% 58%)' },
-      { name: 'Nao viu upgrade', value: neverSawUpgrade, color: 'hsl(217 91% 60%)' },
-      { name: 'Viu mas nao clicou', value: sawButDidntClick, color: 'hsl(142 76% 36%)' },
-      { name: 'Clicou mas nao pagou', value: clickedButDidntPay, color: 'hsl(48 96% 53%)' },
+      { name: 'Não retornou', value: didNotReturn, color: 'hsl(262 83% 58%)' },
+      { name: 'Não viu upgrade', value: neverSawUpgrade, color: 'hsl(217 91% 60%)' },
+      { name: 'Viu mas não clicou', value: sawButDidntClick, color: 'hsl(142 76% 36%)' },
+      { name: 'Clicou mas não pagou', value: clickedButDidntPay, color: 'hsl(48 96% 53%)' },
     ])
 
     setLoading(false)
@@ -195,9 +195,9 @@ export default function FunnelPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <TrendingUp className="h-6 w-6" />
-            Funil de Conversao
+            Funil de Conversão
           </h1>
-          <p className="text-muted-foreground">Da chegada ate a assinatura</p>
+          <p className="text-muted-foreground">Da chegada até a assinatura</p>
         </div>
         <div className="flex items-center gap-4">
           <Select value={period} onValueChange={setPeriod}>
@@ -206,10 +206,10 @@ export default function FunnelPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7">Ultimos 7 dias</SelectItem>
-              <SelectItem value="14">Ultimos 14 dias</SelectItem>
-              <SelectItem value="30">Ultimos 30 dias</SelectItem>
-              <SelectItem value="90">Ultimos 90 dias</SelectItem>
+              <SelectItem value="7">Últimos 7 dias</SelectItem>
+              <SelectItem value="14">Últimos 14 dias</SelectItem>
+              <SelectItem value="30">Últimos 30 dias</SelectItem>
+              <SelectItem value="90">Últimos 90 dias</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={fetchData}>
@@ -228,7 +228,7 @@ export default function FunnelPage() {
           <Card>
             <CardHeader>
               <CardTitle>Funil Visual</CardTitle>
-              <CardDescription>Jornada do usuario</CardDescription>
+              <CardDescription>Jornada do usuário</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -282,8 +282,8 @@ export default function FunnelPage() {
             {/* Dropoff Analysis */}
             <Card>
               <CardHeader>
-                <CardTitle>Onde Usuarios Sairam</CardTitle>
-                <CardDescription>Analise de abandono</CardDescription>
+                <CardTitle>Onde Usuários Saíram</CardTitle>
+                <CardDescription>Análise de abandono</CardDescription>
               </CardHeader>
               <CardContent>
                 <PieChart
@@ -297,15 +297,15 @@ export default function FunnelPage() {
             {/* Key Metrics */}
             <Card>
               <CardHeader>
-                <CardTitle>Metricas Chave</CardTitle>
-                <CardDescription>Taxas de conversao</CardDescription>
+                <CardTitle>Métricas Chave</CardTitle>
+                <CardDescription>Taxas de conversão</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {funnel.length > 0 && (
                   <>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Ativacao</p>
+                        <p className="text-sm text-muted-foreground">Ativação</p>
                         <p className="text-xs text-muted-foreground">Visitantes → Primeiro Sticker</p>
                       </div>
                       <div className="text-right">
@@ -337,7 +337,7 @@ export default function FunnelPage() {
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Retencao</p>
+                        <p className="text-sm text-muted-foreground">Retenção</p>
                         <p className="text-xs text-muted-foreground">Engajados → Retornaram</p>
                       </div>
                       <div className="text-right">
@@ -354,7 +354,7 @@ export default function FunnelPage() {
 
                     <div className="flex items-center justify-between border-t pt-4">
                       <div>
-                        <p className="text-sm font-medium">Conversao Total</p>
+                        <p className="text-sm font-medium">Conversão Total</p>
                         <p className="text-xs text-muted-foreground">Visitantes → Assinantes</p>
                       </div>
                       <div className="text-right">

@@ -11,7 +11,7 @@ interface ActivityData {
 
 interface ActivityHeatmapProps {
   data: ActivityData[]
-  months?: number // numero de meses para mostrar (default: 12)
+  months?: number // número de meses para mostrar (default: 12)
   colorScheme?: 'green' | 'blue' | 'purple'
   showMonthLabels?: boolean
   showWeekdayLabels?: boolean
@@ -200,7 +200,7 @@ export function ActivityHeatmap({
 
       {/* Legend */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{total} stickers no periodo</span>
+        <span>{total} stickers no período</span>
         <div className="flex items-center gap-1">
           <span>Menos</span>
           <div className={`w-[10px] h-[10px] rounded-sm ${colors.empty}`} />

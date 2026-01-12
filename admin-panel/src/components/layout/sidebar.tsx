@@ -43,6 +43,7 @@ const navigation: NavItem[] = [
     children: [
       { title: 'Lista', href: '/users' },
       { title: 'Fluxo', href: '/users/flow' },
+      { title: 'Ranking', href: '/users/ranking' },
     ],
   },
   {
@@ -61,6 +62,7 @@ const navigation: NavItem[] = [
     icon: BarChart3,
     children: [
       { title: 'Métricas', href: '/analytics' },
+      { title: 'Avançado', href: '/analytics/advanced' },
       { title: 'Funil', href: '/analytics/funnel' },
       { title: 'Experimentos', href: '/analytics/experiments' },
     ],

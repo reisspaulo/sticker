@@ -11,6 +11,41 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ### Admin Panel
 
+#### 🎨 Melhorias de UX e Correções - 2026-01-12
+
+**Implementado:** Melhorias de interface, correções de português e date picker
+
+**Navegação:**
+- Adicionado link "Avançado" no menu Analytics
+- Adicionado link "Ranking" no menu Usuários
+
+**Date Picker com Calendário:**
+- Novo componente `DatePickerWithRange` para seleção de período
+- Presets de período (7, 14, 30, 60, 90 dias)
+- Calendário duplo para seleção de data exata
+- Implementado em Analytics Avançado e Ranking de Usuários
+
+**Correções de Português:**
+- Corrigidos acentos em todas as páginas do admin panel
+- Páginas afetadas: layout, dashboard, analytics (todas), users, funnel, experiments, ranking
+
+**UI:**
+- Cor do gráfico "Novos Usuários" alterada de preto para amarelo (melhor visibilidade)
+
+**Arquivos Adicionados:**
+- `admin-panel/src/components/ui/date-picker.tsx`
+
+**Arquivos Modificados:**
+- `admin-panel/src/components/layout/sidebar.tsx`
+- `admin-panel/src/app/(dashboard)/page.tsx`
+- `admin-panel/src/app/(dashboard)/analytics/advanced/page.tsx`
+- `admin-panel/src/app/(dashboard)/analytics/funnel/page.tsx`
+- `admin-panel/src/app/(dashboard)/analytics/experiments/page.tsx`
+- `admin-panel/src/app/(dashboard)/users/[id]/page.tsx`
+- `admin-panel/src/app/(dashboard)/users/ranking/page.tsx`
+- `admin-panel/src/components/charts/activity-heatmap.tsx`
+- `admin-panel/src/app/layout.tsx`
+
 #### 📊 Analytics Avançado e Ranking de Usuários - 2026-01-12
 
 **Implementado:** Páginas de analytics avançado com heatmaps e ranking de usuários

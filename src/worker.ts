@@ -194,15 +194,18 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
           });
 
           // Check if should present Twitter feature
-          // For limit_4 users: show after 3rd sticker (step === 3)
-          // For limit_3 users: show after 3rd sticker (step === 3)
-          // For limit_2 users: show after 2nd sticker (step === 2)
-          // Rule: show when step === min(daily_limit, 3) + 1 (because welcome sets step to 1)
-          // Simplified: show when step >= daily_limit AND step <= 3
-          const shouldShowTwitter = currentStep >= userDailyLimit && currentStep <= 3;
+          // step = 1 (welcome) + stickers_created
+          // Show after user creates min(daily_limit, 3) stickers
+          // For limit_2: after 2nd sticker → step === 3 (1 + 2)
+          // For limit_3: after 3rd sticker → step === 4 (1 + 3)
+          // For limit_4: after 3rd sticker → step === 4 (1 + 3, capped at 3)
+          const stickersToTrigger = Math.min(userDailyLimit, 3);
+          const triggerStep = stickersToTrigger + 1; // +1 because welcome sets step to 1
+          const shouldShowTwitter = currentStep === triggerStep;
 
           if (shouldShowTwitter) {
-            await checkTwitterFeaturePresentation(userNumber, userName, currentStep, userDailyLimit);
+            // Pass stickersToTrigger for the message (actual count at trigger time)
+            await checkTwitterFeaturePresentation(userNumber, userName, currentStep, stickersToTrigger);
           }
         } catch (error) {
           // Non-critical - don't fail the job

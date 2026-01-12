@@ -631,14 +631,18 @@ const { data: userData } = await supabase
 const currentStep = userData?.onboarding_step || 0;
 const userDailyLimit = userData?.daily_limit || 4;
 
-// Trigger quando step >= daily_limit (usuário atingiu seu limite de figurinhas)
-// Para limit_2: mostra após 2ª figurinha (step=2)
-// Para limit_3: mostra após 3ª figurinha (step=3)
-// Para limit_4: mostra após 3ª figurinha (step=3, capped)
-const shouldShowTwitter = currentStep >= userDailyLimit && currentStep <= 3;
+// step = 1 (welcome) + stickers_criadas
+// Trigger quando user cria min(daily_limit, 3) stickers
+// Para limit_2: após 2ª figurinha → step === 3 (1 + 2)
+// Para limit_3: após 3ª figurinha → step === 4 (1 + 3)
+// Para limit_4: após 3ª figurinha → step === 4 (1 + 3, cap em 3)
+const stickersToTrigger = Math.min(userDailyLimit, 3);
+const triggerStep = stickersToTrigger + 1; // +1 pelo welcome
+const shouldShowTwitter = currentStep === triggerStep;
 
 if (shouldShowTwitter) {
-  await checkTwitterFeaturePresentation(userNumber, userName, currentStep, userDailyLimit);
+  // stickersToTrigger é o número real de figurinhas criadas neste ponto
+  await checkTwitterFeaturePresentation(userNumber, userName, currentStep, stickersToTrigger);
 }
 ```
 
@@ -1618,8 +1622,8 @@ As seguintes funções foram atualizadas para receber o parâmetro `userDailyLim
 | `menuService.ts` | `getPlansOverviewMenu(userDailyLimit)` | 🆓 Gratuito - {limit}/dia |
 | `menuService.ts` | `getPlanDetailsMenu(plan, userDailyLimit)` | Comparação free vs premium |
 | `menuService.ts` | `getWelcomeMessageForNewUser(userName, userDailyLimit)` | Seu plano: {limit} figurinhas/dia |
-| `onboardingService.ts` | `checkTwitterFeaturePresentation(userNumber, userName, currentStep, userDailyLimit)` | Trigger dinâmico baseado no limite |
-| `onboardingService.ts` | `sendTwitterFeaturePresentation(userNumber, userName, userDailyLimit)` | 🎉 Você já criou {limit} figurinhas! |
+| `onboardingService.ts` | `checkTwitterFeaturePresentation(userNumber, userName, currentStep, stickerCount)` | Trigger após N figurinhas |
+| `onboardingService.ts` | `sendTwitterFeaturePresentation(userNumber, userName, stickerCount)` | 🎉 Você já criou {count} figurinhas! |
 | `onboardingService.ts` | `handleTwitterLearnMore(userNumber, userName, userDailyLimit)` | ✨ Seu plano gratuito: {limit} vídeos/dia |
 | `sendScheduledReminders.ts` | Usa `user.daily_limit ?? PLAN_LIMITS.free` | Limite correto para cada usuário |
 

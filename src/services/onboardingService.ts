@@ -135,20 +135,17 @@ Continue enviando suas mídias! 🚀`;
  * @param userNumber - WhatsApp number
  * @param userName - User's name
  * @param currentStep - Current onboarding step
- * @param userDailyLimit - User's daily limit (from A/B experiment: 2, 3, or 4)
+ * @param stickerCount - Number of stickers created at trigger time (min(daily_limit, 3))
  */
 export async function checkTwitterFeaturePresentation(
   userNumber: string,
   userName: string,
-  currentStep: number,
-  userDailyLimit: number = 4
+  _currentStep: number, // Kept for API compatibility, validation done in worker
+  stickerCount: number = 3
 ): Promise<void> {
   try {
-    // Verificação já feita no worker.ts (currentStep >= userDailyLimit && currentStep <= 3)
-    // Aqui apenas garantimos que o step não está abaixo do limite mínimo esperado
-    if (currentStep < userDailyLimit) {
-      return;
-    }
+    // Worker já verificou que currentStep === triggerStep
+    // Aqui só usamos o RPC atômico para evitar envio duplicado
 
     // Tenta marcar atomicamente como apresentado
     // Retorna TRUE se foi o primeiro (devemos enviar)
@@ -170,10 +167,10 @@ export async function checkTwitterFeaturePresentation(
       msg: 'Twitter feature presentation - first to mark, sending',
       userNumber,
       userName,
-      userDailyLimit,
+      stickerCount,
     });
 
-    await sendTwitterFeaturePresentation(userNumber, userName, userDailyLimit);
+    await sendTwitterFeaturePresentation(userNumber, userName, stickerCount);
   } catch (error) {
     logger.error({ error, userNumber }, 'Error checking Twitter feature presentation');
   }
@@ -181,16 +178,17 @@ export async function checkTwitterFeaturePresentation(
 
 /**
  * Envia apresentação da funcionalidade Twitter com botões
+ * @param stickerCount - Number of stickers created (for the message)
  */
 async function sendTwitterFeaturePresentation(
   userNumber: string,
   userName: string,
-  userDailyLimit: number = 4
+  stickerCount: number = 3
 ): Promise<void> {
   try {
     await sendButtons({
       number: userNumber,
-      title: `🎉 *Você já criou ${userDailyLimit} figurinhas!*`,
+      title: `🎉 *Você já criou ${stickerCount} figurinhas!*`,
       desc: `Parabéns, ${userName}! 👏
 
 💡 Sabia que também posso *baixar vídeos do X (Twitter)*?
@@ -209,7 +207,7 @@ Escolha o que você quer fazer:`,
       ],
     });
 
-    logger.info({ userNumber, userName, userDailyLimit }, 'Twitter feature presentation sent');
+    logger.info({ userNumber, userName, stickerCount }, 'Twitter feature presentation sent');
   } catch (error) {
     logger.error({ error, userNumber }, 'Error sending Twitter feature presentation');
     throw error;

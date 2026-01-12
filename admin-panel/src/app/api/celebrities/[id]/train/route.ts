@@ -48,16 +48,40 @@ export async function POST(request: NextRequest, context: RouteContext) {
       )
     }
 
-    // Check if celebrity has photos
-    const { count: photoCount } = await supabase
+    // Get all photos for this celebrity
+    const { data: photos, error: photosError } = await supabase
       .from('celebrity_photos')
-      .select('*', { count: 'exact', head: true })
+      .select('id, storage_path, file_name')
       .eq('celebrity_id', celebrityId)
 
-    if (!photoCount || photoCount < 1) {
+    if (photosError || !photos || photos.length < 1) {
       return NextResponse.json(
         { error: 'Celebrity has no photos. Upload at least 1 photo before training.' },
         { status: 400 }
+      )
+    }
+
+    // Generate signed URLs for all photos (valid for 1 hour)
+    const photosWithUrls = await Promise.all(
+      photos.map(async (photo) => {
+        const { data: signedData } = await supabase.storage
+          .from('celebrity-training')
+          .createSignedUrl(photo.storage_path, 3600) // 1 hour expiry
+
+        return {
+          filename: photo.file_name,
+          url: signedData?.signedUrl || '',
+        }
+      })
+    )
+
+    // Filter out any photos that failed to get signed URLs
+    const validPhotos = photosWithUrls.filter((p) => p.url)
+
+    if (validPhotos.length === 0) {
+      return NextResponse.json(
+        { error: 'Failed to generate access URLs for photos' },
+        { status: 500 }
       )
     }
 
@@ -67,7 +91,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       .update({ training_status: 'training', training_error: null })
       .eq('id', celebrityId)
 
-    // Call VPS Training API
+    // Call VPS Training API with signed URLs
     const vpsResponse = await fetch(`${vpsConfig.url}/train`, {
       method: 'POST',
       headers: {
@@ -77,6 +101,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       body: JSON.stringify({
         celebrity_slug: celebrity.slug,
         celebrity_id: celebrityId,
+        photos: validPhotos, // Include signed URLs
       }),
     })
 
@@ -104,6 +129,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       status: 'training',
       message: `Training started for ${celebrity.name}`,
       job_id: result.job_id,
+      photos_count: validPhotos.length,
     })
   } catch (error) {
     console.error('Error starting training:', error)
@@ -117,6 +143,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 // GET - Get training status for a celebrity
 export async function GET(request: NextRequest, context: RouteContext) {
   const supabase = getSupabase()
+  const vpsConfig = getVpsConfig()
 
   try {
     const { id: celebrityId } = await context.params
@@ -130,6 +157,49 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     if (error || !celebrity) {
       return NextResponse.json({ error: 'Celebrity not found' }, { status: 404 })
+    }
+
+    // If status is "training", check VPS for actual status and sync
+    if (celebrity.training_status === 'training') {
+      try {
+        const vpsResponse = await fetch(`${vpsConfig.url}/status/${celebrity.slug}`, {
+          headers: { 'X-API-Key': vpsConfig.apiKey },
+        })
+
+        if (vpsResponse.ok) {
+          const vpsStatus = await vpsResponse.json()
+
+          // Sync VPS status to database if training completed or failed
+          if (vpsStatus.status === 'completed' || vpsStatus.status === 'failed') {
+            const updateData: Record<string, unknown> = {
+              training_status: vpsStatus.status === 'completed' ? 'trained' : 'failed',
+              last_trained_at: vpsStatus.status === 'completed' ? new Date().toISOString() : null,
+            }
+
+            if (vpsStatus.result?.embeddings_count) {
+              updateData.embeddings_count = vpsStatus.result.embeddings_count
+            }
+
+            if (vpsStatus.result?.error) {
+              updateData.training_error = vpsStatus.result.error
+            }
+
+            await supabase
+              .from('celebrities')
+              .update(updateData)
+              .eq('id', celebrityId)
+
+            // Update local object for response
+            celebrity.training_status = updateData.training_status as string
+            celebrity.training_error = updateData.training_error as string | null
+            celebrity.embeddings_count = (updateData.embeddings_count as number) || celebrity.embeddings_count
+            celebrity.last_trained_at = updateData.last_trained_at as string | null
+          }
+        }
+      } catch {
+        // VPS check failed, just return DB status
+        console.log('VPS status check failed, using DB status')
+      }
     }
 
     // Get photo count

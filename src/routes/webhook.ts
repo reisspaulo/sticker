@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { validateApiKey } from '../middleware/auth';
 import { validateMessage, getMessageType } from '../utils/messageValidator';
-import { processStickerQueue, downloadTwitterVideoQueue, activatePixSubscriptionQueue, convertTwitterStickerQueue, cleanupStickerQueue } from '../config/queue';
+import { processStickerQueue, downloadTwitterVideoQueue, convertTwitterStickerQueue, cleanupStickerQueue } from '../config/queue';
 import { extractInteractiveResponse } from '../utils/interactiveMessageDetector';
 import { WebhookPayload, ProcessStickerJobData, TwitterVideoJobData, CleanupStickerJobData } from '../types/evolution';
 import { getUserOrCreate } from '../services/userService';
@@ -9,7 +9,7 @@ import { getTwitterDownloadCount } from '../services/twitterLimits';
 import { getUserLimits } from '../services/subscriptionService';
 import { sendWelcomeMessage } from '../services/messageService';
 import { sendText, sendVideo } from '../services/evolutionApi';
-import { logWebhookReceived, logMessageReceived, logTextMessageReceived, logError, logButtonClicked, logLimitReached, logUpgradeClicked, logPaymentStarted } from '../services/usageLogs';
+import { logWebhookReceived, logMessageReceived, logTextMessageReceived, logError, logButtonClicked, logLimitReached, logUpgradeClicked, logPaymentStarted, logPaymentConfirmed } from '../services/usageLogs';
 import { extractTweetInfo } from '../utils/urlDetector';
 import {
   getVideoSelectionContext,
@@ -24,6 +24,7 @@ import {
 import {
   getPaymentLinkMessage,
   getSubscriptionActiveMessage,
+  getSubscriptionActivatedMessage,
   getHelpMessage,
   logMenuInteraction,
   sendPlansListMenu,
@@ -40,6 +41,7 @@ import {
   createPendingPixPayment,
   confirmPixPayment,
   getPendingPixPayment,
+  activatePixSubscription,
 } from '../services/pixPaymentService';
 import type { PlanType } from '../types/subscription';
 
@@ -224,7 +226,7 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           },
         });
 
-        // Handle PIX payment confirmation button
+        // Handle PIX payment confirmation button - INSTANT ACTIVATION
         if (interactive.id === 'button_confirm_pix') {
           try {
             const success = await confirmPixPayment(userNumber);
@@ -240,35 +242,54 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             // Get pending payment details
             const pending = await getPendingPixPayment(userNumber);
 
-            if (pending) {
-              // Queue delayed job to activate after 5 minutes
-              await activatePixSubscriptionQueue.add(
-                'activate-pix-subscription',
-                {
-                  userNumber: pending.userNumber,
-                  userName: pending.userName,
-                  userId: pending.userId,
-                  plan: pending.plan,
-                },
-                {
-                  delay: 5 * 60 * 1000, // 5 minutes
-                  jobId: `pix-activation-${userNumber}-${Date.now()}`,
-                }
-              );
-
+            if (!pending) {
               await sendText(
                 userNumber,
-                `✅ *Confirmação Recebida!*\n\n🔄 Estamos processando seu pagamento PIX.\n\n⏱️ Seu plano *${pending.plan === 'premium' ? 'Premium' : 'Ultra'}* será ativado em até 5 minutos após a confirmação do pagamento pelo banco.\n\n📱 Você receberá uma mensagem de confirmação assim que seu plano estiver ativo.\n\nAgradecemos pela confiança! 🙏`
+                `❌ *Erro ao processar*\n\nNão conseguimos encontrar os detalhes do pagamento.\n\nDigite *planos* para tentar novamente.`
               );
+              return reply.status(200).send({ status: 'pix_details_not_found' });
+            }
+
+            // INSTANT ACTIVATION - no more 5 minute delay
+            const result = await activatePixSubscription(userNumber);
+
+            if (result.success) {
+              // Send success message
+              await sendText(userNumber, getSubscriptionActivatedMessage(pending.plan));
+
+              // Log for funnel analysis
+              const planPrices = { premium: 5, ultra: 9.9, free: 0 } as const;
+              logPaymentConfirmed({
+                userNumber,
+                userName: pending.userName,
+                plan: pending.plan as 'premium' | 'ultra',
+                paymentMethod: 'pix',
+                amount: planPrices[pending.plan] ?? 0,
+              });
 
               fastify.log.info({
-                msg: 'PIX payment confirmed, activation job queued',
+                msg: 'PIX payment confirmed and activated INSTANTLY',
                 userNumber,
                 plan: pending.plan,
               });
-            }
 
-            return reply.status(200).send({ status: 'pix_confirmed' });
+              return reply.status(200).send({ status: 'pix_activated' });
+            } else {
+              // Activation failed - send error message
+              fastify.log.error({
+                msg: 'PIX activation failed',
+                userNumber,
+                reason: result.reason,
+                error: result.error,
+              });
+
+              await sendText(
+                userNumber,
+                `😔 *Erro ao ativar plano*\n\nOcorreu um erro ao ativar seu plano.\n\nMotivo: ${result.reason}\n\nPor favor, digite *ajuda* para falar com suporte.`
+              );
+
+              return reply.status(200).send({ status: 'pix_activation_failed', reason: result.reason });
+            }
           } catch (error) {
             fastify.log.error({
               msg: 'Error confirming PIX payment',

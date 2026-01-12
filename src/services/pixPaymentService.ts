@@ -1,7 +1,7 @@
 import logger from '../config/logger';
 import redis from '../config/redis';
 import { supabase } from '../config/supabase';
-import { PlanType } from '../types/subscription';
+import { PlanType, PLAN_LIMITS } from '../types/subscription';
 
 // PIX key for receiving payments
 const PIX_KEY = 'dceaa434-b5ac-462e-bbd4-c66248869cff';
@@ -411,6 +411,9 @@ export async function activatePixSubscription(userNumber: string): Promise<Activ
       plan: paymentData.plan,
     });
 
+    // Get plan limits for the new subscription
+    const planLimits = PLAN_LIMITS[paymentData.plan];
+
     // Update user subscription in database
     const { error: userError } = await supabase
       .from('users')
@@ -419,6 +422,8 @@ export async function activatePixSubscription(userNumber: string): Promise<Activ
         subscription_status: 'active',
         subscription_starts_at: now.toISOString(),
         subscription_ends_at: endsAt.toISOString(),
+        daily_limit: planLimits.daily_sticker_limit, // FIX: Update daily_limit for paid plans
+        daily_count: 0, // Reset count so user can use their new limits immediately
         updated_at: now.toISOString(),
       })
       .eq('id', paymentData.userId);
@@ -473,6 +478,7 @@ export async function activatePixSubscription(userNumber: string): Promise<Activ
       userNumber,
       userId: paymentData.userId,
       plan: paymentData.plan,
+      dailyLimit: planLimits.daily_sticker_limit,
       startsAt: now.toISOString(),
       endsAt: endsAt.toISOString(),
     });

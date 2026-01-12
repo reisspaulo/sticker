@@ -64,7 +64,7 @@ flowchart TD
     STRIPE --> END_OK
 
     %% Fluxo de Botões - Confirmação
-    BTN -->|confirm_pix| ACTIVATE[⏳ Ativa em 5min]
+    BTN -->|confirm_pix| ACTIVATE[✅ Ativa instantâneo]
     ACTIVATE --> ACTIVATED[🎉 Plano ativado!]
     ACTIVATED --> END_OK
 
@@ -139,13 +139,10 @@ sequenceDiagram
         U->>W: Clica "✅ Já Paguei"
         W->>B: Webhook (confirm_pix)
         B->>R: Busca plano selecionado
-        B->>W: ⏳ "Processando... aguarde 5min"
-        B->>B: Cria job delayed (5 min)
-
-        Note over B: ⏰ Após 5 minutos...
-
-        B->>DB: Atualiza: plan = premium
+        B->>DB: Ativa subscription (instant)
+        B->>DB: Atualiza: plan, daily_limit, daily_count=0
         B->>W: 🎉 "Plano Premium ativado!"
+        Note over U: ✅ Usuário pode usar imediatamente!
     end
 
     rect rgb(255, 248, 240)
@@ -407,7 +404,7 @@ flowchart TB
         PX1["💰 Pagamento via PIX<br/><br/>Plano: Premium<br/>Valor: R$ 5,00<br/><br/>1️⃣ Copie a chave<br/>2️⃣ Abra seu banco<br/>3️⃣ Pague R$ 5,00<br/>4️⃣ Clique 'Já Paguei'"]
         PX2["🔑 a1b2c3d4-e5f6-...<br/>(botão copiar)"]
         PX3["✅ Pagou?<br/><br/>✅ Já Paguei"]
-        PX4["⏳ Processando...<br/>Aguarde 5 minutos"]
+        PX4["🎉 PAGAMENTO CONFIRMADO!<br/>Plano ativado!"]
         PX5["🎉 PAGAMENTO CONFIRMADO!<br/><br/>Plano Premium ativado!<br/><br/>✅ 20 figurinhas/dia<br/>✅ 15 vídeos Twitter/dia"]
     end
 
@@ -441,7 +438,7 @@ flowchart LR
         Q3[✅ convert-twitter-sticker<br/>concurrency: 2]
         Q4[✅ cleanup-sticker<br/>concurrency: 2]
         Q5[🚧 edit-buttons DESATIVADO<br/>Worker existe mas nenhum job é adicionado<br/>concurrency: 5 / debounce: 10s]
-        Q6[✅ activate-pix-subscription<br/>concurrency: 2<br/>delay: 5min]
+        Q6[🚧 activate-pix-subscription<br/>concurrency: 2<br/>DEPRECATED: agora é instantâneo]
         Q7[✅ scheduled-jobs<br/>concurrency: 1]
     end
 

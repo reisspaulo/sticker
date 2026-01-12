@@ -347,7 +347,7 @@ export function CelebrityDialog({ open, onOpenChange, celebrity, onSuccess }: Ce
                     <Brain className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Status do Treinamento:</span>
                     <span
-                      className={`text-sm ${
+                      className={`text-sm font-medium ${
                         currentTrainingStatus === 'trained'
                           ? 'text-green-500'
                           : currentTrainingStatus === 'failed'
@@ -370,6 +370,27 @@ export function CelebrityDialog({ open, onOpenChange, celebrity, onSuccess }: Ce
                     )}
                   </div>
                 </div>
+
+                {/* Training in progress feedback */}
+                {isTraining && (
+                  <div className="space-y-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-blue-400">Processando fotos...</p>
+                        <p className="text-xs text-muted-foreground">
+                          Estimativa: ~{Math.max(10, photos.length * 5)} segundos
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
+                      <strong>Você pode fechar esta janela.</strong> O treinamento continua em segundo plano.
+                      Volte depois para verificar o status.
+                    </div>
+                  </div>
+                )}
 
                 {trainingStatus?.training_error && (
                   <div className="flex items-center gap-2 text-sm text-red-500">

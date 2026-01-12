@@ -47,22 +47,22 @@ export function BarChart({
           />
           <XAxis
             type="number"
-            stroke="hsl(var(--muted-foreground))"
+            stroke="var(--muted-foreground)"
             fontSize={12}
             tickLine={false}
             axisLine={false}
             tickFormatter={formatValue}
-            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+            tick={{ fill: 'var(--muted-foreground)' }}
           />
           <YAxis
             type="category"
             dataKey="name"
-            stroke="hsl(var(--muted-foreground))"
+            stroke="var(--muted-foreground)"
             fontSize={12}
             tickLine={false}
             axisLine={false}
             width={80}
-            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+            tick={{ fill: 'var(--muted-foreground)' }}
           />
           <Tooltip
             content={({ active, payload }) => {
@@ -99,19 +99,19 @@ export function BarChart({
         />
         <XAxis
           dataKey="name"
-          stroke="hsl(var(--muted-foreground))"
+          stroke="var(--muted-foreground)"
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+          tick={{ fill: 'var(--muted-foreground)' }}
         />
         <YAxis
-          stroke="hsl(var(--muted-foreground))"
+          stroke="var(--muted-foreground)"
           fontSize={12}
           tickLine={false}
           axisLine={false}
           tickFormatter={formatValue}
-          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+          tick={{ fill: 'var(--muted-foreground)' }}
         />
         <Tooltip
           content={({ active, payload }) => {

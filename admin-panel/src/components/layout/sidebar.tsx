@@ -16,6 +16,7 @@ import {
   GitBranch,
   AlertCircle,
   LogOut,
+  MessageSquare,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -54,6 +55,15 @@ const navigation: NavItem[] = [
       { title: 'Todos', href: '/stickers' },
       { title: 'Emoções', href: '/stickers/emotions' },
       { title: 'Celebridades', href: '/stickers/celebrities' },
+    ],
+  },
+  {
+    title: 'Bot',
+    href: '/bot',
+    icon: MessageSquare,
+    children: [
+      { title: 'Mensagens', href: '/bot/messages' },
+      { title: 'Botões', href: '/bot/buttons' },
     ],
   },
   {

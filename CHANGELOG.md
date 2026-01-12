@@ -11,6 +11,37 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ### Admin Panel
 
+#### ✨ Sprint 16 - Sistema de Treinamento de Celebridades - 2026-01-12
+
+**Implementado:** Sistema completo para treinar reconhecimento facial de celebridades via Admin Panel
+
+**Funcionalidades:**
+- Upload de fotos de referência para celebridades
+- Botão "Treinar" que dispara treinamento no VPS
+- Polling em tempo real do status de treinamento
+- Botão "Reprocessar" para processar stickers não reconhecidos após novo treinamento
+- Contagem de stickers aguardando reconhecimento
+
+**Arquivos Adicionados:**
+- `admin-panel/src/app/api/celebrities/[id]/train/route.ts` - API para treinar via VPS
+- `admin-panel/src/app/api/celebrities/[id]/reprocess/route.ts` - API para reprocessar stickers
+- `admin-panel/src/hooks/useTrainingStatus.ts` - Hook para polling de status
+- `admin-panel/src/hooks/useReprocess.ts` - Hook para reprocessamento
+
+**Arquivos Modificados:**
+- `admin-panel/src/components/stickers/CelebrityDialog.tsx` - Seções de treino e reprocessamento
+- `admin-panel/src/lib/supabase/client.ts` - Fix para build-time (typeof window check)
+- `admin-panel/src/app/api/celebrities/[id]/photos/route.ts` - Lazy Supabase init
+- `admin-panel/src/app/api/celebrities/[id]/photos/[photoId]/route.ts` - Lazy Supabase init
+
+**Documentação:**
+- `docs/sprints/SPRINT-16-CELEBRITY-TRAINING.md` - PRD atualizado com fases concluídas
+
+**VPS (já deployado):**
+- FastAPI server na porta 8765 (`/opt/face-recognition/api/`)
+- Endpoint `/train` para iniciar treinamento
+- Worker que baixa fotos do Supabase e gera embeddings
+
 #### 🔐 Segurança - 2026-01-11
 
 **Implementado:** Setup completo do Doppler para admin-panel

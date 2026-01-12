@@ -3,7 +3,7 @@
 ## PRD - Product Requirements Document
 
 **Data:** 2026-01-12
-**Status:** Planejado
+**Status:** Concluído (Fases 1-6)
 **Prioridade:** Alta
 
 ---
@@ -503,36 +503,37 @@ celebrity-training/
 
 ## 8. Checklist de Entrega
 
-### Fase 1 - Infraestrutura
-- [ ] Migration executada
-- [ ] Bucket criado
-- [ ] RLS configurado
+### Fase 1 - Infraestrutura ✅
+- [x] Migration executada
+- [x] Bucket criado
+- [x] RLS configurado
 
-### Fase 2 - UI
-- [ ] Upload funciona
-- [ ] Preview funciona
-- [ ] Delete funciona
-- [ ] Status aparece na lista
+### Fase 2 - UI ✅
+- [x] Upload funciona
+- [x] Preview funciona
+- [x] Delete funciona
+- [x] Status aparece na lista
 
-### Fase 3 - API Upload
-- [ ] POST /photos funciona
-- [ ] DELETE /photos funciona
-- [ ] Arquivos salvos no Storage
+### Fase 3 - API Upload ✅
+- [x] POST /photos funciona
+- [x] DELETE /photos funciona
+- [x] Arquivos salvos no Storage
 
-### Fase 4 - VPS API
-- [ ] Servidor rodando
-- [ ] Endpoint /train funciona
-- [ ] Embeddings gerados corretamente
-- [ ] Callback funciona
+### Fase 4 - VPS API ✅
+- [x] Servidor rodando (FastAPI na porta 8765)
+- [x] Endpoint /train funciona
+- [x] Embeddings gerados corretamente
+- [x] Status atualizado no banco de dados
 
-### Fase 5 - Integração
-- [ ] Fluxo completo funciona
-- [ ] Status atualiza em tempo real
-- [ ] Erros tratados
+### Fase 5 - Integração ✅
+- [x] Fluxo completo funciona
+- [x] Status atualiza em tempo real (polling)
+- [x] Erros tratados
 
-### Fase 6 - Reprocessamento
-- [ ] Botão funciona
-- [ ] Stickers reprocessados pelo worker
+### Fase 6 - Reprocessamento ✅
+- [x] API /reprocess funciona
+- [x] Botão na UI para celebridades treinadas
+- [x] Mostra contagem de stickers não reconhecidos
 
 ---
 
@@ -570,3 +571,4 @@ celebrity-training/
 | Data | Versão | Descrição |
 |------|--------|-----------|
 | 2026-01-12 | 1.0 | PRD inicial criado |
+| 2026-01-12 | 2.0 | Fases 1-6 concluídas: infraestrutura, UI, APIs, VPS training, integração, reprocessamento |

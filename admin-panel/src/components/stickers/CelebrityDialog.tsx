@@ -16,8 +16,10 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/utils/supabase/client'
 import { PhotoUpload, type UploadedPhoto } from '@/components/celebrities/PhotoUpload'
+import { useTrainingStatus } from '@/hooks/useTrainingStatus'
+import { useReprocess } from '@/hooks/useReprocess'
 import { toast } from 'sonner'
-import { Loader2, Brain, AlertCircle } from 'lucide-react'
+import { Loader2, Brain, AlertCircle, Sparkles, RefreshCw } from 'lucide-react'
 
 interface Celebrity {
   id: string
@@ -45,6 +47,27 @@ export function CelebrityDialog({ open, onOpenChange, celebrity, onSuccess }: Ce
   const [activeTab, setActiveTab] = useState('info')
 
   const isEditing = !!celebrity
+
+  // Training status hook
+  const {
+    status: trainingStatus,
+    loading: trainingLoading,
+    startTraining,
+    isTraining,
+  } = useTrainingStatus({
+    celebrityId: isEditing ? celebrity?.id || null : null,
+    enabled: open && isEditing,
+  })
+
+  // Reprocess hook
+  const {
+    counts: reprocessCounts,
+    reprocessing,
+    fetchCounts: fetchReprocessCounts,
+    reprocess,
+  } = useReprocess({
+    celebrityId: isEditing ? celebrity?.id || null : null,
+  })
 
   // Reset form when dialog opens/closes or celebrity changes
   useEffect(() => {
@@ -223,6 +246,35 @@ export function CelebrityDialog({ open, onOpenChange, celebrity, onSuccess }: Ce
   const newPhotosCount = photos.filter((p) => p.isNew).length
   const canTrain = photos.length >= 3
 
+  const handleTrain = async () => {
+    const result = await startTraining()
+    if (result.success) {
+      toast.success('Treinamento iniciado! Aguarde alguns segundos...')
+    } else {
+      toast.error(result.error || 'Erro ao iniciar treinamento')
+    }
+  }
+
+  const handleReprocess = async () => {
+    const result = await reprocess('unrecognized')
+    if (result.success) {
+      toast.success(`${result.stickers_affected} stickers na fila para reprocessamento`)
+    } else {
+      toast.error('Erro ao iniciar reprocessamento')
+    }
+  }
+
+  // Get real-time training status
+  const currentTrainingStatus = trainingStatus?.training_status || celebrity?.training_status
+  const currentEmbeddingsCount = trainingStatus?.embeddings_count || celebrity?.embeddings_count || 0
+
+  // Fetch reprocess counts when celebrity is trained
+  useEffect(() => {
+    if (open && isEditing && currentTrainingStatus === 'trained') {
+      fetchReprocessCounts()
+    }
+  }, [open, isEditing, currentTrainingStatus, fetchReprocessCounts])
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -288,31 +340,108 @@ export function CelebrityDialog({ open, onOpenChange, celebrity, onSuccess }: Ce
               </div>
             )}
 
-            {isEditing && celebrity?.training_status && (
-              <div className="pt-2 p-3 rounded-lg bg-muted/50">
-                <div className="flex items-center gap-2">
-                  <Brain className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Status do Treinamento:</span>
-                  <span
-                    className={`text-sm ${
-                      celebrity.training_status === 'trained'
-                        ? 'text-green-500'
-                        : celebrity.training_status === 'failed'
-                        ? 'text-red-500'
-                        : celebrity.training_status === 'training'
-                        ? 'text-blue-500'
-                        : 'text-yellow-500'
-                    }`}
-                  >
-                    {celebrity.training_status === 'trained'
-                      ? `Treinada (${celebrity.embeddings_count || 0} embeddings)`
-                      : celebrity.training_status === 'failed'
-                      ? 'Falhou'
-                      : celebrity.training_status === 'training'
-                      ? 'Treinando...'
-                      : 'Pendente'}
-                  </span>
+            {isEditing && (
+              <div className="pt-2 p-3 rounded-lg bg-muted/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Status do Treinamento:</span>
+                    <span
+                      className={`text-sm ${
+                        currentTrainingStatus === 'trained'
+                          ? 'text-green-500'
+                          : currentTrainingStatus === 'failed'
+                          ? 'text-red-500'
+                          : currentTrainingStatus === 'training'
+                          ? 'text-blue-500'
+                          : 'text-yellow-500'
+                      }`}
+                    >
+                      {currentTrainingStatus === 'trained'
+                        ? `Treinada (${currentEmbeddingsCount} embeddings)`
+                        : currentTrainingStatus === 'failed'
+                        ? 'Falhou'
+                        : currentTrainingStatus === 'training'
+                        ? 'Treinando...'
+                        : 'Pendente'}
+                    </span>
+                    {isTraining && (
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                    )}
+                  </div>
                 </div>
+
+                {trainingStatus?.training_error && (
+                  <div className="flex items-center gap-2 text-sm text-red-500">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>{trainingStatus.training_error}</span>
+                  </div>
+                )}
+
+                {canTrain && !isTraining && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleTrain}
+                    disabled={trainingLoading || saving}
+                    className="w-full"
+                  >
+                    {trainingLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Iniciando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        {currentTrainingStatus === 'trained' ? 'Retreinar' : 'Treinar Reconhecimento'}
+                      </>
+                    )}
+                  </Button>
+                )}
+
+                {!canTrain && (
+                  <p className="text-xs text-muted-foreground">
+                    Adicione pelo menos 3 fotos para habilitar o treinamento.
+                  </p>
+                )}
+
+                {/* Reprocess Section - only show when trained */}
+                {currentTrainingStatus === 'trained' && reprocessCounts && reprocessCounts.unrecognized > 0 && (
+                  <div className="pt-3 mt-3 border-t border-border">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Reprocessar Stickers</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {reprocessCounts.unrecognized} sem celebridade
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Reprocessar stickers que têm rosto detectado mas não foram identificados.
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleReprocess}
+                      disabled={reprocessing || saving}
+                      className="w-full"
+                    >
+                      {reprocessing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Reprocessando...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Reprocessar {reprocessCounts.unrecognized} Stickers
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </TabsContent>

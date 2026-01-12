@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// Use service role for server-side operations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Create Supabase client lazily to avoid build-time errors
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 interface RouteContext {
   params: Promise<{ id: string; photoId: string }>
@@ -13,6 +15,8 @@ interface RouteContext {
 
 // GET - Get single photo details
 export async function GET(request: NextRequest, context: RouteContext) {
+  const supabase = getSupabase()
+
   try {
     const { id: celebrityId, photoId } = await context.params
 
@@ -46,6 +50,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 // DELETE - Delete a photo
 export async function DELETE(request: NextRequest, context: RouteContext) {
+  const supabase = getSupabase()
+
   try {
     const { id: celebrityId, photoId } = await context.params
 

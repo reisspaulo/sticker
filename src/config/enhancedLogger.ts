@@ -76,11 +76,14 @@ export function logTwitterDownloadStarted(params: {
   url: string;
 }) {
   const logger = createTracedLogger(params);
-  logger.info({
-    event: 'twitter_download_started',
-    url: params.url,
-    tweetAuthor: params.tweetAuthor,
-  }, 'Starting Twitter video download');
+  logger.info(
+    {
+      event: 'twitter_download_started',
+      url: params.url,
+      tweetAuthor: params.tweetAuthor,
+    },
+    'Starting Twitter video download'
+  );
 }
 
 /**
@@ -94,12 +97,15 @@ export function logTwitterDownloadCompleted(params: {
   downloadTimeMs: number;
 }) {
   const logger = createTracedLogger(params);
-  logger.info({
-    event: 'twitter_download_completed',
-    fileSize: params.fileSize,
-    downloadTimeMs: params.downloadTimeMs,
-    fileSizeMB: (params.fileSize / 1024 / 1024).toFixed(2),
-  }, `Twitter video downloaded successfully in ${params.downloadTimeMs}ms`);
+  logger.info(
+    {
+      event: 'twitter_download_completed',
+      fileSize: params.fileSize,
+      downloadTimeMs: params.downloadTimeMs,
+      fileSizeMB: (params.fileSize / 1024 / 1024).toFixed(2),
+    },
+    `Twitter video downloaded successfully in ${params.downloadTimeMs}ms`
+  );
 }
 
 /**
@@ -113,12 +119,15 @@ export function logTwitterDownloadFailed(params: {
   errorType: string;
 }) {
   const logger = createTracedLogger(params);
-  logger.error({
-    event: 'twitter_download_failed',
-    errorType: params.errorType,
-    errorMessage: params.error.message,
-    errorStack: params.error.stack,
-  }, `Twitter video download failed: ${params.error.message}`);
+  logger.error(
+    {
+      event: 'twitter_download_failed',
+      errorType: params.errorType,
+      errorMessage: params.error.message,
+      errorStack: params.error.stack,
+    },
+    `Twitter video download failed: ${params.error.message}`
+  );
 }
 
 /**
@@ -131,10 +140,13 @@ export function logTwitterConversionStarted(params: {
   videoSize: number;
 }) {
   const logger = createTracedLogger(params);
-  logger.info({
-    event: 'twitter_conversion_started',
-    videoSize: params.videoSize,
-  }, 'Starting Twitter video to sticker conversion');
+  logger.info(
+    {
+      event: 'twitter_conversion_started',
+      videoSize: params.videoSize,
+    },
+    'Starting Twitter video to sticker conversion'
+  );
 }
 
 /**
@@ -151,13 +163,16 @@ export function logTwitterConversionCompleted(params: {
   const logger = createTracedLogger(params);
   const compressionRatio = ((1 - params.stickerSize / params.originalSize) * 100).toFixed(1);
 
-  logger.info({
-    event: 'twitter_conversion_completed',
-    conversionTimeMs: params.conversionTimeMs,
-    originalSize: params.originalSize,
-    stickerSize: params.stickerSize,
-    compressionRatio: `${compressionRatio}%`,
-  }, `Conversion completed in ${params.conversionTimeMs}ms (${compressionRatio}% compression)`);
+  logger.info(
+    {
+      event: 'twitter_conversion_completed',
+      conversionTimeMs: params.conversionTimeMs,
+      originalSize: params.originalSize,
+      stickerSize: params.stickerSize,
+      compressionRatio: `${compressionRatio}%`,
+    },
+    `Conversion completed in ${params.conversionTimeMs}ms (${compressionRatio}% compression)`
+  );
 }
 
 /**
@@ -171,12 +186,15 @@ export function logTwitterLimitReached(params: {
   limit: number;
 }) {
   const logger = createTracedLogger(params);
-  logger.warn({
-    event: 'twitter_limit_reached',
-    currentCount: params.currentCount,
-    limit: params.limit,
-    userName: params.userName,
-  }, `User reached Twitter download limit (${params.currentCount}/${params.limit})`);
+  logger.warn(
+    {
+      event: 'twitter_limit_reached',
+      currentCount: params.currentCount,
+      limit: params.limit,
+      userName: params.userName,
+    },
+    `User reached Twitter download limit (${params.currentCount}/${params.limit})`
+  );
 }
 
 export default baseLogger;

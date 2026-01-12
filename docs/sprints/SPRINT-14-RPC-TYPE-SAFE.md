@@ -350,42 +350,95 @@ Todas as 12 chamadas RPC foram migradas para a nova arquitetura type-safe:
 
 ## Limitacoes Conhecidas
 
-### PostgreSQL retorna RECORD ao inves de SCALAR
+### PostgreSQL OUT parameter retorna RECORD ao inves de SCALAR
 
 **Descoberto em:** 12/01/2026
+**Corrigido em:** 12/01/2026
 
-**Problema:** Algumas funcoes PostgreSQL retornam um objeto `{"column_name": value}` ao inves do valor direto, mesmo quando definidas para retornar um tipo simples.
-
-**Exemplo:** `set_limit_notified_atomic` esta no registry como:
-```typescript
-set_limit_notified_atomic: {
-  type: 'scalar' as const,
-  params: {} as { p_user_id: string },
-  returns: {} as boolean,  // Esperado: true/false
-}
+**Problema:** A funcao `set_limit_notified_atomic` tinha um parametro OUT:
+```sql
+CREATE FUNCTION set_limit_notified_atomic(
+  p_user_id UUID,
+  OUT was_already_notified boolean  -- ← ESTE ERA O PROBLEMA!
+)
+RETURNS boolean
 ```
 
-Mas o PostgreSQL retorna: `{"was_already_notified": false}` (objeto, nao boolean!)
+Mesmo com `RETURNS boolean`, o parametro OUT faz o PostgreSQL retornar um RECORD:
+`{"was_already_notified": false}` ao inves de simplesmente `false`.
 
 **Impacto:** O codigo em `atomicLimitService.ts` recebia um objeto e fazia:
 ```typescript
 if (!wasAlreadyNotified) { ... }  // Objeto e sempre truthy!
 ```
 
-Resultado: mensagens de limite NUNCA eram enviadas.
+Resultado: **mensagens de limite NUNCA eram enviadas** para usuarios que atingiam o limite diario.
 
-**Correcao aplicada em `atomicLimitService.ts`:**
+**Usuarios afetados identificados:**
+- Lost. (c01cd1d1-b659-467f-a65c-b4e0c725fc11)
+- 𓃮✩𝓙᥆ᥲ᥆ 𝓟ᥱძr᥆✩𓃮 (4b72efa1-160d-47da-9c83-79e308c12327)
+
+### Correcao em Duas Camadas
+
+#### Camada 1: Runtime validation em `src/rpc/client.ts`
+
+Adicionada validacao automatica para funcoes SCALAR que recebem objeto ao inves de primitivo:
+
 ```typescript
-// Extrai boolean do objeto se necessario
-const wasAlreadyNotified =
-  typeof result === 'boolean'
-    ? result
-    : (result as { was_already_notified: boolean }).was_already_notified;
+// Se PostgreSQL retornar objeto com uma unica propriedade, extrai o valor
+if (data !== null && typeof data === 'object' && !Array.isArray(data)) {
+  const keys = Object.keys(data);
+  if (keys.length === 1) {
+    const extractedValue = data[keys[0]];
+    logger.warn({
+      msg: '[RPC:SCALAR] PostgreSQL returned RECORD instead of primitive - extracting value',
+      hint: 'Consider fixing the PostgreSQL function to return the value directly',
+    });
+    processedData = extractedValue;
+  }
+}
 ```
 
-**Licao aprendida:** O registry define o tipo ESPERADO, mas nao garante que o PostgreSQL retorna exatamente isso. Para funcoes SCALAR que podem retornar RECORD, e necessario tratamento adicional no service layer.
+#### Camada 2: Correcao da funcao PostgreSQL
 
-**TODO futuro:** Considerar alterar a funcao PostgreSQL para usar `RETURNS boolean` com `SELECT was_already_notified` ao inves de `RETURNS TABLE(was_already_notified boolean)`.
+Migracao aplicada: `scripts/database/migrations/fix-set-limit-notified-atomic.sql`
+
+```sql
+-- Remove funcao com OUT parameter
+DROP FUNCTION IF EXISTS set_limit_notified_atomic(uuid);
+
+-- Cria versao correta SEM OUT parameter
+CREATE FUNCTION set_limit_notified_atomic(p_user_id UUID)
+RETURNS boolean
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_rows_affected int;
+BEGIN
+  UPDATE users
+  SET limit_notified_at = NOW(), updated_at = NOW()
+  WHERE id = p_user_id
+    AND (limit_notified_at IS NULL
+         OR limit_notified_at < date_trunc('day', NOW() AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo');
+
+  GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
+  RETURN v_rows_affected = 0;
+END;
+$$;
+```
+
+**Verificacao pos-fix:**
+```sql
+SELECT pg_get_function_arguments(oid) FROM pg_proc WHERE proname = 'set_limit_notified_atomic';
+-- Deve retornar: "p_user_id uuid" (SEM "OUT was_already_notified boolean")
+```
+
+### Licoes Aprendidas
+
+1. **OUT parameters em PostgreSQL sempre retornam RECORD**, mesmo com `RETURNS tipo_simples`
+2. **JavaScript trata objetos como truthy**, entao `!{}` e sempre `false`
+3. **Validacao em runtime** agora detecta e corrige esse problema automaticamente
+4. **Sempre verificar a assinatura completa** da funcao PostgreSQL, incluindo OUT parameters
 
 ---
 
@@ -403,3 +456,4 @@ const wasAlreadyNotified =
 | 12/01/2026 | Testes de sincronizacao registry/banco adicionados | Claude Opus 4.5 |
 | 12/01/2026 | Codigo antigo (supabaseRpc.ts) removido | Claude Opus 4.5 |
 | 12/01/2026 | **BUG:** `set_limit_notified_atomic` retornava objeto ao inves de boolean - mensagens de limite nao enviadas | Claude Opus 4.5 |
+| 12/01/2026 | **FIX:** Removido OUT parameter da funcao PostgreSQL + validacao runtime em client.ts | Claude Opus 4.5 |

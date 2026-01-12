@@ -9,6 +9,40 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Não Publicado]
 
+### Backend (Bot Stickers)
+
+#### 🐛 Corrigido Bug Crítico - Mensagens de Limite Não Enviadas - 2026-01-12
+
+**Problema:** Usuários que atingiam o limite diário de stickers não recebiam a mensagem com planos de upgrade.
+
+**Root Cause:** A função PostgreSQL `set_limit_notified_atomic` tinha um parâmetro `OUT was_already_notified boolean` que fazia o PostgreSQL retornar um objeto `{"was_already_notified": false}` ao invés de um boolean simples. Como JavaScript trata objetos como truthy, a condição `if (!wasAlreadyNotified)` era sempre falsa.
+
+**Correção em Duas Camadas:**
+
+1. **Runtime validation** (`src/rpc/client.ts`):
+   - Detecta quando PostgreSQL retorna RECORD ao invés de primitivo
+   - Auto-extrai o valor de objetos com uma única propriedade
+   - Loga warning para alertar sobre funções que precisam ser corrigidas
+
+2. **PostgreSQL fix** (`scripts/database/migrations/fix-set-limit-notified-atomic.sql`):
+   - Removido parâmetro OUT da função
+   - Função agora retorna boolean diretamente
+
+**Usuários Afetados Identificados:**
+- Lost. (c01cd1d1-b659-467f-a65c-b4e0c725fc11)
+- 𓃮✩𝓙᥆ᥲ᥆ 𝓟ᥱძr᥆✩𓃮 (4b72efa1-160d-47da-9c83-79e308c12327)
+
+**Arquivos Modificados:**
+- `src/rpc/client.ts` - Validação runtime para SCALAR RPCs
+- `scripts/database/migrations/fix-set-limit-notified-atomic.sql` - Migração PostgreSQL
+
+**Documentação:**
+- `docs/sprints/SPRINT-14-RPC-TYPE-SAFE.md` - Seção "Limitações Conhecidas" atualizada
+
+**Status:** ✅ Corrigido em produção
+
+---
+
 ### Admin Panel
 
 #### 🎨 Melhorias de UX e Correções - 2026-01-12
@@ -247,4 +281,4 @@ Antes de remover:
 
 ---
 
-**Última Atualização:** 2026-01-11
+**Última Atualização:** 2026-01-12

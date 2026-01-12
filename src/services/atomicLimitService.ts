@@ -75,10 +75,17 @@ export async function setLimitNotifiedAtomic(userId: string): Promise<boolean> {
       userId,
     });
 
-    // ✅ Type-safe RPC call - SCALAR function returns boolean directly
-    const wasAlreadyNotified = await rpc('set_limit_notified_atomic', {
+    // ✅ Type-safe RPC call
+    // NOTE: PostgreSQL function returns {"was_already_notified": boolean}, not plain boolean
+    const result = await rpc('set_limit_notified_atomic', {
       p_user_id: userId,
     });
+
+    // 🔧 FIX: Extract boolean from object if needed (PostgreSQL returns object with property)
+    const wasAlreadyNotified =
+      typeof result === 'boolean'
+        ? result
+        : (result as unknown as { was_already_notified: boolean }).was_already_notified;
 
     logger.info({
       msg: '[ATOMIC] Limit notified timestamp set',

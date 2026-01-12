@@ -154,12 +154,17 @@ export async function sendScheduledRemindersJob(): Promise<{
         workerId,
       });
 
-      await logJobComplete(logId, jobName, {
-        totalProcessed: 0,
-        sent: 0,
-        failed: 0,
-        skipped: 0,
-      }, 0);
+      await logJobComplete(
+        logId,
+        jobName,
+        {
+          totalProcessed: 0,
+          sent: 0,
+          failed: 0,
+          skipped: 0,
+        },
+        0
+      );
 
       return { totalProcessed: 0, sent: 0, failed: 0, skipped: 0 };
     }
@@ -240,7 +245,8 @@ export async function sendScheduledRemindersJob(): Promise<{
         if (user.subscription_plan === 'free' || !user.subscription_plan) {
           dailyLimit = user.daily_limit ?? PLAN_LIMITS.free;
         } else {
-          dailyLimit = PLAN_LIMITS[user.subscription_plan as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.free;
+          dailyLimit =
+            PLAN_LIMITS[user.subscription_plan as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.free;
         }
 
         // Check if this is a payment reminder
@@ -363,12 +369,17 @@ Digite *planos* se quiser saber mais.`;
     });
 
     // Log job completion
-    await logJobComplete(logId, jobName, {
-      totalProcessed,
-      sent,
-      failed,
-      skipped,
-    }, duration);
+    await logJobComplete(
+      logId,
+      jobName,
+      {
+        totalProcessed,
+        sent,
+        failed,
+        skipped,
+      },
+      duration
+    );
 
     return { totalProcessed, sent, failed, skipped };
   } catch (error) {

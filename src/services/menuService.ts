@@ -37,7 +37,8 @@ function replacePlaceholders(template: string, context: MessageContext): string 
 
 // Payment links from Stripe
 const PAYMENT_LINKS = {
-  premium: process.env.STRIPE_PREMIUM_PAYMENT_LINK || 'https://buy.stripe.com/test_14k8zh1iE2gN2oEfYY',
+  premium:
+    process.env.STRIPE_PREMIUM_PAYMENT_LINK || 'https://buy.stripe.com/test_14k8zh1iE2gN2oEfYY',
   ultra: process.env.STRIPE_ULTRA_PAYMENT_LINK || 'https://buy.stripe.com/test_bIY3dlgdoc1t1kA7st',
 };
 
@@ -110,7 +111,15 @@ export async function sendLimitReachedMenu(
     bonusCreditsUsed?: number;
   }
 ): Promise<void> {
-  const { userId, currentPlan, dailyCount, dailyLimit, isTwitter = false, abTestGroup, bonusCreditsUsed = 0 } = options;
+  const {
+    userId,
+    currentPlan,
+    dailyCount,
+    dailyLimit,
+    isTwitter = false,
+    abTestGroup,
+    bonusCreditsUsed = 0,
+  } = options;
 
   const feature = isTwitter ? 'vídeos do Twitter' : 'figurinhas';
   const emoji = isTwitter ? '🐦' : '🎨';
@@ -542,7 +551,10 @@ export function logMenuInteraction(
  * @param userNumber - WhatsApp number
  * @param userDailyLimit - User's current daily limit (from experiment)
  */
-export async function sendPlansListMenu(userNumber: string, userDailyLimit: number = 4): Promise<void> {
+export async function sendPlansListMenu(
+  userNumber: string,
+  userDailyLimit: number = 4
+): Promise<void> {
   try {
     await sendList({
       number: userNumber,

@@ -206,7 +206,8 @@ export async function checkDailyLimit(userId: string): Promise<boolean> {
 
     // A/B Test: Bonus group gets +2 extra credits per day when activated
     // Each time they click "Use Bonus", bonus_credits_today increases, raising their effective limit
-    const bonusCreditsActivated = user.ab_test_group === 'bonus' ? (user.bonus_credits_today || 0) : 0;
+    const bonusCreditsActivated =
+      user.ab_test_group === 'bonus' ? user.bonus_credits_today || 0 : 0;
     const effectiveLimit = actualLimit + bonusCreditsActivated;
 
     const hasReachedLimit = user.daily_count >= effectiveLimit;

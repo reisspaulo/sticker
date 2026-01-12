@@ -1,10 +1,7 @@
 import redis from '../config/redis';
 import logger from '../config/logger';
 
-export type ConversationState =
-  | 'awaiting_payment_method'
-  | 'awaiting_sticker_edit'
-  | 'none';
+export type ConversationState = 'awaiting_payment_method' | 'awaiting_sticker_edit' | 'none';
 
 export interface ConversationContext {
   user_number: string;
@@ -122,4 +119,3 @@ export async function clearConversationContext(userNumber: string): Promise<void
     // Don't throw - context clearing failure shouldn't break the flow
   }
 }
-

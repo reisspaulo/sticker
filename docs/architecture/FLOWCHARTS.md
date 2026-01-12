@@ -1695,3 +1695,4 @@ const count = await rpc('increment_daily_count', { p_user_id: userId });
 ---
 
 **Última atualização:** 12/01/2026 - Sprint 14 concluída (RPC type-safe), CI pipeline adicionado, corrigido bug do experimento de limite diário
+

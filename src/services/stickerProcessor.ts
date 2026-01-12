@@ -10,9 +10,7 @@ import { MessageKey } from '../types/evolution';
  * - Convert to WebP with 90% quality
  * - Ensure final size < 500KB
  */
-export async function processStaticSticker(
-  messageKey: MessageKey
-): Promise<Buffer> {
+export async function processStaticSticker(messageKey: MessageKey): Promise<Buffer> {
   const startTime = Date.now();
 
   try {

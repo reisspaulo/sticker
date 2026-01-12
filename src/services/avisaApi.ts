@@ -30,7 +30,7 @@ const api: AxiosInstance = axios.create({
   baseURL: avisaApiUrl,
   timeout: 30000, // 30 seconds
   headers: {
-    'Authorization': `Bearer ${avisaApiToken}`,
+    Authorization: `Bearer ${avisaApiToken}`,
     'Content-Type': 'application/json',
   },
 });
@@ -118,13 +118,13 @@ export async function sendButtons(request: SendButtonsRequest): Promise<AvisaApi
 
     // Map button IDs to universal commands
     const buttonIdToCommand: Record<string, string> = {
-      'button_upgrade_premium': 'premium',
-      'button_upgrade_ultra': 'ultra',
-      'button_use_bonus': 'bonus',
-      'button_dismiss_upgrade': 'agora não',
-      'button_remind_2h': 'lembrar 2h',
-      'button_remind_tomorrow': 'lembrar amanhã',
-      'button_reminder_pending': 'lembrete',
+      button_upgrade_premium: 'premium',
+      button_upgrade_ultra: 'ultra',
+      button_use_bonus: 'bonus',
+      button_dismiss_upgrade: 'agora não',
+      button_remind_2h: 'lembrar 2h',
+      button_remind_tomorrow: 'lembrar amanhã',
+      button_reminder_pending: 'lembrete',
     };
 
     // Build text message from button data
@@ -149,9 +149,11 @@ export async function sendButtons(request: SendButtonsRequest): Promise<AvisaApi
     await sendText(sanitizedNumber, textMessage);
 
     // Log as successful (text fallback)
-    let menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other' = 'other';
+    let menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other' =
+      'other';
     if (request.title.includes('Limite')) menuType = 'limit_reached';
-    else if (request.title.includes('Upgrade') || request.title.includes('upgrade')) menuType = 'upgrade';
+    else if (request.title.includes('Upgrade') || request.title.includes('upgrade'))
+      menuType = 'upgrade';
     else if (request.title.includes('Plano') || request.title.includes('plano')) menuType = 'plans';
 
     await logMenuSent({
@@ -189,12 +191,16 @@ export async function sendButtons(request: SendButtonsRequest): Promise<AvisaApi
     });
 
     // Log menu sent to database
-    let menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other' = 'other';
+    let menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other' =
+      'other';
     if (request.title.includes('Limite')) menuType = 'limit_reached';
-    else if (request.title.includes('Upgrade') || request.title.includes('upgrade')) menuType = 'upgrade';
+    else if (request.title.includes('Upgrade') || request.title.includes('upgrade'))
+      menuType = 'upgrade';
     else if (request.title.includes('Plano') || request.title.includes('plano')) menuType = 'plans';
-    else if (request.title.includes('Bem-vindo') || request.title.includes('bem-vindo')) menuType = 'welcome';
-    else if (request.title.includes('PIX') || request.title.includes('pix')) menuType = 'pix_options';
+    else if (request.title.includes('Bem-vindo') || request.title.includes('bem-vindo'))
+      menuType = 'welcome';
+    else if (request.title.includes('PIX') || request.title.includes('pix'))
+      menuType = 'pix_options';
 
     await logMenuSent({
       userNumber: sanitizedNumber,
@@ -263,7 +269,8 @@ export async function sendPixButton(request: SendPixButtonRequest): Promise<Avis
     });
 
     // Build text message with PIX code
-    const textMessage = `💰 *Código PIX para pagamento:*\n\n` +
+    const textMessage =
+      `💰 *Código PIX para pagamento:*\n\n` +
       `Copie o código abaixo e cole no seu app de banco:\n\n` +
       `\`\`\`\n${request.pix}\n\`\`\`\n\n` +
       `_O código expira em 30 minutos_`;
@@ -279,7 +286,10 @@ export async function sendPixButton(request: SendPixButtonRequest): Promise<Avis
       success: true,
     }).catch(() => {});
 
-    return { status: 'sent_as_text', message: 'International number - PIX code sent as plain text' };
+    return {
+      status: 'sent_as_text',
+      message: 'International number - PIX code sent as plain text',
+    };
   }
 
   // Brazilian number - use Avisa API with PIX button
@@ -382,12 +392,12 @@ export async function sendList(request: SendListRequest): Promise<AvisaApiRespon
 
     // Map list RowIds to universal commands
     const rowIdToCommand: Record<string, string> = {
-      'plan_premium': 'premium',
-      'plan_ultra': 'ultra',
-      'plan_free': 'planos',
-      'payment_card': 'cartao',
-      'payment_boleto': 'boleto',
-      'payment_pix': 'pix',
+      plan_premium: 'premium',
+      plan_ultra: 'ultra',
+      plan_free: 'planos',
+      payment_card: 'cartao',
+      payment_boleto: 'boleto',
+      payment_pix: 'pix',
     };
 
     // Build text message from list data
@@ -412,11 +422,13 @@ export async function sendList(request: SendListRequest): Promise<AvisaApiRespon
     await sendText(sanitizedNumber, textMessage);
 
     // Log as successful (text fallback)
-    let menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other' = 'other';
+    let menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other' =
+      'other';
     const buttonTextLower = request.buttontext.toLowerCase();
     const descLower = (request.desc || '').toLowerCase();
     if (buttonTextLower.includes('plano') || descLower.includes('plano')) menuType = 'plans';
-    else if (buttonTextLower.includes('pagamento') || descLower.includes('pagamento')) menuType = 'pix_options';
+    else if (buttonTextLower.includes('pagamento') || descLower.includes('pagamento'))
+      menuType = 'pix_options';
 
     await logMenuSent({
       userNumber: sanitizedNumber,
@@ -453,11 +465,13 @@ export async function sendList(request: SendListRequest): Promise<AvisaApiRespon
     });
 
     // Log menu sent to database (lists are also menus)
-    let menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other' = 'other';
+    let menuType: 'upgrade' | 'plans' | 'welcome' | 'limit_reached' | 'pix_options' | 'other' =
+      'other';
     const buttonTextLower = request.buttontext.toLowerCase();
     const descLower = (request.desc || '').toLowerCase();
     if (buttonTextLower.includes('plano') || descLower.includes('plano')) menuType = 'plans';
-    else if (buttonTextLower.includes('pagamento') || descLower.includes('pagamento')) menuType = 'pix_options';
+    else if (buttonTextLower.includes('pagamento') || descLower.includes('pagamento'))
+      menuType = 'pix_options';
 
     await logMenuSent({
       userNumber: sanitizedNumber,

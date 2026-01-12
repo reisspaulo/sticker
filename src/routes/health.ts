@@ -10,9 +10,7 @@ export default async function healthRoutes(fastify: FastifyInstance) {
       const health = await performHealthCheck();
 
       const statusCode =
-        health.status === 'healthy' ? 200 :
-        health.status === 'degraded' ? 200 :
-        503;
+        health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503;
 
       return reply.status(statusCode).send({
         ...health,
@@ -45,8 +43,8 @@ export default async function healthRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({
         alerts,
         count: alerts.length,
-        errors: alerts.filter(a => a.type === 'error').length,
-        warnings: alerts.filter(a => a.type === 'warning').length,
+        errors: alerts.filter((a) => a.type === 'error').length,
+        warnings: alerts.filter((a) => a.type === 'warning').length,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -68,7 +66,10 @@ export default async function healthRoutes(fastify: FastifyInstance) {
         errorStats: stats,
         totalErrorTypes: Object.keys(stats).length,
         summary: {
-          activeErrors: Object.values(stats).reduce((sum: number, stat: any) => sum + stat.count, 0),
+          activeErrors: Object.values(stats).reduce(
+            (sum: number, stat: any) => sum + stat.count,
+            0
+          ),
           errorTypes: Object.keys(stats),
         },
       });

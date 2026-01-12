@@ -1,6 +1,12 @@
 export type PlanType = 'free' | 'premium' | 'ultra';
 
-export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'unpaid' | 'trialing' | 'inactive';
+export type SubscriptionStatus =
+  | 'active'
+  | 'canceled'
+  | 'past_due'
+  | 'unpaid'
+  | 'trialing'
+  | 'inactive';
 
 export interface Subscription {
   id: string;

@@ -130,9 +130,7 @@ export async function createPendingPixPayment(
  * Get pending PIX payment
  * Tries Redis first, falls back to Supabase if not found
  */
-export async function getPendingPixPayment(
-  userNumber: string
-): Promise<PendingPixPayment | null> {
+export async function getPendingPixPayment(userNumber: string): Promise<PendingPixPayment | null> {
   try {
     // Try Redis first (fast)
     const key = `pending_pix:${userNumber}`;

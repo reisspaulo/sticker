@@ -19,10 +19,7 @@ export interface OnboardingStatus {
 /**
  * Atualiza o step de onboarding do usuário
  */
-export async function updateOnboardingStep(
-  userNumber: string,
-  newStep: number
-): Promise<void> {
+export async function updateOnboardingStep(userNumber: string, newStep: number): Promise<void> {
   try {
     const updates: Record<string, any> = {
       onboarding_step: newStep,
@@ -115,10 +112,7 @@ Continue enviando suas mídias! 🚀`;
 
     await sendText(userNumber, message);
 
-    logger.info(
-      { userNumber, userName, currentStep, remainingToday },
-      'Sticker confirmation sent'
-    );
+    logger.info({ userNumber, userName, currentStep, remainingToday }, 'Sticker confirmation sent');
   } catch (error) {
     logger.error({ error, userNumber }, 'Error sending sticker confirmation');
   }
@@ -278,10 +272,7 @@ Experimente agora! 🚀`;
 /**
  * Handler para quando usuário clica em "Agora não" na apresentação do Twitter
  */
-export async function handleTwitterDismiss(
-  userNumber: string,
-  userName: string
-): Promise<void> {
+export async function handleTwitterDismiss(userNumber: string, userName: string): Promise<void> {
   try {
     const message = `Tudo bem, ${userName}! 😊
 

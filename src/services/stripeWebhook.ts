@@ -192,9 +192,7 @@ export async function handleCheckoutCompleted(session: Stripe.Checkout.Session):
 /**
  * Process customer.subscription.updated event
  */
-export async function handleSubscriptionUpdated(
-  subscription: Stripe.Subscription
-): Promise<void> {
+export async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
   try {
     logger.info({
       msg: 'Processing customer.subscription.updated',
@@ -286,9 +284,7 @@ export async function handleSubscriptionUpdated(
 /**
  * Process customer.subscription.deleted event
  */
-export async function handleSubscriptionDeleted(
-  subscription: Stripe.Subscription
-): Promise<void> {
+export async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
   try {
     logger.info({
       msg: 'Processing customer.subscription.deleted',

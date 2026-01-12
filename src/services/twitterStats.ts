@@ -227,18 +227,14 @@ export async function getTwitterStats(): Promise<TwitterStats> {
         .filter((time): time is number => typeof time === 'number');
 
       if (times.length > 0) {
-        avgConversionTime = Math.round(
-          times.reduce((sum, time) => sum + time, 0) / times.length
-        );
+        avgConversionTime = Math.round(times.reduce((sum, time) => sum + time, 0) / times.length);
       }
     }
 
     // Calculate success rate
     const totalAttempts = (totalDownloads.count || 0) + (failedDownloads.count || 0);
     const successRate =
-      totalAttempts > 0
-        ? ((totalDownloads.count || 0) / totalAttempts) * 100
-        : 100;
+      totalAttempts > 0 ? ((totalDownloads.count || 0) / totalAttempts) * 100 : 100;
 
     // Calculate conversion rate
     const conversionRate =
@@ -253,9 +249,7 @@ export async function getTwitterStats(): Promise<TwitterStats> {
     const topTweets = await getTopTweets(10);
 
     // Get active users count
-    const activeUsersSet = new Set(
-      (activeUsers.data || []).map((u: any) => u.user_number)
-    );
+    const activeUsersSet = new Set((activeUsers.data || []).map((u: any) => u.user_number));
     const activeUsersCount = activeUsersSet.size;
 
     // Get total users who have used Twitter feature
@@ -479,9 +473,7 @@ export async function getUserTwitterStats(
       .limit(1);
 
     const conversionRate =
-      totalDownloads && totalDownloads > 0
-        ? ((conversions || 0) / totalDownloads) * 100
-        : 0;
+      totalDownloads && totalDownloads > 0 ? ((conversions || 0) / totalDownloads) * 100 : 0;
 
     return {
       userNumber,
@@ -489,9 +481,7 @@ export async function getUserTwitterStats(
       downloadsTotal: totalDownloads || 0,
       conversionsTotal: conversions || 0,
       conversionRate: Math.round(conversionRate * 100) / 100,
-      lastDownload: lastDownloadData?.[0]
-        ? new Date(lastDownloadData[0].created_at)
-        : undefined,
+      lastDownload: lastDownloadData?.[0] ? new Date(lastDownloadData[0].created_at) : undefined,
       limitReached: (userData?.twitter_download_count || 0) >= limit,
       limit,
     };

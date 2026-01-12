@@ -16,7 +16,8 @@ export interface TweetInfo {
 // - https://x.com/username/status/1234567890?s=20
 // - http://twitter.com/username/status/1234567890
 // - http://x.com/username/status/1234567890
-const TWITTER_URL_REGEX = /https?:\/\/(?:www\.)?(twitter|x)\.com\/([^/]+)\/status\/(\d+)(?:\?[^\s]*)?/i;
+const TWITTER_URL_REGEX =
+  /https?:\/\/(?:www\.)?(twitter|x)\.com\/([^/]+)\/status\/(\d+)(?:\?[^\s]*)?/i;
 
 /**
  * Detects if a message contains a Twitter/X URL

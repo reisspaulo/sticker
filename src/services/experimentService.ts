@@ -222,9 +222,7 @@ export async function scheduleReminder(
  * Verifica se usuario tem lembrete pendente.
  * Usado para decidir se mostra botao de lembrete no menu.
  */
-export async function getPendingReminder(
-  userId: string
-): Promise<PendingReminder | null> {
+export async function getPendingReminder(userId: string): Promise<PendingReminder | null> {
   try {
     // ✅ Type-safe RPC call - returns first row or null
     const result = await rpcOptional('get_pending_reminder', {
@@ -258,9 +256,7 @@ export async function hasPendingReminder(userId: string): Promise<boolean> {
  * Obtem metricas do experimento por variante.
  * Usado no admin panel para visualizacao.
  */
-export async function getExperimentMetrics(
-  experimentId: string
-): Promise<ExperimentMetrics[]> {
+export async function getExperimentMetrics(experimentId: string): Promise<ExperimentMetrics[]> {
   try {
     // ✅ Type-safe RPC call - returns array
     const metrics = await rpcAll('get_experiment_metrics', {

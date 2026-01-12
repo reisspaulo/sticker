@@ -51,10 +51,13 @@ export async function sendSticker(userNumber: string, stickerUrl: string): Promi
     });
 
     // Send sticker using Evolution API's dedicated sticker endpoint
-    const response = await api.post<SendMediaResponse>(`/message/sendSticker/${evolutionInstance}`, {
-      number: sanitizedNumber,
-      sticker: stickerUrl,
-    });
+    const response = await api.post<SendMediaResponse>(
+      `/message/sendSticker/${evolutionInstance}`,
+      {
+        number: sanitizedNumber,
+        sticker: stickerUrl,
+      }
+    );
 
     logger.info({
       msg: 'Sticker sent successfully',
@@ -131,7 +134,15 @@ export async function sendText(userNumber: string, text: string): Promise<void> 
     });
 
     // Log message sent to database (determine type from content)
-    let messageType: 'text' | 'welcome' | 'limit' | 'error' | 'help' | 'plans' | 'status' | 'other' = 'text';
+    let messageType:
+      | 'text'
+      | 'welcome'
+      | 'limit'
+      | 'error'
+      | 'help'
+      | 'plans'
+      | 'status'
+      | 'other' = 'text';
     if (text.includes('Bem-vindo') || text.includes('bem-vindo')) messageType = 'welcome';
     else if (text.includes('Limite') || text.includes('limite')) messageType = 'limit';
     else if (text.includes('Erro') || text.includes('❌')) messageType = 'error';
@@ -183,7 +194,11 @@ export async function sendText(userNumber: string, text: string): Promise<void> 
  * @param messageId - The message ID containing the media
  * @param instanceName - Instance name (defaults to env variable)
  */
-export async function downloadMedia(messageKey: { remoteJid: string; fromMe: boolean; id: string }): Promise<Buffer> {
+export async function downloadMedia(messageKey: {
+  remoteJid: string;
+  fromMe: boolean;
+  id: string;
+}): Promise<Buffer> {
   try {
     logger.info({
       msg: 'Downloading media via Evolution API',

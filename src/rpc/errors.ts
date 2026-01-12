@@ -36,11 +36,7 @@ export class RpcTypeError extends RpcError {
   public readonly actualType: string;
 
   constructor(rpcName: string, expectedType: string, actualType: string) {
-    super(
-      rpcName,
-      `Expected ${expectedType} but got ${actualType}`,
-      'TYPE_MISMATCH'
-    );
+    super(rpcName, `Expected ${expectedType} but got ${actualType}`, 'TYPE_MISMATCH');
     this.name = 'RpcTypeError';
     this.expectedType = expectedType;
     this.actualType = actualType;
@@ -77,12 +73,7 @@ export class RpcSupabaseError extends RpcError {
     rpcName: string,
     supabaseError: { message: string; code?: string; details?: string }
   ) {
-    super(
-      rpcName,
-      supabaseError.message,
-      supabaseError.code,
-      supabaseError.details
-    );
+    super(rpcName, supabaseError.message, supabaseError.code, supabaseError.details);
     this.name = 'RpcSupabaseError';
   }
 }

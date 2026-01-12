@@ -33,7 +33,11 @@ interface LogUsageParams {
   details?: Record<string, any>;
 }
 
-export async function logUsage({ userNumber, action, details = {} }: LogUsageParams): Promise<void> {
+export async function logUsage({
+  userNumber,
+  action,
+  details = {},
+}: LogUsageParams): Promise<void> {
   try {
     const { error } = await supabase.from('usage_logs').insert({
       user_number: userNumber,

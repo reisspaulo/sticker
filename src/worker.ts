@@ -12,11 +12,19 @@ import { supabase } from './config/supabase';
 import { ProcessStickerJobData, EditButtonsJobData } from './types/evolution';
 import { TwitterDownloadJobData } from './types/twitter';
 import { sendErrorMessage, sendVideoSelectionMessage } from './services/messageService';
-import { logProcessingStarted, logStickerCreated, logProcessingFailed, logError } from './services/usageLogs';
+import {
+  logProcessingStarted,
+  logStickerCreated,
+  logProcessingFailed,
+  logError,
+} from './services/usageLogs';
 import { getUserLimits } from './services/subscriptionService';
 import { downloadTwitterVideo, getVideoMetadata } from './services/twitterService';
 import { uploadTwitterVideo } from './services/twitterStorage';
-import { incrementTwitterDownloadCount, getRemainingTwitterDownloads } from './services/twitterLimits';
+import {
+  incrementTwitterDownloadCount,
+  getRemainingTwitterDownloads,
+} from './services/twitterLimits';
 import { saveVideoSelectionContext } from './utils/videoSelectionContext';
 import { activatePendingPixSubscriptionJob } from './jobs/activatePendingPixSubscription';
 import type { ActivatePixJobData } from './jobs/activatePendingPixSubscription';
@@ -29,7 +37,9 @@ interface ScheduledJob {
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const redisConnection = {
   host: redisUrl.includes('://') ? new URL(redisUrl).hostname : redisUrl.split(':')[0],
-  port: redisUrl.includes('://') ? parseInt(new URL(redisUrl).port || '6379') : parseInt(redisUrl.split(':')[1] || '6379'),
+  port: redisUrl.includes('://')
+    ? parseInt(new URL(redisUrl).port || '6379')
+    : parseInt(redisUrl.split(':')[1] || '6379'),
   password: redisUrl.includes('://') ? new URL(redisUrl).password || undefined : undefined,
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
@@ -205,7 +215,12 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
 
           if (shouldShowTwitter) {
             // Pass stickersToTrigger for the message (actual count at trigger time)
-            await checkTwitterFeaturePresentation(userNumber, userName, currentStep, stickersToTrigger);
+            await checkTwitterFeaturePresentation(
+              userNumber,
+              userName,
+              currentStep,
+              stickersToTrigger
+            );
           }
         } catch (error) {
           // Non-critical - don't fail the job
@@ -372,11 +387,7 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
         });
 
         // Upload to Supabase (stickers bucket, not twitter-videos)
-        const { path, url } = await uploadSticker(
-          result.buffer,
-          userNumber,
-          'animado'
-        );
+        const { path, url } = await uploadSticker(result.buffer, userNumber, 'animado');
 
         logger.info({
           msg: 'Twitter GIF sticker uploaded',
@@ -437,7 +448,12 @@ const downloadTwitterVideoWorker = new Worker<TwitterDownloadJobData>(
         });
 
         // Send selection message
-        await sendVideoSelectionMessage(userNumber, userName, metadata.allVideos, remainingDownloads);
+        await sendVideoSelectionMessage(
+          userNumber,
+          userName,
+          metadata.allVideos,
+          remainingDownloads
+        );
 
         logger.info({
           msg: 'Video selection context saved and message sent',
@@ -966,9 +982,10 @@ async function sendPendingStickerWorker(): Promise<{
           .order('attempt_number', { ascending: false })
           .limit(1);
 
-        const attemptNumber = previousAttempts && previousAttempts.length > 0
-          ? (previousAttempts[0].attempt_number || 0) + 1
-          : 1;
+        const attemptNumber =
+          previousAttempts && previousAttempts.length > 0
+            ? (previousAttempts[0].attempt_number || 0) + 1
+            : 1;
 
         // Create log entry BEFORE sending (status: 'attempting')
         const { data: logEntry, error: logError } = await supabase
@@ -1033,7 +1050,6 @@ async function sendPendingStickerWorker(): Promise<{
           attemptNumber,
           processingTimeMs,
         });
-
       } catch (error) {
         const processingTimeMs = Date.now() - stickerStartTime;
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -1079,7 +1095,7 @@ async function sendPendingStickerWorker(): Promise<{
       }
 
       // Small delay between sends to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
     const totalTimeMs = Date.now() - startTime;
@@ -1095,7 +1111,6 @@ async function sendPendingStickerWorker(): Promise<{
     });
 
     return { totalProcessed, sent, failed, errors };
-
   } catch (error) {
     logger.error({
       msg: '[PENDING-WORKER] Fatal error in pending sticker worker',
@@ -1261,7 +1276,9 @@ const cleanupStickerWorker = new Worker<any>(
     const isBackgroundRemoval = !!messageType;
 
     logger.info({
-      msg: isBackgroundRemoval ? 'Processing remove background job' : 'Processing cleanup sticker job',
+      msg: isBackgroundRemoval
+        ? 'Processing remove background job'
+        : 'Processing cleanup sticker job',
       jobId: job.id,
       jobName: job.name,
       userNumber,
@@ -1447,7 +1464,9 @@ const cleanupStickerWorker = new Worker<any>(
       await sendText(userNumber, successMessage);
 
       logger.info({
-        msg: isBackgroundRemoval ? 'Remove background job completed' : 'Cleanup sticker job completed',
+        msg: isBackgroundRemoval
+          ? 'Remove background job completed'
+          : 'Cleanup sticker job completed',
         jobId: job.id,
         userNumber,
         processingTime,

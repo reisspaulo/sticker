@@ -151,9 +151,8 @@ export async function activatePendingPixSubscriptionJob(
 
     // Log experiment event for converted
     try {
-      const { logExperimentEvent, getUpgradeDismissVariant } = await import(
-        '../services/experimentService'
-      );
+      const { logExperimentEvent, getUpgradeDismissVariant } =
+        await import('../services/experimentService');
       const experimentResult = await getUpgradeDismissVariant(userId, userNumber);
       if (experimentResult) {
         await logExperimentEvent(
@@ -214,7 +213,9 @@ export async function activatePendingPixSubscriptionJob(
     });
 
     // Throw to trigger retry
-    throw new Error(`Activation failed (${result.reason}), will retry: ${result.error || 'unknown'}`);
+    throw new Error(
+      `Activation failed (${result.reason}), will retry: ${result.error || 'unknown'}`
+    );
   }
 
   // Get appropriate error message based on failure reason

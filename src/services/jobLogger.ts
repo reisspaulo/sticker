@@ -236,9 +236,7 @@ export async function getRecentJobLogs(
 /**
  * Get last successful run of a job
  */
-export async function getLastSuccessfulRun(
-  jobName: JobName
-): Promise<JobLogEntry | null> {
+export async function getLastSuccessfulRun(jobName: JobName): Promise<JobLogEntry | null> {
   try {
     const { data, error } = await supabase
       .from('job_logs')

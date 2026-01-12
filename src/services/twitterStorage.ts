@@ -35,12 +35,10 @@ export async function uploadTwitterVideo(
     });
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(fileName, videoBuffer, {
-        contentType: 'video/mp4',
-        upsert: false, // Don't overwrite if exists
-      });
+    const { data, error } = await supabase.storage.from(BUCKET_NAME).upload(fileName, videoBuffer, {
+      contentType: 'video/mp4',
+      upsert: false, // Don't overwrite if exists
+    });
 
     if (error) {
       logger.error({

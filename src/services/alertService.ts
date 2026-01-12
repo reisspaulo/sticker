@@ -10,7 +10,10 @@ const ALERT_THRESHOLDS = {
 };
 
 // Error counters
-const errorCounters = new Map<string, { count: number; firstError: Date; lastAlert: Date | null }>();
+const errorCounters = new Map<
+  string,
+  { count: number; firstError: Date; lastAlert: Date | null }
+>();
 
 interface AlertContext {
   service: string;
@@ -293,7 +296,10 @@ export function clearErrorCounters(): void {
 /**
  * Get current error statistics (for monitoring dashboard)
  */
-export function getErrorStats(): Record<string, { count: number; firstError: string; lastAlert: string | null }> {
+export function getErrorStats(): Record<
+  string,
+  { count: number; firstError: string; lastAlert: string | null }
+> {
   const stats: Record<string, any> = {};
 
   errorCounters.forEach((value, key) => {

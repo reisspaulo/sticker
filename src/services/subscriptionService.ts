@@ -1,6 +1,12 @@
 import { supabase } from '../config/supabase';
 import logger from '../config/logger';
-import { Subscription, PlanType, SubscriptionStatus, UserLimits, PLAN_LIMITS } from '../types/subscription';
+import {
+  Subscription,
+  PlanType,
+  SubscriptionStatus,
+  UserLimits,
+  PLAN_LIMITS,
+} from '../types/subscription';
 
 /**
  * Get user's current subscription

@@ -5,11 +5,7 @@
 
 import axios from 'axios';
 import logger from '../config/logger';
-import {
-  VxTwitterResponse,
-  TwitterVideoMetadata,
-  TwitterDownloadResult,
-} from '../types/twitter';
+import { VxTwitterResponse, TwitterVideoMetadata, TwitterDownloadResult } from '../types/twitter';
 
 // Constants for validation
 const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB in bytes (WhatsApp limit)
@@ -44,9 +40,7 @@ export async function getVideoMetadata(
     }
 
     // Find all videos/gifs in media
-    const allVideoMedia = data.media_extended.filter(
-      (m) => m.type === 'video' || m.type === 'gif'
-    );
+    const allVideoMedia = data.media_extended.filter((m) => m.type === 'video' || m.type === 'gif');
 
     if (allVideoMedia.length === 0) {
       logger.warn(
@@ -88,9 +82,7 @@ export async function getVideoMetadata(
       videoUrl: videoMedia.url,
       thumbnailUrl: videoMedia.thumbnail_url,
       duration: videoMedia.duration_millis,
-      durationSec: videoMedia.duration_millis
-        ? videoMedia.duration_millis / 1000
-        : undefined,
+      durationSec: videoMedia.duration_millis ? videoMedia.duration_millis / 1000 : undefined,
       resolution: `${videoMedia.size.width}x${videoMedia.size.height}`,
       type: videoMedia.type as 'video' | 'gif',
       width: videoMedia.size.width,

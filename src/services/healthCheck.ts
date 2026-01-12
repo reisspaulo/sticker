@@ -51,14 +51,13 @@ export async function performHealthCheck(): Promise<HealthStatus> {
   const alerts: string[] = [];
 
   // Check all services in parallel
-  const [dbHealth, redisHealth, storageHealth, vxTwitterHealth, systemHealth] =
-    await Promise.all([
-      checkDatabase(),
-      checkRedis(),
-      checkStorage(),
-      checkVxTwitterAPI(),
-      checkSystem(),
-    ]);
+  const [dbHealth, redisHealth, storageHealth, vxTwitterHealth, systemHealth] = await Promise.all([
+    checkDatabase(),
+    checkRedis(),
+    checkStorage(),
+    checkVxTwitterAPI(),
+    checkSystem(),
+  ]);
 
   // Determine overall status
   const services = {
@@ -79,9 +78,7 @@ export async function performHealthCheck(): Promise<HealthStatus> {
 
   // Check storage limits
   if (systemHealth.storage.nearLimit) {
-    alerts.push(
-      `Storage is near limit (${systemHealth.storage.percentage.toFixed(1)}%)`
-    );
+    alerts.push(`Storage is near limit (${systemHealth.storage.percentage.toFixed(1)}%)`);
   }
 
   // Check memory usage
@@ -182,9 +179,7 @@ async function checkStorage(): Promise<ServiceHealth> {
 
   try {
     // Try to list files in storage bucket
-    const { error } = await supabase.storage
-      .from('twitter-videos')
-      .list('', { limit: 1 });
+    const { error } = await supabase.storage.from('twitter-videos').list('', { limit: 1 });
 
     if (error) {
       return {
@@ -222,13 +217,10 @@ async function checkVxTwitterAPI(): Promise<ServiceHealth> {
 
   try {
     // Test with a known tweet
-    const response = await axios.get(
-      'https://api.vxtwitter.com/Twitter/status/20',
-      {
-        timeout: 5000,
-        validateStatus: (status) => status < 500, // Accept 4xx as API is up
-      }
-    );
+    const response = await axios.get('https://api.vxtwitter.com/Twitter/status/20', {
+      timeout: 5000,
+      validateStatus: (status) => status < 500, // Accept 4xx as API is up
+    });
 
     const responseTime = Date.now() - startTime;
 
@@ -337,10 +329,7 @@ async function getStorageUsage(): Promise<{
  */
 export async function quickHealthCheck(): Promise<boolean> {
   try {
-    await Promise.all([
-      redis.ping(),
-      supabase.from('users').select('id').limit(1),
-    ]);
+    await Promise.all([redis.ping(), supabase.from('users').select('id').limit(1)]);
     return true;
   } catch (error) {
     logger.error({ error }, 'Quick health check failed');

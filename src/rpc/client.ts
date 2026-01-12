@@ -26,12 +26,7 @@ import {
   type TableRpcName,
   type VoidRpcName,
 } from './registry.js';
-import {
-  RpcError,
-  RpcTypeError,
-  RpcEmptyError,
-  RpcSupabaseError,
-} from './errors.js';
+import { RpcError, RpcTypeError, RpcEmptyError, RpcSupabaseError } from './errors.js';
 import type { RpcCallOptions } from './types.js';
 
 // ============================================

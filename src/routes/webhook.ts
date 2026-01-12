@@ -1,15 +1,35 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { validateApiKey } from '../middleware/auth';
 import { validateMessage, getMessageType } from '../utils/messageValidator';
-import { processStickerQueue, downloadTwitterVideoQueue, convertTwitterStickerQueue, cleanupStickerQueue } from '../config/queue';
+import {
+  processStickerQueue,
+  downloadTwitterVideoQueue,
+  convertTwitterStickerQueue,
+  cleanupStickerQueue,
+} from '../config/queue';
 import { extractInteractiveResponse } from '../utils/interactiveMessageDetector';
-import { WebhookPayload, ProcessStickerJobData, TwitterVideoJobData, CleanupStickerJobData } from '../types/evolution';
+import {
+  WebhookPayload,
+  ProcessStickerJobData,
+  TwitterVideoJobData,
+  CleanupStickerJobData,
+} from '../types/evolution';
 import { getUserOrCreate } from '../services/userService';
 import { getTwitterDownloadCount } from '../services/twitterLimits';
 import { getUserLimits } from '../services/subscriptionService';
 import { sendWelcomeMessage } from '../services/messageService';
 import { sendText, sendVideo } from '../services/evolutionApi';
-import { logWebhookReceived, logMessageReceived, logTextMessageReceived, logError, logButtonClicked, logLimitReached, logUpgradeClicked, logPaymentStarted, logPaymentConfirmed } from '../services/usageLogs';
+import {
+  logWebhookReceived,
+  logMessageReceived,
+  logTextMessageReceived,
+  logError,
+  logButtonClicked,
+  logLimitReached,
+  logUpgradeClicked,
+  logPaymentStarted,
+  logPaymentConfirmed,
+} from '../services/usageLogs';
 import { extractTweetInfo } from '../utils/urlDetector';
 import {
   getVideoSelectionContext,
@@ -124,7 +144,10 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
       const eventType = body.event?.toLowerCase().replace(/_/g, '.');
       fastify.log.info({ event: body.event, normalized: eventType }, 'Event type check');
       if (eventType !== 'messages.upsert') {
-        fastify.log.info({ event: body.event, normalized: eventType }, '❌ Ignoring non-message event');
+        fastify.log.info(
+          { event: body.event, normalized: eventType },
+          '❌ Ignoring non-message event'
+        );
         return reply.status(200).send({
           status: 'ignored',
           reason: 'not a message event',
@@ -196,7 +219,10 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
         // Skip if no valid interactive response
         if (interactive.type === 'none') {
-          fastify.log.warn({ userNumber }, 'Interactive message detected but no response extracted');
+          fastify.log.warn(
+            { userNumber },
+            'Interactive message detected but no response extracted'
+          );
           return reply.status(200).send({ status: 'no_interactive_response' });
         }
 
@@ -288,7 +314,9 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
                 `😔 *Erro ao ativar plano*\n\nOcorreu um erro ao ativar seu plano.\n\nMotivo: ${result.reason}\n\nPor favor, digite *ajuda* para falar com suporte.`
               );
 
-              return reply.status(200).send({ status: 'pix_activation_failed', reason: result.reason });
+              return reply
+                .status(200)
+                .send({ status: 'pix_activation_failed', reason: result.reason });
             }
           } catch (error) {
             fastify.log.error({
@@ -318,12 +346,7 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
           try {
             // Create new pending PIX payment
-            const payment = await createPendingPixPayment(
-              userNumber,
-              userName,
-              user.id,
-              plan
-            );
+            const payment = await createPendingPixPayment(userNumber, userName, user.id, plan);
 
             // Send PIX payment instructions with interactive button
             await sendPixPaymentWithButton(userNumber, payment.pixKey, plan);
@@ -409,9 +432,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           });
 
           // ATOMIC: Check and increment daily limit before converting
-          const { checkAndIncrementDailyLimitAtomic, setLimitNotifiedAtomic } = await import(
-            '../services/atomicLimitService'
-          );
+          const { checkAndIncrementDailyLimitAtomic, setLimitNotifiedAtomic } =
+            await import('../services/atomicLimitService');
 
           const limitCheck = await checkAndIncrementDailyLimitAtomic(user.id);
 
@@ -502,7 +524,10 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         }
 
         // Handle upgrade button clicks (A/B Test - Limit Reached Menu)
-        if (interactive.id === 'button_upgrade_premium' || interactive.id === 'button_upgrade_ultra') {
+        if (
+          interactive.id === 'button_upgrade_premium' ||
+          interactive.id === 'button_upgrade_ultra'
+        ) {
           const selectedPlan = interactive.id.replace('button_upgrade_', '') as 'premium' | 'ultra';
 
           fastify.log.info({
@@ -527,9 +552,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           });
 
           // Log experiment event for upgrade_clicked
-          const { logExperimentEvent, getUpgradeDismissVariant } = await import(
-            '../services/experimentService'
-          );
+          const { logExperimentEvent, getUpgradeDismissVariant } =
+            await import('../services/experimentService');
           const experimentResult = await getUpgradeDismissVariant(user.id, userNumber);
           if (experimentResult) {
             await logExperimentEvent(
@@ -550,9 +574,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           });
 
           // Schedule payment reminders (A/B test for remarketing)
-          const { getPaymentReminderVariant, schedulePaymentReminders } = await import(
-            '../services/experimentService'
-          );
+          const { getPaymentReminderVariant, schedulePaymentReminders } =
+            await import('../services/experimentService');
 
           const paymentExperiment = await getPaymentReminderVariant(user.id, userNumber);
           if (paymentExperiment) {
@@ -661,12 +684,15 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           });
 
           // Track A/B test dismissal
-          logMenuInteraction(userNumber, 'ab_test_upgrade_dismissed', user.ab_test_group || 'unknown');
+          logMenuInteraction(
+            userNumber,
+            'ab_test_upgrade_dismissed',
+            user.ab_test_group || 'unknown'
+          );
 
           // Log experiment event
-          const { logExperimentEvent, getUpgradeDismissVariant } = await import(
-            '../services/experimentService'
-          );
+          const { logExperimentEvent, getUpgradeDismissVariant } =
+            await import('../services/experimentService');
           const experimentResult = await getUpgradeDismissVariant(user.id, userNumber);
           if (experimentResult) {
             await logExperimentEvent(
@@ -693,9 +719,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             userNumber,
           });
 
-          const { scheduleReminder, logExperimentEvent, getUpgradeDismissVariant } = await import(
-            '../services/experimentService'
-          );
+          const { scheduleReminder, logExperimentEvent, getUpgradeDismissVariant } =
+            await import('../services/experimentService');
 
           const experimentResult = await getUpgradeDismissVariant(user.id, userNumber);
 
@@ -734,9 +759,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             userNumber,
           });
 
-          const { scheduleReminder, logExperimentEvent, getUpgradeDismissVariant } = await import(
-            '../services/experimentService'
-          );
+          const { scheduleReminder, logExperimentEvent, getUpgradeDismissVariant } =
+            await import('../services/experimentService');
 
           const experimentResult = await getUpgradeDismissVariant(user.id, userNumber);
 
@@ -798,7 +822,11 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         }
 
         // Handle plan selection from list
-        if (interactive.id === 'plan_premium' || interactive.id === 'plan_ultra' || interactive.id === 'plan_free') {
+        if (
+          interactive.id === 'plan_premium' ||
+          interactive.id === 'plan_ultra' ||
+          interactive.id === 'plan_free'
+        ) {
           const selectedPlan = interactive.id.replace('plan_', '') as PlanType;
 
           logMenuInteraction(userNumber, 'plan_selected', selectedPlan);
@@ -835,11 +863,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           });
 
           // Schedule payment reminders (A/B test for remarketing)
-          const {
-            getPaymentReminderVariant,
-            schedulePaymentReminders,
-            logExperimentEvent,
-          } = await import('../services/experimentService');
+          const { getPaymentReminderVariant, schedulePaymentReminders, logExperimentEvent } =
+            await import('../services/experimentService');
 
           const paymentExperiment = await getPaymentReminderVariant(user.id, userNumber);
           if (paymentExperiment) {
@@ -865,7 +890,11 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         }
 
         // Handle payment method selection from list
-        if (interactive.id === 'payment_card' || interactive.id === 'payment_boleto' || interactive.id === 'payment_pix') {
+        if (
+          interactive.id === 'payment_card' ||
+          interactive.id === 'payment_boleto' ||
+          interactive.id === 'payment_pix'
+        ) {
           const paymentMethod = interactive.id.replace('payment_', '');
 
           // Get selected plan from conversation context
@@ -896,9 +925,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           });
 
           // Cancel payment reminders (user is proceeding with payment)
-          const { cancelPaymentReminders, logExperimentEvent, getUpgradeDismissVariant } = await import(
-            '../services/experimentService'
-          );
+          const { cancelPaymentReminders, logExperimentEvent, getUpgradeDismissVariant } =
+            await import('../services/experimentService');
           await cancelPaymentReminders(user.id);
 
           // Log experiment event for payment_started
@@ -1077,9 +1105,13 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             messageType: context.metadata.message_type, // This triggers PATH A in worker
           };
 
-          const bgJob = await cleanupStickerQueue.add('remove-background', removeBackgroundJobData, {
-            jobId: `background-${userNumber}-${Date.now()}`,
-          });
+          const bgJob = await cleanupStickerQueue.add(
+            'remove-background',
+            removeBackgroundJobData,
+            {
+              jobId: `background-${userNumber}-${Date.now()}`,
+            }
+          );
 
           fastify.log.info({
             msg: 'Remove background job queued',
@@ -1115,7 +1147,10 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             .eq('id', user.id)
             .single();
 
-          const remaining = Math.max(0, userLimits.daily_sticker_limit - (userData?.daily_count || 0));
+          const remaining = Math.max(
+            0,
+            userLimits.daily_sticker_limit - (userData?.daily_count || 0)
+          );
 
           // Send confirmation
           await sendText(
@@ -1209,14 +1244,17 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         } = await import('../services/experimentService');
         const paymentExp1 = await getPRV1(user.id, userNumber);
         if (paymentExp1) {
-          await sPR1(user.id, userNumber, 'premium', paymentExp1.experiment_id, paymentExp1.variant);
-          await lEE1(
+          await sPR1(
             user.id,
+            userNumber,
+            'premium',
             paymentExp1.experiment_id,
-            paymentExp1.variant,
-            'payment_intent',
-            { plan: 'premium', source: 'text_command' }
+            paymentExp1.variant
           );
+          await lEE1(user.id, paymentExp1.experiment_id, paymentExp1.variant, 'payment_intent', {
+            plan: 'premium',
+            source: 'text_command',
+          });
         }
 
         return reply.status(200).send({ status: 'payment_methods_sent', plan: 'premium' });
@@ -1252,21 +1290,24 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         const paymentExp2 = await getPRV2(user.id, userNumber);
         if (paymentExp2) {
           await sPR2(user.id, userNumber, 'ultra', paymentExp2.experiment_id, paymentExp2.variant);
-          await lEE2(
-            user.id,
-            paymentExp2.experiment_id,
-            paymentExp2.variant,
-            'payment_intent',
-            { plan: 'ultra', source: 'text_command' }
-          );
+          await lEE2(user.id, paymentExp2.experiment_id, paymentExp2.variant, 'payment_intent', {
+            plan: 'ultra',
+            source: 'text_command',
+          });
         }
 
         return reply.status(200).send({ status: 'payment_methods_sent', plan: 'ultra' });
       }
 
       // Universal commands for payment method selection (works for BR and international users)
-      if (normalizedText === 'pix' || normalizedText === 'cartao' || normalizedText === 'cartão' || normalizedText === 'boleto') {
-        const paymentMethod = normalizedText === 'cartao' || normalizedText === 'cartão' ? 'card' : normalizedText;
+      if (
+        normalizedText === 'pix' ||
+        normalizedText === 'cartao' ||
+        normalizedText === 'cartão' ||
+        normalizedText === 'boleto'
+      ) {
+        const paymentMethod =
+          normalizedText === 'cartao' || normalizedText === 'cartão' ? 'card' : normalizedText;
 
         // Get selected plan from conversation context
         const context = await getConversationContext(userNumber);
@@ -1330,10 +1371,7 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         }
 
         // Handle Card/Boleto payment (Stripe link)
-        await sendText(
-          userNumber,
-          getPaymentLinkMessage(selectedPlan, userNumber)
-        );
+        await sendText(userNumber, getPaymentLinkMessage(selectedPlan, userNumber));
 
         await clearConversationContext(userNumber);
 
@@ -1782,9 +1820,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
       // ATOMIC: Check and increment daily limit in single transaction
       // This prevents race conditions when multiple images are sent simultaneously
-      const { checkAndIncrementDailyLimitAtomic, setLimitNotifiedAtomic } = await import(
-        '../services/atomicLimitService'
-      );
+      const { checkAndIncrementDailyLimitAtomic, setLimitNotifiedAtomic } =
+        await import('../services/atomicLimitService');
 
       const limitCheck = await checkAndIncrementDailyLimitAtomic(user.id);
 
@@ -2033,9 +2070,10 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
           // Send notification that sticker was saved as pending
           const { sendButtons } = await import('../services/avisaApi');
-          const pendingMessage = pendingCount === 0
-            ? `Você usou todas as figurinhas e bônus de hoje.\n\n✅ Sua figurinha foi salva e será enviada *amanhã às 8h*.\n\n💡 Ou faça upgrade agora para receber imediatamente!`
-            : `Você usou todas as figurinhas e bônus de hoje.\n\n✅ Suas *${pendingCount + 1} figurinhas* foram salvas e serão enviadas *amanhã às 8h*.\n\n💡 Ou faça upgrade agora para receber imediatamente!`;
+          const pendingMessage =
+            pendingCount === 0
+              ? `Você usou todas as figurinhas e bônus de hoje.\n\n✅ Sua figurinha foi salva e será enviada *amanhã às 8h*.\n\n💡 Ou faça upgrade agora para receber imediatamente!`
+              : `Você usou todas as figurinhas e bônus de hoje.\n\n✅ Suas *${pendingCount + 1} figurinhas* foram salvas e serão enviadas *amanhã às 8h*.\n\n💡 Ou faça upgrade agora para receber imediatamente!`;
 
           await sendButtons({
             number: userNumber,

@@ -122,9 +122,10 @@ export async function sendPendingStickersJob(): Promise<{
           .order('attempt_number', { ascending: false })
           .limit(1);
 
-        const attemptNumber = previousAttempts && previousAttempts.length > 0
-          ? (previousAttempts[0].attempt_number || 0) + 1
-          : 1;
+        const attemptNumber =
+          previousAttempts && previousAttempts.length > 0
+            ? (previousAttempts[0].attempt_number || 0) + 1
+            : 1;
 
         // Create log entry BEFORE sending (status: 'attempting')
         const { data: logEntry, error: logError } = await supabase
@@ -189,7 +190,6 @@ export async function sendPendingStickersJob(): Promise<{
           attemptNumber,
           processingTimeMs,
         });
-
       } catch (error) {
         const processingTimeMs = Date.now() - stickerStartTime;
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -242,19 +242,24 @@ export async function sendPendingStickersJob(): Promise<{
       }
 
       // Small delay between sends to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
     const totalTimeMs = Date.now() - startTime;
 
     // Log success to database
-    await logJobComplete(logId, jobName, {
-      total_processed: totalProcessed,
-      sent,
-      failed,
-      skipped,
-      success_rate: totalProcessed > 0 ? `${((sent / totalProcessed) * 100).toFixed(1)}%` : '0%',
-    }, totalTimeMs);
+    await logJobComplete(
+      logId,
+      jobName,
+      {
+        total_processed: totalProcessed,
+        sent,
+        failed,
+        skipped,
+        success_rate: totalProcessed > 0 ? `${((sent / totalProcessed) * 100).toFixed(1)}%` : '0%',
+      },
+      totalTimeMs
+    );
 
     logger.info({
       msg: '[SEND-PENDING-JOB] Send pending stickers job completed',
@@ -268,7 +273,6 @@ export async function sendPendingStickersJob(): Promise<{
     });
 
     return { totalProcessed, sent, failed, skipped, errors };
-
   } catch (error) {
     const totalTimeMs = Date.now() - startTime;
 

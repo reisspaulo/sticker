@@ -15,8 +15,7 @@ const ALLOWED_VIDEO_MIMETYPES = [
 
 export function validateMessage(message: MessageContent): ValidationResult {
   // Check for text message with Twitter URL
-  const textContent =
-    message.conversation || message.extendedTextMessage?.text;
+  const textContent = message.conversation || message.extendedTextMessage?.text;
 
   if (textContent) {
     const twitterUrl = detectTwitterUrl(textContent);
@@ -144,7 +143,13 @@ export function isGifMessage(message: MessageContent): boolean {
   return !!message.videoMessage;
 }
 
-export type MessageType = 'image' | 'gif' | 'twitter_video' | 'button_response' | 'list_response' | 'other';
+export type MessageType =
+  | 'image'
+  | 'gif'
+  | 'twitter_video'
+  | 'button_response'
+  | 'list_response'
+  | 'other';
 
 export function getMessageType(message: any): MessageType {
   // Check for interactive responses FIRST (priority!)

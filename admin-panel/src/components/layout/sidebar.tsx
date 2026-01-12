@@ -64,6 +64,7 @@ const navigation: NavItem[] = [
     children: [
       { title: 'Mensagens', href: '/bot/messages' },
       { title: 'Botões', href: '/bot/buttons' },
+      { title: 'Fluxos', href: '/bot/flows' },
     ],
   },
   {

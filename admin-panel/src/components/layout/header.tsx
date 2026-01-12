@@ -17,6 +17,7 @@ const routeTitles: Record<string, string> = {
   '/bot': 'Bot',
   '/bot/messages': 'Catálogo de Mensagens',
   '/bot/buttons': 'Catálogo de Botões',
+  '/bot/flows': 'Visualizador de Fluxos',
   '/analytics': 'Analytics',
   '/analytics/funnel': 'Funil de Conversão',
   '/logs': 'Logs do Sistema',

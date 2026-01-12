@@ -1,40 +1,54 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Search,
   MessageSquare,
-  MousePointer,
-  ArrowRight,
-  Copy,
-  Check,
+  ChevronLeft,
+  ChevronRight,
   Zap,
   CreditCard,
-  Gift,
   HelpCircle,
   AlertTriangle,
   Twitter,
-  Sparkles
+  Sparkles,
+  Info,
+  Code,
+  ArrowRight
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
-// Definição das mensagens do bot
+// Tipos
+type MessageType = 'text' | 'buttons' | 'list'
+type Category = 'onboarding' | 'limite' | 'planos' | 'pagamento' | 'twitter' | 'erro' | 'sticker'
+
 interface BotMessage {
   id: string
-  category: 'onboarding' | 'limite' | 'planos' | 'pagamento' | 'twitter' | 'erro' | 'sticker'
+  category: Category
   trigger: string
-  triggerType: 'auto' | 'comando' | 'botao' | 'evento'
   title: string
+  type: MessageType
   content: string
   buttons?: { id: string; text: string }[]
+  listItems?: { id: string; title: string; desc: string }[]
   nextStep?: string
   notes?: string
   file?: string
-  function?: string
+  sequence?: string // ID da sequência (ex: 'pix_flow')
+  sequenceOrder?: number // Ordem na sequência
+}
+
+// Sequências de mensagens (para carousel)
+const sequences: Record<string, { title: string; description: string }> = {
+  pix_flow: {
+    title: 'Fluxo PIX',
+    description: '3 mensagens enviadas em sequência quando usuário escolhe PIX'
+  }
 }
 
 const messages: BotMessage[] = [
@@ -43,8 +57,8 @@ const messages: BotMessage[] = [
     id: 'welcome_new',
     category: 'onboarding',
     trigger: 'Usuário novo envia qualquer mensagem',
-    triggerType: 'auto',
-    title: 'Boas-vindas (Novo Usuário)',
+    title: 'Boas-vindas',
+    type: 'text',
     content: `👋 Olá, {nome}! Eu sou o *StickerBot*!
 
 📸 Me envie uma *imagem* ou *GIF* e eu transformo em figurinha instantaneamente!
@@ -55,21 +69,7 @@ const messages: BotMessage[] = [
 
 💡 Comandos: *planos* | *status* | *ajuda*`,
     nextStep: 'Aguarda mídia ou comando',
-    file: 'menuService.ts',
-    function: 'getWelcomeMessageForNewUser()',
-  },
-  {
-    id: 'welcome_short',
-    category: 'onboarding',
-    trigger: 'Versão curta para Time to Value',
-    triggerType: 'auto',
-    title: 'Boas-vindas (Curta)',
-    content: `🎉 Olá {nome}, bem-vindo ao *StickerBot*!
-
-Envie uma imagem, vídeo ou GIF agora mesmo que eu transformo em figurinha! 🎨`,
-    nextStep: 'Aguarda mídia',
-    file: 'menuService.ts',
-    function: 'getWelcomeMenu()',
+    file: 'menuService.ts → getWelcomeMessageForNewUser()',
   },
 
   // ============ LIMITE ATINGIDO ============
@@ -77,206 +77,109 @@ Envie uma imagem, vídeo ou GIF agora mesmo que eu transformo em figurinha! 🎨
     id: 'limit_reached',
     category: 'limite',
     trigger: 'Usuário tenta criar sticker mas atingiu limite',
-    triggerType: 'auto',
     title: 'Limite Atingido',
+    type: 'buttons',
     content: `⚠️ *Limite Atingido!* 🎨
 
-Você já usou *{count}/{limit} figurinhas* hoje.
+Você já usou *4/4 figurinhas* hoje.
 
-Seu limite será renovado às *00:00* (horário de Brasília).
+Seu limite será renovado às *00:00*.
 
 💎 *FAÇA UPGRADE E TENHA MAIS!*
 
-💰 *Premium (R$ 5/mês)*
-• 20 figurinhas/dia
-• 15 vídeos Twitter/dia
-
-🚀 *Ultra (R$ 9,90/mês)*
-• Figurinhas *ILIMITADAS*
-• Vídeos Twitter *ILIMITADOS*
-• Processamento prioritário`,
+💰 *Premium* • 20/dia • R$ 5/mês
+🚀 *Ultra* • ILIMITADO • R$ 9,90/mês`,
     buttons: [
       { id: 'button_upgrade_premium', text: '💰 Premium - R$ 5/mês' },
       { id: 'button_upgrade_ultra', text: '🚀 Ultra - R$ 9,90/mês' },
     ],
     nextStep: 'Fluxo de pagamento',
-    notes: 'Botão dismiss foi removido para melhorar conversão',
-    file: 'menuService.ts',
-    function: 'sendLimitReachedMenu()',
-  },
-  {
-    id: 'limit_twitter',
-    category: 'limite',
-    trigger: 'Usuário tenta baixar Twitter mas atingiu limite',
-    triggerType: 'auto',
-    title: 'Limite Twitter Atingido',
-    content: `⚠️ *Limite Atingido!* 🐦
-
-Você já usou *{count}/{limit} vídeos do Twitter* hoje.
-
-Seu limite será renovado às *00:00* (horário de Brasília).`,
-    buttons: [
-      { id: 'button_upgrade_premium', text: '💰 Premium - R$ 5/mês' },
-      { id: 'button_upgrade_ultra', text: '🚀 Ultra - R$ 9,90/mês' },
-    ],
-    nextStep: 'Fluxo de pagamento',
-    file: 'menuService.ts',
-    function: 'sendLimitReachedMenu()',
+    notes: 'Botão dismiss removido para melhorar conversão',
+    file: 'menuService.ts → sendLimitReachedMenu()',
   },
 
   // ============ PLANOS ============
   {
     id: 'plans_list',
     category: 'planos',
-    trigger: 'Usuário digita "planos" ou clica em upgrade',
-    triggerType: 'comando',
+    trigger: 'Comando "planos" ou clique em upgrade',
     title: 'Lista de Planos',
+    type: 'list',
     content: `💎 *ESCOLHA SEU PLANO*
 
 Selecione o plano ideal para você:`,
-    buttons: [
-      { id: 'plan_free', text: '🆓 Gratuito - {limit} figurinhas/dia' },
-      { id: 'plan_premium', text: '💰 Premium - R$ 5,00/mês - 20/dia' },
-      { id: 'plan_ultra', text: '🚀 Ultra - R$ 9,90/mês - ILIMITADO' },
+    listItems: [
+      { id: 'plan_free', title: '🆓 Gratuito', desc: '4 figurinhas/dia • 4 vídeos Twitter/dia' },
+      { id: 'plan_premium', title: '💰 Premium - R$ 5,00/mês', desc: '20 figurinhas/dia • 15 vídeos Twitter/dia' },
+      { id: 'plan_ultra', title: '🚀 Ultra - R$ 9,90/mês', desc: 'ILIMITADO • Processamento prioritário' },
     ],
     nextStep: 'Detalhes do plano ou pagamento',
-    notes: 'Lista interativa via Avisa API',
-    file: 'menuService.ts',
-    function: 'sendPlansListMenu()',
-  },
-  {
-    id: 'plan_premium_details',
-    category: 'planos',
-    trigger: 'Usuário seleciona Premium',
-    triggerType: 'botao',
-    title: 'Detalhes Premium',
-    content: `💰 *PLANO PREMIUM*
-R$ 5,00/mês - Cancele quando quiser
-
-✨ *BENEFÍCIOS:*
-✅ 20 figurinhas por dia
-✅ 15 vídeos do Twitter por dia
-✅ Suporte prioritário
-✅ 5x mais que o plano gratuito!
-
-📊 *COMPARAÇÃO:*
-Plano Gratuito: {limite} figurinhas/dia
-Plano Premium: 20 figurinhas/dia (+400%!)
-
-🎯 *PERFEITO PARA:*
-• Quem usa figurinhas regularmente
-• Grupos de amigos
-• Criadores de conteúdo
-
-Digite *CONFIRMAR* para assinar agora!
-Digite *VOLTAR* para ver outros planos.`,
-    nextStep: 'Escolha método de pagamento',
-    file: 'menuService.ts',
-    function: 'getPlanDetailsMenu("premium")',
-  },
-  {
-    id: 'plan_ultra_details',
-    category: 'planos',
-    trigger: 'Usuário seleciona Ultra',
-    triggerType: 'botao',
-    title: 'Detalhes Ultra',
-    content: `🚀 *PLANO ULTRA*
-R$ 9,90/mês - Cancele quando quiser
-
-🔥 *BENEFÍCIOS:*
-✅ Figurinhas *ILIMITADAS*
-✅ Vídeos Twitter *ILIMITADOS*
-✅ Processamento prioritário
-✅ Suporte VIP
-✅ Nunca mais espere!
-
-📊 *COMPARAÇÃO:*
-Plano Gratuito: {limite} figurinhas/dia
-Plano Premium: 20 figurinhas/dia
-Plano Ultra: *ILIMITADO* 🔥
-
-🎯 *PERFEITO PARA:*
-• Uso intensivo
-• Negócios e marketing
-• Administradores de grupos
-• Criadores profissionais
-
-Digite *CONFIRMAR* para assinar agora!
-Digite *VOLTAR* para ver outros planos.`,
-    nextStep: 'Escolha método de pagamento',
-    file: 'menuService.ts',
-    function: 'getPlanDetailsMenu("ultra")',
+    file: 'menuService.ts → sendPlansListMenu()',
   },
 
   // ============ PAGAMENTO ============
   {
     id: 'payment_methods',
     category: 'pagamento',
-    trigger: 'Usuário confirma plano',
-    triggerType: 'botao',
+    trigger: 'Usuário confirma plano Premium ou Ultra',
     title: 'Métodos de Pagamento',
-    content: `💰 *PAGAMENTO - PLANO {PLANO}*
+    type: 'list',
+    content: `💰 *PAGAMENTO - PLANO PREMIUM*
 
-Valor: R$ {valor}/mês
+Valor: R$ 5,00/mês
 
 Escolha sua forma de pagamento:`,
-    buttons: [
-      { id: 'payment_card', text: '💳 Cartão de Crédito' },
-      { id: 'payment_boleto', text: '🧾 Boleto Bancário' },
-      { id: 'payment_pix', text: '🔑 PIX' },
+    listItems: [
+      { id: 'payment_card', title: '💳 Cartão de Crédito', desc: 'Pagamento instantâneo via Stripe' },
+      { id: 'payment_boleto', title: '🧾 Boleto Bancário', desc: 'Confirmação em até 3 dias úteis' },
+      { id: 'payment_pix', title: '🔑 PIX', desc: 'Pagamento instantâneo • Ativação em 5 minutos' },
     ],
-    nextStep: 'Link de pagamento ou PIX',
-    notes: 'Lista interativa via Avisa API',
-    file: 'menuService.ts',
-    function: 'sendPaymentMethodList()',
+    nextStep: 'Link de pagamento ou fluxo PIX',
+    file: 'menuService.ts → sendPaymentMethodList()',
   },
   {
     id: 'pix_instructions',
     category: 'pagamento',
     trigger: 'Usuário escolhe PIX',
-    triggerType: 'botao',
-    title: 'Instruções PIX (Msg 1/3)',
+    title: 'Instruções PIX',
+    type: 'text',
     content: `💰 *Pagamento via PIX*
 
-📋 *Plano:* {plano}
-💵 *Valor:* R$ {valor}
+📋 *Plano:* Premium
+💵 *Valor:* R$ 5,00
 
 📝 *COMO PAGAR:*
 
-1️⃣ Copie a chave PIX que vou enviar agora
-2️⃣ Abra seu app de pagamento
-3️⃣ Cole a chave e pague R$ {valor}
-4️⃣ Após pagar, clique em "✅ Já Paguei"
+1️⃣ Copie a chave PIX abaixo
+2️⃣ Abra seu app de banco
+3️⃣ Cole a chave e pague R$ 5,00
+4️⃣ Clique em "✅ Já Paguei"
 
-⏱️ *Importante:*
-• Você tem 30 minutos para pagar
-• Ativação em até 5 minutos após confirmação
-
-Enviando chave PIX... ⬇️`,
-    nextStep: 'Envia chave PIX',
-    file: 'menuService.ts',
-    function: 'sendPixPaymentWithButton()',
+⏱️ Você tem 30 minutos para pagar`,
+    nextStep: 'Chave PIX',
+    sequence: 'pix_flow',
+    sequenceOrder: 1,
+    file: 'menuService.ts → sendPixPaymentWithButton()',
   },
   {
     id: 'pix_key',
     category: 'pagamento',
-    trigger: 'Sequência do fluxo PIX',
-    triggerType: 'auto',
-    title: 'Chave PIX (Msg 2/3)',
-    content: `🔑 {chave-pix-uuid}
-
-(Botão de copiar automático via Avisa API)`,
+    trigger: 'Sequência automática',
+    title: 'Chave PIX',
+    type: 'text',
+    content: `🔑 a1b2c3d4-e5f6-7890-abcd-ef1234567890`,
     nextStep: 'Botão de confirmação',
-    notes: 'Enviada via sendPixButton() - fácil de copiar',
-    file: 'avisaApi.ts',
-    function: 'sendPixButton()',
+    notes: 'Enviada via Avisa API com botão de copiar',
+    sequence: 'pix_flow',
+    sequenceOrder: 2,
+    file: 'avisaApi.ts → sendPixButton()',
   },
   {
     id: 'pix_confirm_button',
     category: 'pagamento',
-    trigger: 'Sequência do fluxo PIX',
-    triggerType: 'auto',
-    title: 'Botão Já Paguei (Msg 3/3)',
+    trigger: 'Sequência automática',
+    title: 'Confirmar Pagamento',
+    type: 'buttons',
     content: `✅ *Pagou?*
 
 Clique no botão abaixo após fazer o PIX:`,
@@ -284,146 +187,114 @@ Clique no botão abaixo após fazer o PIX:`,
       { id: 'button_confirm_pix', text: '✅ Já Paguei' },
     ],
     nextStep: 'Ativação do plano',
-    file: 'menuService.ts',
-    function: 'sendPixPaymentWithButton()',
+    sequence: 'pix_flow',
+    sequenceOrder: 3,
+    file: 'menuService.ts → sendPixPaymentWithButton()',
   },
   {
     id: 'payment_success',
     category: 'pagamento',
-    trigger: 'Usuário clica "Já Paguei" ou webhook Stripe',
-    triggerType: 'botao',
+    trigger: 'Clique em "Já Paguei" ou webhook Stripe',
     title: 'Pagamento Confirmado',
+    type: 'text',
     content: `🎉 *PAGAMENTO CONFIRMADO!*
 
-Seu plano *{plano}* foi ativado com sucesso!
+Seu plano *Premium 💰* foi ativado!
 
 ✅ *Benefícios liberados:*
-• Figurinhas: {limite_figurinhas}/dia
-• Vídeos Twitter: {limite_twitter}/dia
-• Processamento prioritário ⚡
+• 20 figurinhas/dia
+• 15 vídeos Twitter/dia
+• Suporte prioritário ⚡
 
-🚀 *Já pode usar agora mesmo!*
-Envie suas imagens e GIFs para criar figurinhas incríveis!
-
-Dúvidas? Digite *ajuda*`,
-    nextStep: 'Usuário pode usar normalmente',
-    file: 'menuService.ts',
-    function: 'getSubscriptionActivatedMessage()',
+🚀 Já pode usar agora mesmo!`,
+    nextStep: 'Uso normal liberado',
+    file: 'menuService.ts → getSubscriptionActivatedMessage()',
   },
   {
     id: 'payment_link',
     category: 'pagamento',
     trigger: 'Usuário escolhe Cartão ou Boleto',
-    triggerType: 'botao',
-    title: 'Link de Pagamento (Stripe)',
+    title: 'Link de Pagamento',
+    type: 'text',
     content: `🎉 *Ótima escolha!*
 
-Você selecionou o plano *{plano}* por R$ {valor}/mês.
+Plano *Premium* por R$ 5,00/mês.
 
-🔗 *Clique no link abaixo para pagar:*
+🔗 *Clique para pagar:*
+https://buy.stripe.com/xxx...
 
-{link_stripe}
-
-✅ *Pagamento 100% seguro* via Stripe
-💳 Cartão, Pix ou boleto
-🔄 Cancele quando quiser
-
-⚡ *Ativação instantânea:*
-Assim que o pagamento for confirmado, seu plano será ativado automaticamente!
-
-Tem dúvidas? Digite *ajuda*.`,
+✅ Pagamento 100% seguro via Stripe
+⚡ Ativação instantânea após confirmação`,
     nextStep: 'Aguarda webhook Stripe',
-    file: 'menuService.ts',
-    function: 'getPaymentLinkMessage()',
+    file: 'menuService.ts → getPaymentLinkMessage()',
   },
 
   // ============ TWITTER ============
   {
     id: 'twitter_feature_intro',
     category: 'twitter',
-    trigger: 'Após 3ª figurinha (ou min(daily_limit, 3))',
-    triggerType: 'auto',
-    title: 'Apresentação Feature Twitter',
-    content: `🎉 *Você já criou {count} figurinhas!*
+    trigger: 'Após 3ª figurinha criada',
+    title: 'Apresentação Twitter',
+    type: 'buttons',
+    content: `🎉 *Você já criou 3 figurinhas!*
 
-Parabéns, {nome}! 👏
+Parabéns! 👏
 
-💡 Sabia que também posso *baixar vídeos do X (Twitter)*?
-
-Escolha o que você quer fazer:`,
+💡 Sabia que também posso *baixar vídeos do X (Twitter)*?`,
     buttons: [
       { id: 'button_twitter_learn', text: '🎬 Quero conhecer!' },
       { id: 'button_twitter_dismiss', text: '⏭️ Agora não' },
     ],
     nextStep: 'Tutorial ou dismiss',
-    notes: 'Trigger dinâmico baseado no daily_limit do experimento',
-    file: 'onboardingService.ts',
-    function: 'sendTwitterFeaturePresentation()',
+    notes: 'Trigger baseado no daily_limit do experimento',
+    file: 'onboardingService.ts → sendTwitterFeaturePresentation()',
   },
   {
     id: 'twitter_tutorial',
     category: 'twitter',
-    trigger: 'Usuário clica "Quero conhecer!"',
-    triggerType: 'botao',
+    trigger: 'Clique em "Quero conhecer!"',
     title: 'Tutorial Twitter',
-    content: `📱 *Perfeito, {nome}!*
-
-Agora você pode me enviar links do X (Twitter) de 2 formas:
+    type: 'text',
+    content: `📱 *Perfeito!*
 
 🎬 *Para BAIXAR o vídeo:*
-Envie o link normalmente e eu baixo para você!
+Envie o link e eu baixo!
 
-🎨 *Para fazer FIGURINHA do vídeo:*
-Depois que eu baixar, você escolhe se quer converter para figurinha animada.
+🎨 *Para fazer FIGURINHA:*
+Depois de baixar, você escolhe se quer converter.
 
 📋 *Exemplo de link:*
-https://x.com/usuario/status/123456789
+https://x.com/usuario/status/123...
 
-✨ *Seu plano gratuito:* {limite} vídeos/dia
+✨ Seu plano: 4 vídeos/dia
 
 Experimente agora! 🚀`,
     nextStep: 'Aguarda link do Twitter',
-    file: 'onboardingService.ts',
-    function: 'handleTwitterLearnMore()',
-  },
-  {
-    id: 'twitter_dismiss',
-    category: 'twitter',
-    trigger: 'Usuário clica "Agora não"',
-    triggerType: 'botao',
-    title: 'Twitter Dispensado',
-    content: `Tudo bem, {nome}! 😊
-
-Você pode conhecer essa funcionalidade quando quiser digitando *twitter* ou *ajuda*.
-
-Continue enviando suas mídias! 🎨`,
-    nextStep: 'Volta ao uso normal',
-    file: 'onboardingService.ts',
-    function: 'handleTwitterDismiss()',
+    file: 'onboardingService.ts → handleTwitterLearnMore()',
   },
   {
     id: 'twitter_video_convert',
     category: 'twitter',
     trigger: 'Após baixar vídeo do Twitter',
-    triggerType: 'auto',
     title: 'Converter para Sticker?',
+    type: 'buttons',
     content: `🎨 *Quer transformar em figurinha?*`,
     buttons: [
       { id: 'button_convert_sticker', text: '✅ Sim, quero sticker!' },
       { id: 'button_skip_convert', text: '⏭️ Só o vídeo' },
     ],
     nextStep: 'Converte ou finaliza',
-    notes: 'Apenas para vídeos, GIFs já viram sticker automaticamente',
+    notes: 'GIFs viram sticker automaticamente',
     file: 'worker.ts',
   },
 
-  // ============ STICKER/EDIÇÃO ============
+  // ============ STICKER EDIÇÃO ============
   {
     id: 'sticker_edit_buttons',
     category: 'sticker',
-    trigger: 'Após enviar sticker (DESATIVADO)',
-    triggerType: 'auto',
+    trigger: 'Após enviar sticker',
     title: 'Botões de Edição',
+    type: 'buttons',
     content: `🎨 *Gostou da figurinha?*
 
 Quer fazer alguma edição?`,
@@ -433,192 +304,311 @@ Quer fazer alguma edição?`,
       { id: 'button_sticker_perfect', text: '✅ Está perfeita!' },
     ],
     nextStep: 'Edição ou confirmação',
-    notes: '⚠️ DESATIVADO em produção - infraestrutura existe mas não é chamada',
-    file: 'menuService.ts',
-    function: 'sendStickerEditButtons()',
+    notes: '⚠️ DESATIVADO em produção',
+    file: 'menuService.ts → sendStickerEditButtons()',
   },
 
   // ============ AJUDA/ERRO ============
   {
     id: 'help',
     category: 'erro',
-    trigger: 'Usuário digita "ajuda" ou "help"',
-    triggerType: 'comando',
+    trigger: 'Comando "ajuda" ou "help"',
     title: 'Mensagem de Ajuda',
+    type: 'text',
     content: `❓ *AJUDA - StickerBot*
 
 🎨 *COMO USAR:*
 1. Envie uma imagem ou GIF
-2. Receba sua figurinha pronta!
-3. Para vídeos do Twitter, envie o link
+2. Receba sua figurinha!
+3. Para Twitter, envie o link
 
 💎 *COMANDOS:*
-• *planos* - Ver planos disponíveis
-• *status* - Ver sua assinatura
-• *ajuda* - Ver esta mensagem
+• *planos* - Ver planos
+• *status* - Ver assinatura
+• *ajuda* - Esta mensagem
 
 💳 *PAGAMENTO:*
-• Aceitamos cartão, Pix e boleto
-• Processamento via Stripe (seguro)
-• Cobrança mensal automática
-• Cancele quando quiser, sem multa
-
-🔒 *SEGURANÇA:*
-Seus dados estão protegidos. Não armazenamos informações de cartão.
-
-Mais dúvidas? Envie sua pergunta que respondo!`,
-    nextStep: 'Aguarda ação do usuário',
-    file: 'menuService.ts',
-    function: 'getHelpMessage()',
+Cartão, Pix ou boleto via Stripe`,
+    nextStep: 'Aguarda ação',
+    file: 'menuService.ts → getHelpMessage()',
   },
   {
     id: 'status',
     category: 'planos',
-    trigger: 'Usuário digita "status"',
-    triggerType: 'comando',
+    trigger: 'Comando "status"',
     title: 'Status da Assinatura',
+    type: 'text',
     content: `✨ *Sua Assinatura*
 
-📋 Plano: *{plano}*
-📅 Renova em: {dias} dias
+📋 Plano: *Premium 💰*
+📅 Renova em: 25 dias
 🔄 Status: Ativo
 
 🎯 *Seus Limites:*
-• Figurinhas: {limite_figurinhas}/dia
-• Vídeos Twitter: {limite_twitter}/dia
-• Processamento prioritário ⚡
-
-Continue enviando suas imagens e GIFs! 🎨`,
-    nextStep: 'Aguarda ação do usuário',
-    file: 'menuService.ts',
-    function: 'getSubscriptionActiveMessage()',
+• 20 figurinhas/dia
+• 15 vídeos Twitter/dia`,
+    nextStep: 'Aguarda ação',
+    file: 'menuService.ts → getSubscriptionActiveMessage()',
   },
   {
     id: 'error',
     category: 'erro',
     trigger: 'Erro no processamento',
-    triggerType: 'auto',
     title: 'Mensagem de Erro',
+    type: 'text',
     content: `😔 Ops! Algo deu errado.
 
-Por favor, tente novamente em alguns instantes.
+Por favor, tente novamente.
 
-Se o problema persistir, digite *ajuda*.`,
-    nextStep: 'Usuário tenta novamente',
-    file: 'menuService.ts',
-    function: 'getErrorMessage()',
-  },
-  {
-    id: 'cancel',
-    category: 'erro',
-    trigger: 'Usuário cancela operação',
-    triggerType: 'comando',
-    title: 'Operação Cancelada',
-    content: `✅ *Operação cancelada*
-
-Você pode voltar a usar o bot normalmente.
-
-Para ver os planos disponíveis, digite *planos*.`,
-    nextStep: 'Volta ao uso normal',
-    file: 'menuService.ts',
-    function: 'getCancellationMessage()',
+Se persistir, digite *ajuda*.`,
+    nextStep: 'Tenta novamente',
+    file: 'menuService.ts → getErrorMessage()',
   },
 ]
 
 const categoryConfig = {
-  onboarding: { label: 'Onboarding', icon: Sparkles, color: 'bg-green-500/10 text-green-500 border-green-500/20' },
-  limite: { label: 'Limite', icon: AlertTriangle, color: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' },
-  planos: { label: 'Planos', icon: CreditCard, color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
-  pagamento: { label: 'Pagamento', icon: CreditCard, color: 'bg-purple-500/10 text-purple-500 border-purple-500/20' },
-  twitter: { label: 'Twitter', icon: Twitter, color: 'bg-sky-500/10 text-sky-500 border-sky-500/20' },
-  erro: { label: 'Ajuda/Erro', icon: HelpCircle, color: 'bg-red-500/10 text-red-500 border-red-500/20' },
-  sticker: { label: 'Sticker', icon: Sparkles, color: 'bg-pink-500/10 text-pink-500 border-pink-500/20' },
+  onboarding: { label: 'Onboarding', icon: Sparkles, color: 'text-green-500' },
+  limite: { label: 'Limite', icon: AlertTriangle, color: 'text-yellow-500' },
+  planos: { label: 'Planos', icon: CreditCard, color: 'text-blue-500' },
+  pagamento: { label: 'Pagamento', icon: CreditCard, color: 'text-purple-500' },
+  twitter: { label: 'Twitter', icon: Twitter, color: 'text-sky-500' },
+  erro: { label: 'Ajuda/Erro', icon: HelpCircle, color: 'text-red-500' },
+  sticker: { label: 'Sticker', icon: Sparkles, color: 'text-pink-500' },
 }
 
-const triggerTypeConfig = {
-  auto: { label: 'Automático', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-  comando: { label: 'Comando', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-  botao: { label: 'Botão', color: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-  evento: { label: 'Evento', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
-}
-
-function MessageCard({ message }: { message: BotMessage }) {
-  const [copied, setCopied] = useState(false)
-  const category = categoryConfig[message.category]
-  const triggerType = triggerTypeConfig[message.triggerType]
-  const CategoryIcon = category.icon
-
-  const copyContent = () => {
-    navigator.clipboard.writeText(message.content)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+// Componente de preview estilo WhatsApp
+function WhatsAppPreview({ message }: { message: BotMessage }) {
+  // Formata o texto com negrito do WhatsApp (*texto*)
+  const formatWhatsAppText = (text: string) => {
+    return text.split(/(\*[^*]+\*)/).map((part, i) => {
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <strong key={i}>{part.slice(1, -1)}</strong>
+      }
+      return part
+    })
   }
 
   return (
+    <div className="bg-[#0b141a] rounded-xl p-4 max-w-sm">
+      {/* Mensagem */}
+      <div className="bg-[#005c4b] rounded-lg rounded-tr-none p-3 text-white text-sm">
+        <div className="whitespace-pre-wrap leading-relaxed">
+          {formatWhatsAppText(message.content)}
+        </div>
+        <div className="text-right mt-1">
+          <span className="text-[10px] text-white/60">18:42</span>
+        </div>
+      </div>
+
+      {/* Botões (estilo WhatsApp) */}
+      {message.buttons && message.buttons.length > 0 && (
+        <div className="mt-1 space-y-[2px]">
+          {message.buttons.map((btn, idx) => (
+            <button
+              key={btn.id}
+              className={cn(
+                "w-full bg-[#1f2c34] text-[#00a884] text-sm py-3 text-center",
+                idx === 0 && "rounded-t-lg",
+                idx === message.buttons!.length - 1 && "rounded-b-lg"
+              )}
+            >
+              {btn.text}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Lista (estilo WhatsApp) */}
+      {message.listItems && message.listItems.length > 0 && (
+        <div className="mt-1">
+          <button className="w-full bg-[#1f2c34] text-[#00a884] text-sm py-3 rounded-lg flex items-center justify-center gap-2">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z"/>
+            </svg>
+            Ver opções
+          </button>
+          <div className="mt-2 space-y-1">
+            {message.listItems.map((item) => (
+              <div key={item.id} className="bg-[#1f2c34] rounded-lg p-2">
+                <div className="text-white text-sm font-medium">{item.title}</div>
+                <div className="text-white/60 text-xs">{item.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Componente de carousel para sequências
+function MessageSequenceCarousel({ sequenceId, sequenceMessages }: { sequenceId: string; sequenceMessages: BotMessage[] }) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const sequence = sequences[sequenceId]
+  const sortedMessages = [...sequenceMessages].sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0))
+  const currentMessage = sortedMessages[currentIndex]
+
+  return (
     <Card className="overflow-hidden">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className={`p-1.5 rounded-md ${category.color}`}>
-              <CategoryIcon className="h-4 w-4" />
+      <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-4 border-b">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold">{sequence.title}</h3>
+            <p className="text-sm text-muted-foreground">{sequence.description}</p>
+          </div>
+          <Badge variant="secondary">{sortedMessages.length} mensagens</Badge>
+        </div>
+      </div>
+
+      <CardContent className="p-6">
+        <div className="flex items-center gap-4">
+          {/* Navegação esquerda */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+            disabled={currentIndex === 0}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+
+          {/* Preview */}
+          <div className="flex-1 flex flex-col items-center">
+            <div className="text-sm text-muted-foreground mb-3">
+              Mensagem {currentIndex + 1} de {sortedMessages.length}
             </div>
-            <div>
-              <CardTitle className="text-base">{message.title}</CardTitle>
-              <CardDescription className="text-xs mt-0.5">{message.function || message.file}</CardDescription>
+            <WhatsAppPreview message={currentMessage} />
+            <div className="mt-4 text-center">
+              <h4 className="font-medium">{currentMessage.title}</h4>
+              <p className="text-sm text-muted-foreground">{currentMessage.trigger}</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={copyContent}>
-            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+
+          {/* Navegação direita */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setCurrentIndex(Math.min(sortedMessages.length - 1, currentIndex + 1))}
+            disabled={currentIndex === sortedMessages.length - 1}
+          >
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Trigger */}
-        <div className="flex items-start gap-2">
-          <Badge variant="outline" className={`text-xs shrink-0 ${triggerType.color}`}>
-            <Zap className="h-3 w-3 mr-1" />
-            {triggerType.label}
-          </Badge>
-          <span className="text-sm text-muted-foreground">{message.trigger}</span>
+
+        {/* Indicadores */}
+        <div className="flex justify-center gap-2 mt-4">
+          {sortedMessages.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentIndex(idx)}
+              className={cn(
+                "w-2 h-2 rounded-full transition-colors",
+                idx === currentIndex ? "bg-primary" : "bg-muted"
+              )}
+            />
+          ))}
         </div>
 
-        {/* Message Content */}
-        <div className="bg-muted/50 rounded-lg p-3 font-mono text-xs whitespace-pre-wrap border">
-          {message.content}
+        {/* Info técnica */}
+        {currentMessage.file && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <Code className="h-3 w-3" />
+            <span>{currentMessage.file}</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// Componente de card de mensagem individual
+function MessageCard({ message }: { message: BotMessage }) {
+  const category = categoryConfig[message.category]
+  const CategoryIcon = category.icon
+  const isDisabled = message.notes?.includes('DESATIVADO')
+
+  return (
+    <Card className={cn("overflow-hidden", isDisabled && "opacity-60")}>
+      <CardContent className="p-0">
+        <div className="flex flex-col lg:flex-row">
+          {/* Preview WhatsApp */}
+          <div className="bg-muted/30 p-6 flex items-center justify-center lg:w-80 shrink-0">
+            <WhatsAppPreview message={message} />
+          </div>
+
+          {/* Info */}
+          <div className="p-6 flex-1 space-y-4">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CategoryIcon className={cn("h-4 w-4", category.color)} />
+                  <h3 className="font-semibold">{message.title}</h3>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">{message.trigger}</p>
+              </div>
+              <Badge variant="outline" className="shrink-0">
+                {message.type === 'buttons' ? 'Botões' : message.type === 'list' ? 'Lista' : 'Texto'}
+              </Badge>
+            </div>
+
+            {/* Botões IDs */}
+            {message.buttons && (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-muted-foreground">IDs dos botões:</div>
+                <div className="flex flex-wrap gap-1">
+                  {message.buttons.map((btn) => (
+                    <code key={btn.id} className="text-xs bg-muted px-2 py-1 rounded">
+                      {btn.id}
+                    </code>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Lista IDs */}
+            {message.listItems && (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-muted-foreground">IDs das opções:</div>
+                <div className="flex flex-wrap gap-1">
+                  {message.listItems.map((item) => (
+                    <code key={item.id} className="text-xs bg-muted px-2 py-1 rounded">
+                      {item.id}
+                    </code>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Próximo passo */}
+            {message.nextStep && (
+              <div className="flex items-center gap-2 text-sm">
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Próximo:</span>
+                <span>{message.nextStep}</span>
+              </div>
+            )}
+
+            {/* Arquivo */}
+            {message.file && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Code className="h-3 w-3" />
+                <span>{message.file}</span>
+              </div>
+            )}
+
+            {/* Notas */}
+            {message.notes && (
+              <div className={cn(
+                "flex items-start gap-2 text-xs p-2 rounded",
+                isDisabled ? "bg-red-500/10 text-red-400" : "bg-yellow-500/10 text-yellow-500"
+              )}>
+                <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                <span>{message.notes}</span>
+              </div>
+            )}
+          </div>
         </div>
-
-        {/* Buttons */}
-        {message.buttons && message.buttons.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <MousePointer className="h-3 w-3" />
-              <span>Botões:</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {message.buttons.map((btn) => (
-                <Badge key={btn.id} variant="secondary" className="text-xs font-mono">
-                  {btn.text}
-                  <span className="text-muted-foreground ml-1">({btn.id})</span>
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Next Step */}
-        {message.nextStep && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <ArrowRight className="h-3 w-3" />
-            <span>Próximo: {message.nextStep}</span>
-          </div>
-        )}
-
-        {/* Notes */}
-        {message.notes && (
-          <div className="text-xs text-yellow-500 bg-yellow-500/10 rounded-md p-2 border border-yellow-500/20">
-            ⚠️ {message.notes}
-          </div>
-        )}
       </CardContent>
     </Card>
   )
@@ -628,18 +618,39 @@ export default function BotMessagesPage() {
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
-  const filteredMessages = messages.filter((msg) => {
+  // Agrupa mensagens por sequência
+  const sequenceGroups = messages.reduce((acc, msg) => {
+    if (msg.sequence) {
+      if (!acc[msg.sequence]) acc[msg.sequence] = []
+      acc[msg.sequence].push(msg)
+    }
+    return acc
+  }, {} as Record<string, BotMessage[]>)
+
+  // Mensagens sem sequência
+  const standaloneMessages = messages.filter(msg => !msg.sequence)
+
+  // Filtra
+  const filteredStandalone = standaloneMessages.filter((msg) => {
     const matchesSearch =
       msg.title.toLowerCase().includes(search.toLowerCase()) ||
       msg.content.toLowerCase().includes(search.toLowerCase()) ||
       msg.trigger.toLowerCase().includes(search.toLowerCase())
-
     const matchesCategory = selectedCategory === 'all' || msg.category === selectedCategory
-
     return matchesSearch && matchesCategory
   })
 
-  const categories = ['all', ...Object.keys(categoryConfig)] as const
+  // Filtra sequências
+  const filteredSequences = Object.entries(sequenceGroups).filter(([_, msgs]) => {
+    if (selectedCategory !== 'all' && !msgs.some(m => m.category === selectedCategory)) return false
+    if (search) {
+      return msgs.some(m =>
+        m.title.toLowerCase().includes(search.toLowerCase()) ||
+        m.content.toLowerCase().includes(search.toLowerCase())
+      )
+    }
+    return true
+  })
 
   return (
     <div className="space-y-6">
@@ -647,7 +658,7 @@ export default function BotMessagesPage() {
       <div>
         <h1 className="text-2xl font-bold">Catálogo de Mensagens</h1>
         <p className="text-muted-foreground">
-          Todas as mensagens enviadas pelo bot, organizadas por contexto e trigger.
+          Visualize todas as mensagens do bot como elas aparecem no WhatsApp.
         </p>
       </div>
 
@@ -665,47 +676,43 @@ export default function BotMessagesPage() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <MousePointer className="h-4 w-4 text-muted-foreground" />
-              <span className="text-2xl font-bold">
-                {messages.reduce((acc, msg) => acc + (msg.buttons?.length || 0), 0)}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">Botões</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-muted-foreground" />
-              <span className="text-2xl font-bold">
-                {messages.filter(m => m.triggerType === 'auto').length}
-              </span>
+              <span className="text-2xl font-bold">{Object.keys(sequenceGroups).length}</span>
             </div>
-            <p className="text-xs text-muted-foreground">Automáticas</p>
+            <p className="text-xs text-muted-foreground">Sequências</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <Gift className="h-4 w-4 text-muted-foreground" />
-              <span className="text-2xl font-bold">{Object.keys(categoryConfig).length}</span>
+              <span className="text-2xl font-bold">
+                {messages.filter(m => m.type === 'buttons').length}
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground">Categorias</p>
+            <p className="text-xs text-muted-foreground">Com Botões</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold">
+                {messages.filter(m => m.type === 'list').length}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">Com Lista</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search & Filter */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar mensagens..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Buscar mensagens..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       {/* Category Tabs */}
@@ -715,30 +722,31 @@ export default function BotMessagesPage() {
             value="all"
             className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
           >
-            Todas ({messages.length})
+            Todas
           </TabsTrigger>
-          {Object.entries(categoryConfig).map(([key, config]) => {
-            const count = messages.filter(m => m.category === key).length
-            return (
-              <TabsTrigger
-                key={key}
-                value={key}
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                {config.label} ({count})
-              </TabsTrigger>
-            )
-          })}
+          {Object.entries(categoryConfig).map(([key, config]) => (
+            <TabsTrigger
+              key={key}
+              value={key}
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              {config.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value={selectedCategory} className="mt-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            {filteredMessages.map((message) => (
-              <MessageCard key={message.id} message={message} />
-            ))}
-          </div>
+        <TabsContent value={selectedCategory} className="mt-6 space-y-6">
+          {/* Sequências primeiro */}
+          {filteredSequences.map(([seqId, seqMessages]) => (
+            <MessageSequenceCarousel key={seqId} sequenceId={seqId} sequenceMessages={seqMessages} />
+          ))}
 
-          {filteredMessages.length === 0 && (
+          {/* Mensagens individuais */}
+          {filteredStandalone.map((message) => (
+            <MessageCard key={message.id} message={message} />
+          ))}
+
+          {filteredStandalone.length === 0 && filteredSequences.length === 0 && (
             <div className="text-center py-12">
               <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/50" />
               <p className="mt-2 text-muted-foreground">Nenhuma mensagem encontrada</p>

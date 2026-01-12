@@ -142,13 +142,47 @@ export async function rpc<T extends RpcName>(
         }
       }
 
+      // ⚠️ VALIDAÇÃO: PostgreSQL pode retornar RECORD ao invés de valor primitivo
+      // Ex: set_limit_notified_atomic retorna {"was_already_notified": false} ao invés de false
+      // Isso acontece quando a função PostgreSQL usa RETURNS TABLE(...) ao invés de RETURNS tipo
+      let processedData = data;
+
+      if (data !== null && typeof data === 'object' && !Array.isArray(data)) {
+        const keys = Object.keys(data as Record<string, unknown>);
+
+        // Se o objeto tem exatamente uma propriedade, extrair o valor
+        if (keys.length === 1) {
+          const extractedValue = (data as Record<string, unknown>)[keys[0]];
+
+          logger.warn({
+            msg: `[RPC:SCALAR] PostgreSQL returned RECORD instead of primitive - extracting value`,
+            rpcName: name,
+            originalData: data,
+            extractedKey: keys[0],
+            extractedValue,
+            hint: 'Consider fixing the PostgreSQL function to return the value directly',
+          });
+
+          processedData = extractedValue;
+        } else if (keys.length > 1) {
+          // Objeto com múltiplas propriedades - provavelmente deveria ser TABLE
+          logger.error({
+            msg: `[RPC:SCALAR] PostgreSQL returned object with multiple keys - should this be TABLE?`,
+            rpcName: name,
+            keys,
+            data,
+          });
+          throw new RpcTypeError(name, 'primitive', 'object');
+        }
+      }
+
       logger.debug({
         msg: `[RPC:SCALAR] Success`,
         rpcName: name,
-        result: data,
+        result: processedData,
       });
 
-      return data as RpcReturn<T>;
+      return processedData as RpcReturn<T>;
     }
 
     // ─────────────────────────────────────────────────────────────

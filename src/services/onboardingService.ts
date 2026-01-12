@@ -126,20 +126,27 @@ Continue enviando suas mídias! 🚀`;
 
 /**
  * Verifica se deve apresentar a funcionalidade Twitter
- * Trigger: após 3ª figurinha
+ * Trigger: após Nth figurinha (baseado no daily_limit do usuário)
  *
  * IMPORTANTE: Usa RPC atômico para evitar race condition quando
  * usuário envia múltiplas imagens de uma vez. Apenas o primeiro
  * job a executar o RPC vai enviar a mensagem.
+ *
+ * @param userNumber - WhatsApp number
+ * @param userName - User's name
+ * @param currentStep - Current onboarding step
+ * @param userDailyLimit - User's daily limit (from A/B experiment: 2, 3, or 4)
  */
 export async function checkTwitterFeaturePresentation(
   userNumber: string,
   userName: string,
-  currentStep: number
+  currentStep: number,
+  userDailyLimit: number = 4
 ): Promise<void> {
   try {
-    // Só apresenta após a 3ª figurinha (step 3)
-    if (currentStep !== 3) {
+    // Verificação já feita no worker.ts (currentStep >= userDailyLimit && currentStep <= 3)
+    // Aqui apenas garantimos que o step não está abaixo do limite mínimo esperado
+    if (currentStep < userDailyLimit) {
       return;
     }
 
@@ -163,9 +170,10 @@ export async function checkTwitterFeaturePresentation(
       msg: 'Twitter feature presentation - first to mark, sending',
       userNumber,
       userName,
+      userDailyLimit,
     });
 
-    await sendTwitterFeaturePresentation(userNumber, userName);
+    await sendTwitterFeaturePresentation(userNumber, userName, userDailyLimit);
   } catch (error) {
     logger.error({ error, userNumber }, 'Error checking Twitter feature presentation');
   }
@@ -176,12 +184,13 @@ export async function checkTwitterFeaturePresentation(
  */
 async function sendTwitterFeaturePresentation(
   userNumber: string,
-  userName: string
+  userName: string,
+  userDailyLimit: number = 4
 ): Promise<void> {
   try {
     await sendButtons({
       number: userNumber,
-      title: '🎉 *Você já criou 3 figurinhas!*',
+      title: `🎉 *Você já criou ${userDailyLimit} figurinhas!*`,
       desc: `Parabéns, ${userName}! 👏
 
 💡 Sabia que também posso *baixar vídeos do X (Twitter)*?
@@ -200,7 +209,7 @@ Escolha o que você quer fazer:`,
       ],
     });
 
-    logger.info({ userNumber, userName }, 'Twitter feature presentation sent');
+    logger.info({ userNumber, userName, userDailyLimit }, 'Twitter feature presentation sent');
   } catch (error) {
     logger.error({ error, userNumber }, 'Error sending Twitter feature presentation');
     throw error;

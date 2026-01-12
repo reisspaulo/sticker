@@ -170,30 +170,39 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
           userNumber,
         });
 
-        // Step 6.5: Check if should present Twitter feature (after 3rd sticker)
+        // Step 6.5: Check if should present Twitter feature (after Nth sticker based on user's limit)
         // Onboarding step was already incremented atomically in webhook
         try {
           const { checkTwitterFeaturePresentation } = await import('./services/onboardingService');
 
-          // Get current onboarding step from database (already updated by webhook)
+          // Get current onboarding step AND daily_limit from database
           const { data: userData } = await supabase
             .from('users')
-            .select('onboarding_step')
+            .select('onboarding_step, daily_limit')
             .eq('whatsapp_number', userNumber)
             .single();
 
           const currentStep = userData?.onboarding_step || 0;
+          const userDailyLimit = userData?.daily_limit || 4;
 
           logger.info({
             msg: 'Onboarding step already updated by webhook (atomic)',
             jobId: job.id,
             userNumber,
             currentStep,
+            userDailyLimit,
           });
 
-          // Check if should present Twitter feature (after 3rd sticker)
-          if (currentStep === 3) {
-            await checkTwitterFeaturePresentation(userNumber, userName, currentStep);
+          // Check if should present Twitter feature
+          // For limit_4 users: show after 3rd sticker (step === 3)
+          // For limit_3 users: show after 3rd sticker (step === 3)
+          // For limit_2 users: show after 2nd sticker (step === 2)
+          // Rule: show when step === min(daily_limit, 3) + 1 (because welcome sets step to 1)
+          // Simplified: show when step >= daily_limit AND step <= 3
+          const shouldShowTwitter = currentStep >= userDailyLimit && currentStep <= 3;
+
+          if (shouldShowTwitter) {
+            await checkTwitterFeaturePresentation(userNumber, userName, currentStep, userDailyLimit);
           }
         } catch (error) {
           // Non-critical - don't fail the job

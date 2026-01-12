@@ -1,0 +1,19 @@
+[Unit]
+Description=Face Recognition Training API
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/face-recognition/api
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+ExecStart=/usr/local/bin/uvicorn server:app --host 0.0.0.0 --port 8765
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=append:/opt/face-recognition/logs/api.log
+StandardError=append:/opt/face-recognition/logs/api-error.log
+
+[Install]
+WantedBy=multi-user.target

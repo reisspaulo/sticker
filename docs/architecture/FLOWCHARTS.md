@@ -621,15 +621,24 @@ sequenceDiagram
 const limitCheck = await checkAndIncrementDailyLimitAtomic(userId);
 // limitCheck.onboarding_step contém o novo valor (já incrementado)
 
-// WORKER: Apenas lê e verifica (não atualiza mais!)
+// WORKER: Lê step e daily_limit para trigger dinâmico
 const { data: userData } = await supabase
   .from('users')
-  .select('onboarding_step, twitter_feature_shown')
+  .select('onboarding_step, daily_limit')
   .eq('whatsapp_number', userNumber)
   .single();
 
-if (userData.onboarding_step === 3 && !userData.twitter_feature_shown) {
-  await checkTwitterFeaturePresentation(userNumber, userName, 3);
+const currentStep = userData?.onboarding_step || 0;
+const userDailyLimit = userData?.daily_limit || 4;
+
+// Trigger quando step >= daily_limit (usuário atingiu seu limite de figurinhas)
+// Para limit_2: mostra após 2ª figurinha (step=2)
+// Para limit_3: mostra após 3ª figurinha (step=3)
+// Para limit_4: mostra após 3ª figurinha (step=3, capped)
+const shouldShowTwitter = currentStep >= userDailyLimit && currentStep <= 3;
+
+if (shouldShowTwitter) {
+  await checkTwitterFeaturePresentation(userNumber, userName, currentStep, userDailyLimit);
 }
 ```
 
@@ -1609,6 +1618,8 @@ As seguintes funções foram atualizadas para receber o parâmetro `userDailyLim
 | `menuService.ts` | `getPlansOverviewMenu(userDailyLimit)` | 🆓 Gratuito - {limit}/dia |
 | `menuService.ts` | `getPlanDetailsMenu(plan, userDailyLimit)` | Comparação free vs premium |
 | `menuService.ts` | `getWelcomeMessageForNewUser(userName, userDailyLimit)` | Seu plano: {limit} figurinhas/dia |
+| `onboardingService.ts` | `checkTwitterFeaturePresentation(userNumber, userName, currentStep, userDailyLimit)` | Trigger dinâmico baseado no limite |
+| `onboardingService.ts` | `sendTwitterFeaturePresentation(userNumber, userName, userDailyLimit)` | 🎉 Você já criou {limit} figurinhas! |
 | `onboardingService.ts` | `handleTwitterLearnMore(userNumber, userName, userDailyLimit)` | ✨ Seu plano gratuito: {limit} vídeos/dia |
 | `sendScheduledReminders.ts` | Usa `user.daily_limit ?? PLAN_LIMITS.free` | Limite correto para cada usuário |
 

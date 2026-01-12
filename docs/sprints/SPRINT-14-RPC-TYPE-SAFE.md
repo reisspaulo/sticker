@@ -348,6 +348,47 @@ Todas as 12 chamadas RPC foram migradas para a nova arquitetura type-safe:
 
 ---
 
+## Limitacoes Conhecidas
+
+### PostgreSQL retorna RECORD ao inves de SCALAR
+
+**Descoberto em:** 12/01/2026
+
+**Problema:** Algumas funcoes PostgreSQL retornam um objeto `{"column_name": value}` ao inves do valor direto, mesmo quando definidas para retornar um tipo simples.
+
+**Exemplo:** `set_limit_notified_atomic` esta no registry como:
+```typescript
+set_limit_notified_atomic: {
+  type: 'scalar' as const,
+  params: {} as { p_user_id: string },
+  returns: {} as boolean,  // Esperado: true/false
+}
+```
+
+Mas o PostgreSQL retorna: `{"was_already_notified": false}` (objeto, nao boolean!)
+
+**Impacto:** O codigo em `atomicLimitService.ts` recebia um objeto e fazia:
+```typescript
+if (!wasAlreadyNotified) { ... }  // Objeto e sempre truthy!
+```
+
+Resultado: mensagens de limite NUNCA eram enviadas.
+
+**Correcao aplicada em `atomicLimitService.ts`:**
+```typescript
+// Extrai boolean do objeto se necessario
+const wasAlreadyNotified =
+  typeof result === 'boolean'
+    ? result
+    : (result as { was_already_notified: boolean }).was_already_notified;
+```
+
+**Licao aprendida:** O registry define o tipo ESPERADO, mas nao garante que o PostgreSQL retorna exatamente isso. Para funcoes SCALAR que podem retornar RECORD, e necessario tratamento adicional no service layer.
+
+**TODO futuro:** Considerar alterar a funcao PostgreSQL para usar `RETURNS boolean` com `SELECT was_already_notified` ao inves de `RETURNS TABLE(was_already_notified boolean)`.
+
+---
+
 ## Historico
 
 | Data | Mudanca | Autor |
@@ -361,3 +402,4 @@ Todas as 12 chamadas RPC foram migradas para a nova arquitetura type-safe:
 | 12/01/2026 | ESLint rule adicionada para bloquear supabase.rpc() direto | Claude Opus 4.5 |
 | 12/01/2026 | Testes de sincronizacao registry/banco adicionados | Claude Opus 4.5 |
 | 12/01/2026 | Codigo antigo (supabaseRpc.ts) removido | Claude Opus 4.5 |
+| 12/01/2026 | **BUG:** `set_limit_notified_atomic` retornava objeto ao inves de boolean - mensagens de limite nao enviadas | Claude Opus 4.5 |

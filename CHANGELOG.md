@@ -11,6 +11,28 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ### Admin Panel
 
+#### 📊 Analytics Avançado e Ranking de Usuários - 2026-01-12
+
+**Implementado:** Páginas de analytics avançado com heatmaps e ranking de usuários
+
+**Novas Páginas:**
+- `/analytics/advanced` - Heatmaps, análise por hora, retenção por coorte
+- `/users/ranking` - Top usuários com filtros por plano (free, premium, ultra)
+
+**Analytics Avançado:**
+- Heatmap hora x dia da semana (stickers e cadastros)
+- Métricas por hora do dia
+- Tempo até primeiro sticker (distribuição)
+- Retenção por coorte (D1, D7, D30)
+- Identificação de picos de uso
+
+**Ranking de Usuários:**
+- Top 100 usuários por uso no período
+- Filtros por plano (free, premium, ultra)
+- Ordenação por stickers, frequência, última atividade
+- Estatísticas por plano (média stickers, frequência média)
+- Busca por número ou nome
+
 #### ✨ Sprint 16 - Sistema de Treinamento de Celebridades - 2026-01-12
 
 **Implementado:** Sistema completo para treinar reconhecimento facial de celebridades via Admin Panel

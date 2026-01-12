@@ -97,6 +97,69 @@ export interface TwitterDownloadForCleanup {
 }
 
 // ============================================
+// SEQUENCE FUNCTIONS
+// ============================================
+
+/**
+ * Step pendente para processamento
+ * Retornado por get_pending_sequence_steps (TABLE)
+ */
+export interface SequenceStepPending {
+  user_sequence_id: string;
+  user_id: string;
+  user_number: string;
+  user_name: string;
+  sequence_id: string;
+  sequence_name: string;
+  sequence_type: string;
+  current_step: number;
+  step_config: Record<string, unknown>;
+  message_key: string;
+  cancel_condition: string | null;
+  metadata: Record<string, unknown>;
+}
+
+/**
+ * Resultado de advance_sequence_step
+ * Retorna JSONB com status da operação
+ */
+export interface AdvanceStepResult {
+  success: boolean;
+  action: 'advanced' | 'completed' | 'step_failed';
+  next_step?: number;
+  next_scheduled_at?: string;
+  total_steps?: number;
+  current_step?: number;
+  error?: string;
+}
+
+/**
+ * Analytics de uma sequência
+ * Retornado por get_sequence_analytics (JSONB)
+ */
+export interface SequenceAnalytics {
+  sequence_id: string;
+  period: {
+    start: string;
+    end: string;
+  };
+  totals: {
+    enrolled: number;
+    active: number;
+    completed: number;
+    cancelled: number;
+    converted: number;
+  };
+  conversion_rate: number | null;
+  step_completion: Array<{
+    step: number;
+    sent: number;
+    completion_rate: number | null;
+  }> | null;
+  events_by_type: Record<string, number> | null;
+}
+
+// ============================================
 // GENERIC TYPES
 // ============================================
 

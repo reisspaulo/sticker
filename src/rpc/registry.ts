@@ -20,6 +20,9 @@ import type {
   PendingReminderResult,
   ExperimentMetricsResult,
   TwitterDownloadForCleanup,
+  SequenceStepPending,
+  AdvanceStepResult,
+  SequenceAnalytics,
 } from './types.js';
 
 // ============================================
@@ -199,6 +202,86 @@ export const RPC_REGISTRY = {
     type: 'void' as const,
     params: {} as Record<string, never>,
     returns: undefined as unknown as void,
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // SEQUENCE FUNCTIONS
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Inscreve usuario em uma sequencia de comunicacao
+   * @returns UUID do user_sequence criado, ou NULL se nao inscreveu
+   */
+  enroll_user_in_sequence: {
+    type: 'scalar' as const,
+    params: {} as {
+      p_user_id: string;
+      p_sequence_name: string;
+      p_metadata?: Record<string, unknown>;
+    },
+    returns: {} as string | null,
+  },
+
+  /**
+   * Busca steps de sequencia prontos para envio
+   * @returns Array de steps pendentes com dados do usuario e mensagem
+   */
+  get_pending_sequence_steps: {
+    type: 'table' as const,
+    params: {} as { p_limit?: number },
+    returns: {} as SequenceStepPending,
+  },
+
+  /**
+   * Avanca sequencia para proximo step apos envio
+   * @returns Status da operacao (advanced, completed, ou step_failed)
+   */
+  advance_sequence_step: {
+    type: 'scalar' as const,
+    params: {} as {
+      p_user_sequence_id: string;
+      p_success?: boolean;
+      p_metadata?: Record<string, unknown>;
+    },
+    returns: {} as AdvanceStepResult,
+  },
+
+  /**
+   * Cancela sequencia de um usuario
+   * @returns TRUE se cancelou, FALSE se nao encontrou
+   */
+  cancel_user_sequence: {
+    type: 'scalar' as const,
+    params: {} as {
+      p_user_sequence_id: string;
+      p_reason?: string;
+      p_metadata?: Record<string, unknown>;
+    },
+    returns: {} as boolean,
+  },
+
+  /**
+   * Verifica e cancela sequencias que atingiram cancel_condition
+   * @returns Numero de sequencias canceladas
+   */
+  check_sequence_cancel_conditions: {
+    type: 'scalar' as const,
+    params: {} as Record<string, never>,
+    returns: {} as number,
+  },
+
+  /**
+   * Busca analytics de uma sequencia
+   * @returns Metricas agregadas (totals, conversion_rate, step_completion)
+   */
+  get_sequence_analytics: {
+    type: 'scalar' as const,
+    params: {} as {
+      p_sequence_id: string;
+      p_start_date?: string;
+      p_end_date?: string;
+    },
+    returns: {} as SequenceAnalytics,
   },
 } as const;
 

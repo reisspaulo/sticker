@@ -53,11 +53,14 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VPS_TRAINING_URL: ${{ secrets.VPS_TRAINING_API_URL }}
+          VPS_TRAINING_KEY: ${{ secrets.VPS_TRAINING_API_KEY }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: SUPABASE_URL,SUPABASE_KEY
+          envs: SUPABASE_URL,SUPABASE_KEY,SUPABASE_SERVICE_KEY,VPS_TRAINING_URL,VPS_TRAINING_KEY
           script: |
             echo "Logging into GHCR..."
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -69,6 +72,9 @@ jobs:
                 --with-registry-auth \
                 --env-add NEXT_PUBLIC_SUPABASE_URL="$SUPABASE_URL" \
                 --env-add NEXT_PUBLIC_SUPABASE_ANON_KEY="$SUPABASE_KEY" \
+                --env-add SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_KEY" \
+                --env-add VPS_TRAINING_API_URL="$VPS_TRAINING_URL" \
+                --env-add VPS_TRAINING_API_KEY="$VPS_TRAINING_KEY" \
                 --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
                 sticker_admin
             else
@@ -80,6 +86,9 @@ jobs:
                 --with-registry-auth \
                 --env NEXT_PUBLIC_SUPABASE_URL="$SUPABASE_URL" \
                 --env NEXT_PUBLIC_SUPABASE_ANON_KEY="$SUPABASE_KEY" \
+                --env SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_KEY" \
+                --env VPS_TRAINING_API_URL="$VPS_TRAINING_URL" \
+                --env VPS_TRAINING_API_KEY="$VPS_TRAINING_KEY" \
                 --label traefik.enable=true \
                 --label "traefik.http.routers.sticker-admin.rule=Host(\`admin-stickers.ytem.com.br\`)" \
                 --label traefik.http.routers.sticker-admin.entrypoints=websecure \

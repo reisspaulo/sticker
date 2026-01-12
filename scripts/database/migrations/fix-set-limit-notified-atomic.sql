@@ -4,60 +4,50 @@
 -- ========================================
 --
 -- PROBLEMA:
--- A funcao retornava TABLE(was_already_notified boolean), que o Supabase
--- envolve em um objeto {"was_already_notified": boolean}.
+-- A funcao tinha um parametro OUT (was_already_notified boolean), que faz
+-- o PostgreSQL retornar um objeto {"was_already_notified": boolean} mesmo
+-- com RETURNS boolean.
 -- O codigo TypeScript esperava boolean direto, causando bug onde
 -- mensagens de limite NUNCA eram enviadas (objeto e sempre truthy).
 --
 -- SOLUCAO:
--- Alterar para RETURNS boolean, retornando valor direto.
+-- Remover o parametro OUT e retornar boolean diretamente.
 --
 -- ========================================
 
--- Drop existing function
-DROP FUNCTION IF EXISTS set_limit_notified_atomic(UUID);
+-- Remove a função com OUT parameter
+DROP FUNCTION IF EXISTS set_limit_notified_atomic(uuid);
 
--- Recreate with correct return type
-CREATE OR REPLACE FUNCTION set_limit_notified_atomic(p_user_id UUID)
-RETURNS boolean AS $$
+-- Cria versão correta SEM OUT parameter
+CREATE FUNCTION set_limit_notified_atomic(p_user_id UUID)
+RETURNS boolean
+LANGUAGE plpgsql
+AS $$
 DECLARE
-  v_was_already_notified boolean;
-  v_today_start timestamptz;
+  v_rows_affected int;
 BEGIN
-  -- Calculate start of today (Brasilia timezone)
-  v_today_start := date_trunc('day', NOW() AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo';
-
-  -- Atomic update: set limit_notified_at if not already set today
-  -- Uses SELECT FOR UPDATE to prevent race conditions
+  -- Calculate start of today (Brasilia timezone) and update if not already notified
   UPDATE users
-  SET
-    limit_notified_at = NOW(),
-    updated_at = NOW()
+  SET limit_notified_at = NOW(), updated_at = NOW()
   WHERE id = p_user_id
-    AND (limit_notified_at IS NULL OR limit_notified_at < v_today_start)
-  RETURNING (limit_notified_at < NOW() - INTERVAL '1 second') INTO v_was_already_notified;
+    AND (limit_notified_at IS NULL
+         OR limit_notified_at < date_trunc('day', NOW() AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo');
 
-  -- If no rows updated, user was already notified today
-  IF NOT FOUND THEN
-    v_was_already_notified := true;
-  ELSE
-    -- We just updated, so it wasn't notified before
-    v_was_already_notified := false;
-  END IF;
+  GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
 
-  -- Return boolean directly (not wrapped in TABLE)
-  RETURN v_was_already_notified;
+  -- true = já foi notificado hoje (0 rows updated)
+  -- false = primeira notificação do dia (1 row updated)
+  RETURN v_rows_affected = 0;
 END;
-$$ LANGUAGE plpgsql;
-
--- Grant execute permission
-GRANT EXECUTE ON FUNCTION set_limit_notified_atomic(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION set_limit_notified_atomic(UUID) TO service_role;
+$$;
 
 -- ========================================
 -- VERIFICACAO
 -- ========================================
--- Apos aplicar, testar com:
+-- Apos aplicar, verificar que NAO tem OUT parameter:
+-- SELECT pg_get_function_arguments(oid) FROM pg_proc WHERE proname = 'set_limit_notified_atomic';
+-- Deve retornar: "p_user_id uuid" (SEM "OUT was_already_notified boolean")
+--
+-- Testar:
 -- SELECT set_limit_notified_atomic('some-user-id');
--- Deve retornar: false (primeira vez) ou true (ja notificado)
--- NAO deve retornar: {"was_already_notified": false}
+-- Deve retornar: true ou false (NAO um objeto)

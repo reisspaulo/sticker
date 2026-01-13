@@ -20,6 +20,7 @@ const routeTitles: Record<string, string> = {
   '/bot/flows': 'Visualizador de Fluxos',
   '/analytics': 'Analytics',
   '/analytics/funnel': 'Funil de Conversão',
+  '/analytics/buttons': 'Analytics de Botões',
   '/logs': 'Logs do Sistema',
   '/logs/errors': 'Erros',
   '/settings': 'Configurações',

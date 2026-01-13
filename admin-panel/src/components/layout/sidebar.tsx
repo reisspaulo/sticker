@@ -75,6 +75,7 @@ const navigation: NavItem[] = [
       { title: 'Métricas', href: '/analytics' },
       { title: 'Avançado', href: '/analytics/advanced' },
       { title: 'Funil', href: '/analytics/funnel' },
+      { title: 'Botões', href: '/analytics/buttons' },
       { title: 'Experimentos', href: '/analytics/experiments' },
     ],
   },

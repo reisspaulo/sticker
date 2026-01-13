@@ -1115,4 +1115,863 @@ cron.schedule('*/5 * * * *', sendScheduledRemindersJob, {
 
 ---
 
-**Ultima atualizacao:** 09/01/2026
+---
+
+# PARTE 2: Sistema de Communication Sequences
+
+**Status:** IMPLEMENTADO
+**Data Implementacao:** 12-13/01/2026
+
+---
+
+## Resumo Executivo
+
+### O Que E?
+
+Sistema de sequencias de comunicacao programadas (drip campaigns) para engajar usuarios com features que ainda nao conhecem. Diferente de A/B tests pontuais, as sequences enviam mensagens ao longo do tempo (d+0, d+7, d+15, d+30).
+
+### Por Que?
+
+- Usuarios nao sabem que podem baixar videos do Twitter/X
+- Trigger antigo (apos 3 figurinhas) era muito cedo e intrusivo
+- Precisamos de comunicacao gradual e nao-invasiva
+- Sistema flexivel para testar diferentes estrategias de descoberta
+
+### Primeiro Caso: Twitter Discovery
+
+Usuarios que batem o limite diario sao inscritos numa sequencia que apresenta a feature de download de videos do Twitter ao longo de 30 dias.
+
+---
+
+## Arquitetura do Sistema
+
+### Visao Geral
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                 SISTEMA DE COMMUNICATION SEQUENCES                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌───────────┐    ┌──────────────┐    ┌─────────────────┐          │
+│  │ sequences │───▶│user_sequences│───▶│ sequence_events │          │
+│  │ (config)  │    │ (inscricao)  │    │ (tracking)      │          │
+│  └───────────┘    └──────────────┘    └─────────────────┘          │
+│        │                                                             │
+│        ▼                                                             │
+│  ┌─────────────────┐                                                │
+│  │sequence_messages│  (conteudo das mensagens)                      │
+│  └─────────────────┘                                                │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────┐            │
+│  │              JOB: processSequenceSteps               │            │
+│  │         (roda a cada 5 min, envia mensagens)         │            │
+│  └─────────────────────────────────────────────────────┘            │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Fluxo de Enrollment
+
+```
+Usuario bate limite diario
+       ↓
+webhook.ts detecta limite
+       ↓
+Chama enrollInTwitterDiscovery()
+       ↓
+RPC enroll_user_in_sequence
+       ↓
+Verifica: usuario criado >= 10/01/2026?
+       ↓ Sim
+Verifica: ja esta na sequencia?
+       ↓ Nao
+Verifica: ja usou feature? (cancel_condition)
+       ↓ Nao
+Cria user_sequence com next_scheduled_at = NOW() + 4h + random(0-30min)
+       ↓
+Usuario inscrito!
+```
+
+### Fluxo de Envio
+
+```
+[Job CRON a cada 5min]
+       ↓
+RPC get_pending_sequence_steps
+       ↓
+Busca user_sequences onde next_scheduled_at <= NOW()
+       ↓
+Para cada step:
+  ├─ Verifica cancel_condition
+  │     ↓ Se TRUE: cancela sequencia
+  ├─ Busca mensagem em sequence_messages
+  ├─ Envia via Avisa API
+  ├─ Rate limit: 200ms entre mensagens
+  └─ Avanca para proximo step (RPC advance_sequence_step)
+       ↓
+Proximo step agendado (d+7, d+15, d+30)
+```
+
+---
+
+## Modelo de Dados
+
+### Tabela: sequences
+
+```sql
+CREATE TABLE sequences (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name             VARCHAR(100) UNIQUE NOT NULL,
+  description      TEXT,
+  type             VARCHAR(50) DEFAULT 'discovery',
+
+  -- Configuracao dos steps (JSONB array)
+  steps            JSONB NOT NULL,
+
+  -- Condicao para cancelar (SQL dinamico)
+  cancel_condition TEXT,
+
+  -- Filtro de target (opcional)
+  target_filter    JSONB,
+
+  -- Controle
+  status           VARCHAR(20) DEFAULT 'draft',
+  priority         INT DEFAULT 0,
+  max_users        INT,
+
+  -- Settings
+  settings         JSONB DEFAULT '{}',
+
+  created_at       TIMESTAMPTZ DEFAULT now(),
+  updated_at       TIMESTAMPTZ DEFAULT now(),
+  activated_at     TIMESTAMPTZ
+);
+```
+
+**Exemplo de steps JSONB:**
+
+```json
+[
+  {"step": 0, "delay_hours": 4, "message_key": "twitter_d0"},
+  {"step": 1, "delay_days": 7, "message_key": "twitter_d7"},
+  {"step": 2, "delay_days": 15, "message_key": "twitter_d15"},
+  {"step": 3, "delay_days": 30, "message_key": "twitter_d30"}
+]
+```
+
+### Tabela: sequence_messages
+
+```sql
+CREATE TABLE sequence_messages (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_key   VARCHAR(100) UNIQUE NOT NULL,
+  sequence_id   UUID REFERENCES sequences(id),
+
+  -- Conteudo
+  title         TEXT NOT NULL,  -- OBRIGATORIO pela Avisa API!
+  body          TEXT NOT NULL,
+  footer        TEXT,
+
+  -- Tipo e extras
+  message_type  VARCHAR(50) DEFAULT 'text',
+  buttons       JSONB,
+  media         JSONB,
+
+  -- Variantes para A/B
+  variants      JSONB,
+
+  metadata      JSONB DEFAULT '{}',
+  created_at    TIMESTAMPTZ DEFAULT now(),
+  updated_at    TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**IMPORTANTE:** O campo `title` e OBRIGATORIO! A Avisa API retorna erro 422 se for NULL.
+
+### Tabela: user_sequences
+
+```sql
+CREATE TABLE user_sequences (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID NOT NULL REFERENCES users(id),
+  sequence_id      UUID NOT NULL REFERENCES sequences(id),
+
+  -- Progresso
+  current_step     INT DEFAULT 0,
+  next_scheduled_at TIMESTAMPTZ,
+
+  -- Status
+  status           VARCHAR(20) DEFAULT 'pending',
+  cancel_reason    VARCHAR(100),
+
+  -- A/B dentro da sequencia
+  variant          VARCHAR(50),
+
+  -- Metadata do enrollment
+  metadata         JSONB DEFAULT '{}',
+
+  created_at       TIMESTAMPTZ DEFAULT now(),
+  updated_at       TIMESTAMPTZ DEFAULT now(),
+  started_at       TIMESTAMPTZ,
+  completed_at     TIMESTAMPTZ,
+
+  UNIQUE(user_id, sequence_id)
+);
+```
+
+**Status possiveis:**
+- `pending`: Aguardando primeiro envio
+- `active`: Em andamento (apos primeiro envio)
+- `completed`: Todos os steps enviados
+- `cancelled`: Cancelado (usuario usou feature ou manual)
+
+### Tabela: sequence_events
+
+```sql
+CREATE TABLE sequence_events (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_sequence_id UUID REFERENCES user_sequences(id),
+  user_id         UUID REFERENCES users(id),
+
+  event_type      VARCHAR(50) NOT NULL,
+  step_number     INT,
+
+  metadata        JSONB DEFAULT '{}',
+  created_at      TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**Event types:**
+
+| event_type | Descricao |
+|------------|-----------|
+| `enrolled` | Usuario inscrito na sequencia |
+| `step_sent` | Mensagem enviada com sucesso |
+| `step_failed` | Erro ao enviar mensagem |
+| `cancelled` | Sequencia cancelada |
+| `completed` | Sequencia finalizada |
+| `feature_used` | Usuario usou a feature (conversao!) |
+
+---
+
+## RPCs Implementados
+
+### 1. enroll_user_in_sequence
+
+Inscreve usuario em uma sequencia.
+
+```sql
+CREATE OR REPLACE FUNCTION enroll_user_in_sequence(
+  p_user_id UUID,
+  p_sequence_name VARCHAR(100),
+  p_metadata JSONB DEFAULT '{}'
+)
+RETURNS UUID  -- Retorna user_sequence_id ou NULL
+```
+
+**Regras:**
+- So inscreve se sequencia esta `active`
+- So inscreve usuarios criados >= 10/01/2026
+- Nao inscreve se ja esta na sequencia
+- Verifica cancel_condition antes de inscrever
+- Adiciona randomizacao de 0-30min no primeiro step
+
+### 2. get_pending_sequence_steps
+
+Busca steps prontos para envio.
+
+```sql
+CREATE OR REPLACE FUNCTION get_pending_sequence_steps(p_limit INTEGER DEFAULT 100)
+RETURNS TABLE (
+    user_sequence_id UUID,
+    user_id UUID,
+    user_number TEXT,      -- IMPORTANTE: TEXT, nao VARCHAR!
+    user_name TEXT,        -- IMPORTANTE: TEXT, nao VARCHAR!
+    sequence_id UUID,
+    sequence_name VARCHAR(100),
+    sequence_type VARCHAR(50),
+    current_step INTEGER,
+    step_config JSONB,
+    message_key VARCHAR(100),
+    cancel_condition TEXT,
+    metadata JSONB
+)
+```
+
+**ERRO ENCONTRADO:** Originalmente o RPC tinha `user_number VARCHAR` e `user_name VARCHAR`, mas a tabela `users` usa `TEXT`. Isso causava erro 400 na API.
+
+### 3. advance_sequence_step
+
+Avanca para proximo step apos envio.
+
+```sql
+CREATE OR REPLACE FUNCTION advance_sequence_step(
+  p_user_sequence_id UUID,
+  p_success BOOLEAN DEFAULT true,
+  p_metadata JSONB DEFAULT '{}'
+)
+RETURNS VARCHAR(20)  -- 'advanced', 'completed', ou 'step_failed'
+```
+
+### 4. check_sequence_cancel_conditions
+
+Verifica cancel_condition para todas as sequencias ativas.
+
+```sql
+CREATE OR REPLACE FUNCTION check_sequence_cancel_conditions()
+RETURNS INT  -- Numero de sequencias canceladas
+```
+
+### 5. batch_enroll_twitter_discovery
+
+Enrollment em lote para usuarios retroativos.
+
+```sql
+CREATE OR REPLACE FUNCTION batch_enroll_twitter_discovery(
+  p_batch_size INTEGER DEFAULT 50
+)
+RETURNS TABLE (
+  enrolled_count INTEGER,
+  skipped_count INTEGER,
+  user_ids UUID[]
+)
+```
+
+---
+
+## Configuracao: Twitter Discovery
+
+### Sequencia
+
+| Campo | Valor |
+|-------|-------|
+| name | `twitter_discovery` |
+| type | `discovery` |
+| status | `active` |
+| cancel_condition | `twitter_feature_used = true` |
+
+### Steps
+
+| Step | Delay | Message Key | Descricao |
+|------|-------|-------------|-----------|
+| 0 | 4 horas | twitter_d0 | Primeira apresentacao |
+| 1 | 7 dias | twitter_d7 | Lembrete semanal |
+| 2 | 15 dias | twitter_d15 | Segundo lembrete |
+| 3 | 30 dias | twitter_d30 | Ultima tentativa |
+
+### Mensagens
+
+```
+twitter_d0:
+Titulo: "Dica do Sticker Bot"
+Corpo: "Sabia que voce pode baixar videos do Twitter/X e transformar em figurinha? 🎬
+
+E so mandar o link do tweet aqui que a gente baixa o video e transforma em sticker animado!
+
+Quer testar? Manda um link de tweet com video 👇"
+```
+
+```
+twitter_d7:
+Titulo: "Lembrete"
+Corpo: "Lembrete rapido: da pra baixar videos do Twitter/X e transformar em figurinha animada! 🎬
+
+Manda o link de qualquer tweet com video e a gente faz a magica ✨"
+```
+
+```
+twitter_d15:
+Titulo: "Dica rapida"
+Corpo: "Ja experimentou baixar videos do Twitter/X? 📱
+
+Alem de baixar, a gente transforma o video em figurinha animada pra voce usar no WhatsApp!
+
+So mandar o link do tweet aqui 👇"
+```
+
+```
+twitter_d30:
+Titulo: "Ultima dica"
+Corpo: "Ultima dica: voce pode baixar videos do Twitter/X e transformar em figurinha animada! 🎥
+
+Manda qualquer link de tweet com video e veja a magica acontecer ✨"
+```
+
+---
+
+## Erros Encontrados e Solucoes
+
+### Erro 1: Tipo VARCHAR vs TEXT
+
+**Problema:** RPC `get_pending_sequence_steps` retornava erro 400.
+
+**Causa:** O RPC foi definido com `user_number VARCHAR` e `user_name VARCHAR`, mas a tabela `users` tem esses campos como `TEXT`.
+
+**Erro:**
+```
+structure of query does not match function result type
+Returned type text does not match expected type character varying in column 3
+```
+
+**Solucao:** Alterar a definicao do RPC para usar `TEXT`:
+```sql
+user_number TEXT,  -- Era VARCHAR
+user_name TEXT,    -- Era VARCHAR
+```
+
+### Erro 2: Campo title NULL
+
+**Problema:** Todas as mensagens falhavam com erro 422.
+
+**Causa:** A migration setou `title = NULL` nas mensagens, mas a Avisa API exige titulo.
+
+**Erro:**
+```json
+{
+  "status": false,
+  "message": "Validation error",
+  "errors": {"title": ["O campo titulo e obrigatorio."]}
+}
+```
+
+**Solucao:** Adicionar titulos a todas as mensagens:
+```sql
+UPDATE sequence_messages SET title = 'Dica do Sticker Bot' WHERE message_key = 'twitter_d0';
+UPDATE sequence_messages SET title = 'Lembrete' WHERE message_key = 'twitter_d7';
+-- etc
+```
+
+### Erro 3: Job rodando mas nao enviando
+
+**Problema:** Job completava mas `sent: 0, failed: 50`.
+
+**Causa:** Combinacao dos erros 1 e 2 acima.
+
+**Diagnostico:**
+1. Verificar logs do job: `SELECT * FROM job_logs WHERE job_name LIKE '%sequence%'`
+2. Verificar eventos de erro: `SELECT * FROM sequence_events WHERE event_type = 'step_failed'`
+
+### Erro 4: Mensagens duplicadas (2 workers paralelos)
+
+**Problema:** 100 usuarios receberam a mesma mensagem 2 vezes.
+
+**Causa:** 2 workers (replicas do container) rodando o job ao mesmo tempo sem lock.
+
+**Evidencia nos logs:**
+```
+worker_id: 80c8301b6b91 | 09:45:00.088
+worker_id: 9bf8b7b981e7 | 09:45:00.104
+```
+
+**Consequencia:** Usuarios avancaram 2 steps de uma vez (step 0 → step 2), pulando o step 1.
+
+**Solucao:** Adicionar `FOR UPDATE SKIP LOCKED` no RPC:
+```sql
+SELECT array_agg(us.id) INTO v_locked_ids
+FROM user_sequences us
+WHERE us.status IN ('pending', 'active')
+  AND us.next_scheduled_at <= NOW()
+ORDER BY us.next_scheduled_at ASC
+LIMIT p_limit
+FOR UPDATE SKIP LOCKED;  -- Cada worker pega registros diferentes
+```
+
+**Correcao dos dados:**
+```sql
+-- Voltar usuarios afetados para step 1
+UPDATE user_sequences us
+SET
+  current_step = 1,
+  next_scheduled_at = us.created_at + interval '7 days'
+FROM sequences s
+WHERE s.id = us.sequence_id
+  AND s.name = 'twitter_discovery'
+  AND us.current_step = 2;
+```
+
+**Licao aprendida:** SEMPRE usar locks quando multiplos workers podem processar os mesmos registros.
+
+---
+
+## Rate Limiting
+
+Para evitar ban do WhatsApp, implementamos rate limiting em 3 niveis:
+
+### 1. Enrollment (batch)
+
+```sql
+-- Randomizacao de 0-30 minutos no primeiro step
+next_scheduled_at = NOW() + delay + (random() * 30 * interval '1 minute')
+```
+
+### 2. Job (processSequenceSteps)
+
+```typescript
+// Maximo 50 steps por execucao
+const pendingSteps = await rpc('get_pending_sequence_steps', { p_limit: 50 });
+```
+
+### 3. Envio (entre mensagens)
+
+```typescript
+// 200ms entre cada mensagem
+await new Promise(resolve => setTimeout(resolve, 200));
+```
+
+---
+
+## Como Testar Novas Estrategias
+
+### 1. Criar Nova Sequencia
+
+```sql
+INSERT INTO sequences (name, description, type, steps, cancel_condition, status)
+VALUES (
+  'nova_feature_discovery',
+  'Apresenta nova feature X aos usuarios',
+  'discovery',
+  '[
+    {"step": 0, "delay_hours": 2, "message_key": "feature_x_d0"},
+    {"step": 1, "delay_days": 3, "message_key": "feature_x_d3"}
+  ]'::jsonb,
+  'feature_x_used = true',
+  'draft'  -- Comeca em draft para testar
+);
+```
+
+### 2. Criar Mensagens
+
+```sql
+INSERT INTO sequence_messages (message_key, sequence_id, title, body)
+VALUES
+  ('feature_x_d0', '<sequence_id>', 'Nova Feature!', 'Corpo da mensagem...'),
+  ('feature_x_d3', '<sequence_id>', 'Lembrete', 'Corpo do lembrete...');
+```
+
+### 3. Ativar Sequencia
+
+```sql
+UPDATE sequences SET status = 'active', activated_at = NOW()
+WHERE name = 'nova_feature_discovery';
+```
+
+### 4. Testar Enrollment Manual
+
+```sql
+SELECT enroll_user_in_sequence(
+  '<user_id>',
+  'nova_feature_discovery',
+  '{"trigger": "manual", "reason": "teste"}'::jsonb
+);
+```
+
+### 5. Monitorar
+
+```sql
+-- Ver inscritos
+SELECT * FROM user_sequences us
+JOIN sequences s ON s.id = us.sequence_id
+WHERE s.name = 'nova_feature_discovery';
+
+-- Ver eventos
+SELECT * FROM sequence_events
+WHERE user_sequence_id IN (
+  SELECT id FROM user_sequences WHERE sequence_id = '<sequence_id>'
+);
+```
+
+### 6. A/B Testing dentro da Sequencia
+
+Use o campo `variants` em `sequence_messages`:
+
+```sql
+UPDATE sequence_messages SET variants = '{
+  "A": {"body": "Mensagem versao A..."},
+  "B": {"body": "Mensagem versao B..."}
+}'::jsonb
+WHERE message_key = 'feature_x_d0';
+```
+
+O campo `variant` em `user_sequences` define qual variante o usuario recebe.
+
+---
+
+## Metricas e Analytics
+
+### RPC: get_sequence_analytics
+
+```sql
+SELECT * FROM get_sequence_analytics(
+  '<sequence_id>',
+  '2026-01-10',  -- start_date
+  '2026-01-20'   -- end_date
+);
+```
+
+Retorna:
+- Total inscritos
+- Enviados por step
+- Taxa de conclusao
+- Taxa de cancelamento
+- Conversoes (feature_used)
+
+### Queries Uteis
+
+```sql
+-- Resumo por status
+SELECT status, COUNT(*) FROM user_sequences
+WHERE sequence_id = '<id>'
+GROUP BY status;
+
+-- Funil por step
+SELECT current_step, COUNT(*) FROM user_sequences
+WHERE sequence_id = '<id>' AND status != 'cancelled'
+GROUP BY current_step;
+
+-- Taxa de conversao
+SELECT
+  COUNT(*) FILTER (WHERE se.event_type = 'feature_used') as conversoes,
+  COUNT(DISTINCT us.id) as total,
+  ROUND(100.0 * COUNT(*) FILTER (WHERE se.event_type = 'feature_used') / COUNT(DISTINCT us.id), 2) as taxa
+FROM user_sequences us
+LEFT JOIN sequence_events se ON se.user_sequence_id = us.id
+WHERE us.sequence_id = '<id>';
+```
+
+---
+
+## Arquivos de Codigo
+
+### Backend
+
+| Arquivo | Funcao |
+|---------|--------|
+| `src/services/sequenceService.ts` | Funcoes de enrollment |
+| `src/jobs/processSequenceSteps.ts` | Job de envio |
+| `src/routes/webhook.ts` | Triggers de enrollment (linhas 487-501, 1910-1925) |
+| `src/worker.ts` | Registro do job |
+| `src/rpc/registry.ts` | Definicao type-safe dos RPCs |
+
+### Banco de Dados
+
+| Arquivo | Descricao |
+|---------|-----------|
+| `supabase/migrations/*_create_sequences.sql` | Criacao das tabelas |
+| `supabase/migrations/*_sequence_rpcs.sql` | RPCs |
+| `supabase/migrations/*_update_twitter_discovery_messages.sql` | Mensagens |
+
+---
+
+## Checklist Completo: Lancamento de Nova Sequencia
+
+> **IMPORTANTE:** Este checklist foi criado baseado nos erros reais encontrados durante a implementacao do Twitter Discovery. Seguir TODOS os itens antes de ativar uma sequencia.
+
+### 1. BANCO DE DADOS / RPCs
+
+- [ ] RPC usa `TEXT` nao `VARCHAR` para campos da tabela `users` (name, whatsapp_number)
+- [ ] RPC tem `FOR UPDATE SKIP LOCKED` se multiplos workers podem processar
+- [ ] RPC esta no registry (`src/rpc/registry.ts`) com tipos corretos
+- [ ] Tipos de retorno definidos em `src/rpc/types.ts`
+- [ ] Cancel condition testada - rodar SQL manual antes para validar
+- [ ] Filtro de elegibilidade definido (ex: `created_at >= '2026-01-10'`)
+
+### 2. MENSAGENS (sequence_messages)
+
+- [ ] Campo `title` preenchido (**NUNCA NULL** - Avisa API exige!)
+- [ ] Campo `body` sem erros de encoding (usar `E'...'` para escape)
+- [ ] `message_type` correto (`text` ou `buttons`)
+- [ ] Se tem botoes: IDs unicos e descritivos (ex: `btn_twitter_learn`)
+- [ ] Se tem botoes: **Handlers existem no `webhook.ts`**
+- [ ] Se tem botoes: Mapeamento no `avisaApi.ts` (se necessario)
+- [ ] Placeholders validados (`{name}`, `{user_name}` funcionam)
+
+### 3. HANDLERS DE BOTOES
+
+- [ ] Handler existe para cada button ID no `webhook.ts`
+- [ ] **CONTEXTO**: Resposta faz sentido para sequencia (usuario recebe dias depois, nao durante uso ativo!)
+- [ ] **NAMING**: Usar prefixo `btn_seq_` para diferenciar de botoes de onboarding (`button_`)
+- [ ] **RPC ATOMICA**: Criar RPC com `FOR UPDATE SKIP LOCKED` para evitar duplicacao em cliques rapidos
+- [ ] Tracking de eventos - registrar `button_clicked` em `sequence_events` com `button_id` e `step`
+- [ ] Handler deve cancelar a sequencia (evita mensagens futuras se usuario ja interagiu)
+
+### 4. JOB DE ENVIO (processSequenceSteps)
+
+- [ ] Rate limiting: 200ms entre mensagens
+- [ ] Batch size limitado: max 50 por execucao
+- [ ] Lock no RPC para evitar duplicacao
+- [ ] Logs adequados para debug
+
+### 5. ENROLLMENT
+
+- [ ] Trigger definido - onde no codigo chama `enrollUserInSequence()`
+- [ ] Condicoes de enrollment claras (quem entra, quem nao entra)
+- [ ] Randomizacao de horario (0-30min) para evitar ban WhatsApp
+- [ ] Nao inscreve se ja esta na sequencia (RPC valida)
+- [ ] Nao inscreve se cancel_condition ja e true (RPC valida)
+
+### 6. BATCH ENROLLMENT (retroativos)
+
+- [ ] Testar com 1 usuario primeiro (enrollment manual)
+- [ ] Batch size pequeno (50 por vez)
+- [ ] Verificar elegiveis antes - query de contagem
+- [ ] Monitorar primeiro batch antes de continuar
+
+### 7. TESTES PRE-DEPLOY
+
+- [ ] Testar enrollment manual via SQL
+- [ ] Testar envio de mensagem - verificar se chega no WhatsApp
+- [ ] Testar clique em botoes - verificar se handler responde
+- [ ] Testar cancel condition - verificar se cancela quando deve
+- [ ] Verificar logs do job: `SELECT * FROM job_logs WHERE job_name = 'process-sequence-steps'`
+
+### 8. MONITORAMENTO POS-DEPLOY
+
+- [ ] Verificar eventos de erro:
+  ```sql
+  SELECT * FROM sequence_events WHERE event_type = 'step_failed' ORDER BY created_at DESC LIMIT 20;
+  ```
+
+- [ ] Verificar duplicacoes:
+  ```sql
+  SELECT user_id, COUNT(*) as vezes
+  FROM sequence_events
+  WHERE event_type = 'step_sent'
+  GROUP BY user_id
+  HAVING COUNT(*) > 1;
+  ```
+
+- [ ] Verificar status das sequencias:
+  ```sql
+  SELECT status, current_step, COUNT(*)
+  FROM user_sequences us
+  JOIN sequences s ON s.id = us.sequence_id
+  WHERE s.name = 'NOME_DA_SEQUENCIA'
+  GROUP BY status, current_step;
+  ```
+
+### 9. DOCUMENTACAO
+
+- [ ] Atualizar `FLOWCHARTS.md` com novo fluxo
+- [ ] Atualizar este documento com configuracao da sequencia
+- [ ] Documentar erros encontrados e solucoes
+
+---
+
+## Erros Conhecidos (Nao Repetir!)
+
+| Erro | Causa | Solucao |
+|------|-------|---------|
+| RPC retorna 400 | `VARCHAR` vs `TEXT` no retorno | Usar `TEXT` nos tipos de retorno do RPC |
+| Mensagens duplicadas | Sem lock no RPC | Adicionar `FOR UPDATE SKIP LOCKED` |
+| Erro 422 Avisa API | `title = NULL` | **SEMPRE** preencher titulo |
+| Botao nao faz nada | Sem handler no webhook | Adicionar `case` no webhook.ts |
+| Steps pulados | Duplicacao avancou 2x | Lock + corrigir current_step manual |
+| Ban WhatsApp | Muitas msgs de uma vez | Randomizar horarios + rate limit 200ms |
+| RPC nao encontrado | Nao esta no registry | Adicionar em `src/rpc/registry.ts` |
+| Resposta sem contexto | Reusar handler de onboarding | Criar handlers especificos com prefixo `btn_seq_` |
+| Clique duplo duplica msg | Handler sem lock atomico | Criar RPC atomica para processar clique |
+
+---
+
+## Glossario Adicional
+
+| Termo | Definicao |
+|-------|-----------|
+| Sequence | Conjunto de mensagens enviadas ao longo do tempo |
+| Step | Uma etapa da sequencia (uma mensagem) |
+| Enrollment | Inscricao do usuario na sequencia |
+| Cancel Condition | Condicao SQL que cancela a sequencia |
+| Drip Campaign | Marketing de gotejamento (mensagens espaçadas) |
+
+---
+
+## Experimentos vs Sequencias: Quando Usar Cada Um?
+
+### Experimentos (A/B Testing)
+
+**Objetivo:** Testar variacoes para medir qual performa melhor
+
+**Estrutura de tabelas:**
+```
+experiments → experiment_variants → user_experiments → experiment_events
+```
+
+**Caracteristicas:**
+- Foco em **comparacao estatistica** entre grupos
+- Usuario fica em UMA variante (A ou B ou C)
+- Tempo: **curto prazo** - ate ter significancia estatistica
+- Mede: conversao, retencao, engajamento entre grupos
+- Exemplo: "Qual limite diario converte mais? 4 ou 6 figurinhas?"
+
+**Quando usar:**
+- Testar hipoteses ("sera que X e melhor que Y?")
+- Decisoes de produto baseadas em dados
+- Comparar diferentes abordagens
+
+---
+
+### Sequencias (Communication Sequences / Drip Campaigns)
+
+**Objetivo:** Engajar usuarios ao longo do tempo com mensagens programadas
+
+**Estrutura de tabelas:**
+```
+sequences → sequence_steps → sequence_messages → user_sequences → sequence_events
+```
+
+**Caracteristicas:**
+- Foco em **comunicacao temporal** (d+0, d+7, d+15, d+30)
+- Usuario recebe mensagens em intervalos definidos
+- Tempo: **longo prazo** - ciclo de vida do usuario
+- Mede: taxa de abertura, cliques, conversao da sequencia
+- Exemplo: "Lembrar usuario sobre feature Twitter em d+7, d+15, d+30"
+
+**Quando usar:**
+- Onboarding progressivo
+- Reengajamento de usuarios inativos
+- Educacao sobre features
+- Nurturing para upgrade
+
+---
+
+### Resumo Comparativo
+
+| Aspecto | Experimentos | Sequencias |
+|---------|--------------|------------|
+| **Objetivo** | Testar hipoteses | Engajar ao longo do tempo |
+| **Duracao** | Curto prazo | Longo prazo |
+| **Usuario** | Fica em 1 variante | Recebe multiplas mensagens |
+| **Foco** | Comparacao A vs B | Jornada do usuario |
+| **Trigger** | Evento unico | Tempo (d+0, d+7...) |
+| **Saida** | Dados para decisao | Conversao/engajamento |
+
+### Podem ser combinados!
+
+Use experimentos DENTRO de sequencias:
+- Testar qual mensagem da sequencia converte mais
+- Campo `variants` em `sequence_messages` permite A/B por step
+
+```sql
+-- Exemplo: Testar duas versoes da mensagem d+7
+UPDATE sequence_messages SET variants = '{
+  "A": {"body": "Versao curta..."},
+  "B": {"body": "Versao longa com mais detalhes..."}
+}' WHERE message_key = 'twitter_d7';
+```
+
+---
+
+**Ultima atualizacao:** 13/01/2026
+
+---
+
+## Historico de Alteracoes
+
+| Data | Mudanca |
+|------|---------|
+| 12/01/2026 | Criacao do sistema de sequences |
+| 13/01/2026 | Implementacao Twitter Discovery |
+| 13/01/2026 | Fix: Tipo VARCHAR vs TEXT no RPC |
+| 13/01/2026 | Fix: Campo title obrigatorio |
+| 13/01/2026 | Fix: FOR UPDATE SKIP LOCKED (duplicacao) |
+| 13/01/2026 | Adicionado checklist completo de lancamento |

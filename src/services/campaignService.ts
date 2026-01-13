@@ -29,7 +29,8 @@ export type CampaignName =
   | 'cleanup_feature_v2'
   | 'limit_upsell'
   | 'welcome_drip'
-  | 'reengagement_30d';
+  | 'reengagement_30d'
+  | 'payment_intent_reminder_v2';
 
 /**
  * Triggers possíveis para enrollment
@@ -42,7 +43,8 @@ export type CampaignTrigger =
   | 'inactivity' // Inatividade por X dias
   | 'manual' // Inscrição manual
   | 'scheduled' // Job agendado
-  | 'webhook'; // Webhook externo
+  | 'webhook' // Webhook externo
+  | 'payment_intent'; // Usuário selecionou plano mas não pagou
 
 interface EnrollmentOptions {
   trigger: CampaignTrigger;
@@ -186,7 +188,7 @@ export async function sendCampaignMessage(
   message: CampaignPendingMessage
 ): Promise<boolean> {
   try {
-    const { user_number, user_name, content_type, title, body, footer, buttons } = message;
+    const { user_number, user_name, content_type, title, body, footer, buttons, metadata } = message;
 
     // Validar que body existe (pode ser NULL se mensagem não foi configurada)
     if (!body) {
@@ -200,10 +202,34 @@ export async function sendCampaignMessage(
       return false;
     }
 
-    // Substituir placeholders no body
-    const processedBody = body
-      .replace(/{name}/g, user_name || 'amigo')
-      .replace(/{user_name}/g, user_name || 'amigo');
+    // Função para substituir placeholders
+    const replacePlaceholders = (text: string): string => {
+      let result = text
+        .replace(/{name}/g, user_name || 'amigo')
+        .replace(/{user_name}/g, user_name || 'amigo');
+
+      // Substituir placeholders do metadata (ex: {plan_name}, {benefit_today})
+      if (metadata) {
+        const planName = metadata.plan_name || metadata.plan || 'Premium';
+        const planBenefit = metadata.plan_benefit || '+16 figurinhas extras hoje';
+        const benefitToday = metadata.benefit_today || '+16 figurinhas extras hoje';
+        const benefitWeek = metadata.benefit_week || '84 figurinhas';
+        const totalWeek = metadata.total_week || '1.247';
+
+        result = result
+          .replace(/{plan_name}/g, String(planName))
+          .replace(/{plan_benefit}/g, String(planBenefit))
+          .replace(/{benefit_today}/g, String(benefitToday))
+          .replace(/{benefit_week}/g, String(benefitWeek))
+          .replace(/{total_week}/g, String(totalWeek));
+      }
+
+      return result;
+    };
+
+    // Processar body e title
+    const processedBody = replacePlaceholders(body);
+    const processedTitle = title ? replacePlaceholders(title) : '';
 
     switch (content_type) {
       case 'text':
@@ -225,7 +251,7 @@ export async function sendCampaignMessage(
 
           await sendButtons({
             number: user_number,
-            title: title || '',
+            title: processedTitle,
             desc: processedBody,
             footer: footer || undefined,
             buttons: buttonData,
@@ -528,6 +554,23 @@ export async function enrollInWelcomeDrip(
 ): Promise<string | null> {
   return enrollUserInCampaign(userId, 'welcome_drip', {
     trigger: 'first_sticker',
+    metadata,
+  });
+}
+
+/**
+ * Inscreve usuário na campanha Payment Intent Reminder V2
+ * Chamado quando usuário seleciona plano mas não completa pagamento
+ *
+ * @param userId - UUID do usuário
+ * @param metadata - Dados adicionais (plan_name, plan_benefit, etc)
+ */
+export async function enrollInPaymentIntentReminderV2(
+  userId: string,
+  metadata?: Record<string, unknown>
+): Promise<string | null> {
+  return enrollUserInCampaign(userId, 'payment_intent_reminder_v2', {
+    trigger: 'payment_intent',
     metadata,
   });
 }

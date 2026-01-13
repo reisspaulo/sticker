@@ -2956,6 +2956,7 @@ WHERE sequence_id = (SELECT id FROM sequences WHERE name = 'twitter_discovery')
 | `whatsapp_number` NOT NULL | ✅ | Constraint na tabela users |
 | `twitter_feature_used` existe | ✅ | Coluna boolean com default false |
 | Campanha twitter_discovery_v2 | ✅ | 1 campanha, 4 steps, 4 mensagens |
+| Campanha payment_intent_reminder_v2 | ✅ | 1 campanha, 3 steps, 12 mensagens (4 variantes) |
 
 ### Logs Disponiveis
 
@@ -2970,6 +2971,8 @@ Prefixos para busca:
 2. `20260113_seed_twitter_discovery_v2` - Dados da campanha
 3. `20260113_add_campaign_updated_at_triggers` - Triggers de updated_at
 4. `20260113_fix_campaign_send_window` - Janela de envio 8h-22h
+5. `20260113_seed_payment_intent_reminder_v2` - Campanha de remarketing (3 waves, 4 variantes)
+6. `20260113_add_metadata_to_pending_campaign_messages_v2` - Metadata no retorno da RPC
 
 ### Resultado Final
 
@@ -3005,3 +3008,10 @@ Prefixos para busca:
 | 13/01/2026 | Fix: Janela de envio 8h-22h |
 | 13/01/2026 | Fix: Validacao body NULL |
 | 13/01/2026 | Migrado 348 usuarios da sequence antiga |
+| 13/01/2026 | **MIGRACAO payment_intent_reminder_v2** |
+| 13/01/2026 | Criado campaign payment_intent_reminder_v2 (3 steps, 12 msgs, 4 variantes A/B) |
+| 13/01/2026 | Pausado experimento payment_intent_reminder_v1 |
+| 13/01/2026 | Atualizado RPC get_pending_campaign_messages com metadata |
+| 13/01/2026 | Adicionado suporte a placeholders plan_name, benefit_today, etc |
+| 13/01/2026 | Adicionado handlers btn_pir_* (pix, card, plans, dismiss) |
+| 13/01/2026 | Substituido schedulePaymentReminders por enrollInPaymentIntentReminderV2 |

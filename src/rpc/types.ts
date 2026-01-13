@@ -192,6 +192,7 @@ export interface CampaignPendingMessage {
     send_window_start?: number;
     send_window_end?: number;
   };
+  metadata: Record<string, unknown> | null;
 }
 
 /**

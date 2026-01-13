@@ -492,6 +492,52 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           return reply.status(200).send({ status: 'campaign_twitter_dismissed' });
         }
 
+        // Handle Payment Intent Reminder campaign buttons (btn_pir_*)
+        if (interactive.id.startsWith('btn_pir_')) {
+          const { handleCampaignButtonClick } = await import('../services/campaignService');
+
+          // Cancelar campanha ao clicar em qualquer botão
+          await handleCampaignButtonClick(
+            userNumber,
+            'payment_intent_reminder_v2',
+            interactive.id,
+            true // Cancela campanha
+          );
+
+          // Buscar plano do contexto da conversa
+          const context = await getConversationContext(userNumber);
+          const selectedPlan = (context?.metadata?.selected_plan as 'premium' | 'ultra') || 'premium';
+
+          if (interactive.id === 'btn_pir_pix') {
+            // Criar PIX e enviar instruções
+            const payment = await createPendingPixPayment(userNumber, userName, user.id, selectedPlan);
+            await sendPixPaymentWithButton(userNumber, payment.pixKey, selectedPlan);
+            await clearConversationContext(userNumber);
+            fastify.log.info({ msg: 'PIR: PIX payment created', userNumber, plan: selectedPlan });
+            return reply.status(200).send({ status: 'pir_pix_flow', plan: selectedPlan });
+          }
+
+          if (interactive.id === 'btn_pir_card') {
+            // Enviar link de pagamento (Stripe)
+            await sendText(userNumber, getPaymentLinkMessage(selectedPlan, userNumber));
+            await clearConversationContext(userNumber);
+            fastify.log.info({ msg: 'PIR: Card link sent', userNumber, plan: selectedPlan });
+            return reply.status(200).send({ status: 'pir_card_flow', plan: selectedPlan });
+          }
+
+          if (interactive.id === 'btn_pir_plans') {
+            // Mostrar lista de planos
+            await sendPlansListMenu(userNumber, user.daily_limit ?? 4);
+            return reply.status(200).send({ status: 'pir_plans_shown' });
+          }
+
+          if (interactive.id === 'btn_pir_dismiss') {
+            // Apenas cancela silenciosamente (já cancelado acima)
+            fastify.log.info({ msg: 'PIR: Dismissed by user', userNumber });
+            return reply.status(200).send({ status: 'pir_dismissed' });
+          }
+        }
+
         // Handle Twitter video conversion to sticker
         if (interactive.id.startsWith('button_convert_sticker_')) {
           const downloadId = interactive.id.replace('button_convert_sticker_', '');
@@ -661,29 +707,16 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             selected_plan: selectedPlan,
           });
 
-          // Schedule payment reminders (A/B test for remarketing)
-          const { getPaymentReminderVariant, schedulePaymentReminders } =
-            await import('../services/experimentService');
-
-          const paymentExperiment = await getPaymentReminderVariant(user.id, userNumber);
-          if (paymentExperiment) {
-            await schedulePaymentReminders(
-              user.id,
-              userNumber,
-              selectedPlan,
-              paymentExperiment.experiment_id,
-              paymentExperiment.variant
-            );
-
-            // Log payment intent event (reuse logExperimentEvent from above)
-            await logExperimentEvent(
-              user.id,
-              paymentExperiment.experiment_id,
-              paymentExperiment.variant,
-              'payment_intent',
-              { plan: selectedPlan, source: 'limit_menu_button' }
-            );
-          }
+          // Enroll in payment intent reminder campaign (replaces experiment system)
+          const { enrollInPaymentIntentReminderV2 } = await import('../services/campaignService');
+          await enrollInPaymentIntentReminderV2(user.id, {
+            plan: selectedPlan,
+            plan_name: selectedPlan === 'premium' ? 'Premium' : 'Ultra',
+            plan_benefit: selectedPlan === 'premium' ? '20 figurinhas/dia' : 'Figurinhas ILIMITADAS',
+            benefit_today: selectedPlan === 'premium' ? '+16 figurinhas extras hoje' : 'figurinhas ILIMITADAS',
+            benefit_week: selectedPlan === 'premium' ? '84 figurinhas' : 'ilimitadas',
+            source: 'limit_menu_button',
+          });
 
           return reply.status(200).send({
             status: 'upgrade_payment_requested',
@@ -950,29 +983,16 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             selected_plan: selectedPlan,
           });
 
-          // Schedule payment reminders (A/B test for remarketing)
-          const { getPaymentReminderVariant, schedulePaymentReminders, logExperimentEvent } =
-            await import('../services/experimentService');
-
-          const paymentExperiment = await getPaymentReminderVariant(user.id, userNumber);
-          if (paymentExperiment) {
-            await schedulePaymentReminders(
-              user.id,
-              userNumber,
-              selectedPlan,
-              paymentExperiment.experiment_id,
-              paymentExperiment.variant
-            );
-
-            // Log payment intent event
-            await logExperimentEvent(
-              user.id,
-              paymentExperiment.experiment_id,
-              paymentExperiment.variant,
-              'payment_intent',
-              { plan: selectedPlan, source: 'plan_button_direct' }
-            );
-          }
+          // Enroll in payment intent reminder campaign
+          const { enrollInPaymentIntentReminderV2 } = await import('../services/campaignService');
+          await enrollInPaymentIntentReminderV2(user.id, {
+            plan: selectedPlan,
+            plan_name: selectedPlan === 'premium' ? 'Premium' : 'Ultra',
+            plan_benefit: selectedPlan === 'premium' ? '20 figurinhas/dia' : 'Figurinhas ILIMITADAS',
+            benefit_today: selectedPlan === 'premium' ? '+16 figurinhas extras hoje' : 'figurinhas ILIMITADAS',
+            benefit_week: selectedPlan === 'premium' ? '84 figurinhas' : 'ilimitadas',
+            source: 'plan_button_direct',
+          });
 
           return reply.status(200).send({ status: 'payment_method_requested', plan: selectedPlan });
         }
@@ -1324,26 +1344,16 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           selected_plan: 'premium',
         });
 
-        // Schedule payment reminders
-        const {
-          getPaymentReminderVariant: getPRV1,
-          schedulePaymentReminders: sPR1,
-          logExperimentEvent: lEE1,
-        } = await import('../services/experimentService');
-        const paymentExp1 = await getPRV1(user.id, userNumber);
-        if (paymentExp1) {
-          await sPR1(
-            user.id,
-            userNumber,
-            'premium',
-            paymentExp1.experiment_id,
-            paymentExp1.variant
-          );
-          await lEE1(user.id, paymentExp1.experiment_id, paymentExp1.variant, 'payment_intent', {
-            plan: 'premium',
-            source: 'text_command',
-          });
-        }
+        // Enroll in payment intent reminder campaign
+        const { enrollInPaymentIntentReminderV2: enrollPIR1 } = await import('../services/campaignService');
+        await enrollPIR1(user.id, {
+          plan: 'premium',
+          plan_name: 'Premium',
+          plan_benefit: '20 figurinhas/dia',
+          benefit_today: '+16 figurinhas extras hoje',
+          benefit_week: '84 figurinhas',
+          source: 'text_command',
+        });
 
         return reply.status(200).send({ status: 'payment_methods_sent', plan: 'premium' });
       }
@@ -1369,20 +1379,16 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           selected_plan: 'ultra',
         });
 
-        // Schedule payment reminders
-        const {
-          getPaymentReminderVariant: getPRV2,
-          schedulePaymentReminders: sPR2,
-          logExperimentEvent: lEE2,
-        } = await import('../services/experimentService');
-        const paymentExp2 = await getPRV2(user.id, userNumber);
-        if (paymentExp2) {
-          await sPR2(user.id, userNumber, 'ultra', paymentExp2.experiment_id, paymentExp2.variant);
-          await lEE2(user.id, paymentExp2.experiment_id, paymentExp2.variant, 'payment_intent', {
-            plan: 'ultra',
-            source: 'text_command',
-          });
-        }
+        // Enroll in payment intent reminder campaign
+        const { enrollInPaymentIntentReminderV2: enrollPIR2 } = await import('../services/campaignService');
+        await enrollPIR2(user.id, {
+          plan: 'ultra',
+          plan_name: 'Ultra',
+          plan_benefit: 'Figurinhas ILIMITADAS',
+          benefit_today: 'figurinhas ILIMITADAS',
+          benefit_week: 'ilimitadas',
+          source: 'text_command',
+        });
 
         return reply.status(200).send({ status: 'payment_methods_sent', plan: 'ultra' });
       }

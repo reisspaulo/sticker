@@ -1860,10 +1860,67 @@ WHERE id = (
 - `src/worker.ts` - Campaign scheduler (60s interval)
 - `src/services/campaignService.ts` - Todas as funções de campanha
 - `src/rpc/registry.ts` - RPCs registradas
-- `supabase/migrations/20260113_seed_twitter_discovery_v2.sql` - Seed da campanha
+- `supabase/migrations/20260113_seed_twitter_discovery_v2.sql` - Seed Twitter Discovery
+- `supabase/migrations/20260113_seed_payment_intent_reminder_v2.sql` - Seed Payment Intent Reminder
 
 ---
 
-**Última atualização:** 13/01/2026 - Sistema unificado de campanhas (Sprint 13), substituindo sequences por campaigns v2, campaign scheduler no worker.ts, botões btn_campaign_twitter_*
+## 25. Fluxo Payment Intent Reminder Campaign V2
+
+**Status**: ✅ ATIVO (13/01/2026)
+
+> Campanha de remarketing para usuários que selecionaram plano mas não pagaram.
+> Substitui o experimento payment_intent_reminder_v1.
+
+### Trigger
+
+Usuário seleciona plano Premium/Ultra → `enrollInPaymentIntentReminderV2`
+
+### Steps da Campanha
+
+| Step | Delay | Mensagem |
+|------|-------|----------|
+| wave_1 | +30 min | Lembrete inicial com opções PIX/Cartão |
+| wave_2 | +6 horas | Lembrete de benefícios |
+| wave_3 | +48 horas | Última chance |
+
+### Variantes A/B (25% cada)
+
+| Variante | Estratégia |
+|----------|------------|
+| `control` | Mensagem padrão neutra |
+| `benefit` | Foca em benefícios perdidos |
+| `urgency` | Foco em urgência/expiração |
+| `social_proof` | "47 pessoas fizeram upgrade hoje" |
+
+### Botões
+
+| Button ID | Ação |
+|-----------|------|
+| `btn_pir_pix` | Criar PIX e enviar instruções |
+| `btn_pir_card` | Enviar link Stripe |
+| `btn_pir_plans` | Mostrar lista de planos |
+| `btn_pir_dismiss` | Cancelar campanha |
+
+### Placeholders Suportados
+
+| Placeholder | Exemplo |
+|-------------|---------|
+| `{plan_name}` | "Premium" ou "Ultra" |
+| `{plan_benefit}` | "20 figurinhas/dia" |
+| `{benefit_today}` | "+16 figurinhas extras hoje" |
+| `{benefit_week}` | "84 figurinhas" |
+| `{total_week}` | "1.247" |
+
+### Cancel Condition
+
+```sql
+subscription_plan != 'free'
+```
+A campanha é automaticamente cancelada quando o usuário paga.
+
+---
+
+**Última atualização:** 13/01/2026 - Adicionada campanha payment_intent_reminder_v2 (3 steps, 4 variantes A/B, botões btn_pir_*)
 
 

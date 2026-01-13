@@ -458,8 +458,8 @@ export default function ButtonsAnalyticsPage() {
                 <CardDescription>Distribuição por tipo de botão</CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
-                <div className="h-[380px] flex items-center">
-                  <div className="w-1/2 h-full">
+                <div className="h-[380px] flex items-center gap-4">
+                  <div className="w-1/2 h-full flex-shrink-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -480,7 +480,7 @@ export default function ButtonsAnalyticsPage() {
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="w-1/2 space-y-3">
+                  <div className="w-1/2 h-full overflow-y-auto pr-2 space-y-2">
                     {categoryData.map((cat, idx) => {
                       const config = Object.values(BUTTON_CATEGORIES).find(c => c.label === cat.name) || { icon: MousePointer2 }
                       const Icon = config.icon
@@ -491,14 +491,14 @@ export default function ButtonsAnalyticsPage() {
                         >
                           <div
                             className="p-1.5 rounded-md"
-                            style={{ backgroundColor: `${cat.fill}20` }}
+                            style={{ backgroundColor: `${cat.fill}20`, color: cat.fill }}
                           >
-                            <Icon className="h-4 w-4" style={{ color: cat.fill }} />
+                            <Icon className="h-4 w-4" />
                           </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{cat.name}</p>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{cat.name}</p>
                           </div>
-                          <p className="text-sm font-bold" style={{ color: cat.fill }}>{cat.value}</p>
+                          <p className="text-sm font-bold flex-shrink-0" style={{ color: cat.fill }}>{cat.value}</p>
                         </div>
                       )
                     })}

@@ -10,8 +10,10 @@ import { supabase } from '../config/supabase';
 
 /**
  * Tipos de sequências disponíveis
+ * NOTA: cleanup_feature foi migrado para campaigns (cleanup_feature_v2)
+ * twitter_discovery mantido apenas para suporte aos 348 usuários antigos
  */
-export type SequenceName = 'twitter_discovery' | 'cleanup_feature';
+export type SequenceName = 'twitter_discovery';
 
 /**
  * Triggers possíveis para enrollment
@@ -96,39 +98,9 @@ export async function enrollUserInSequence(
   }
 }
 
-/**
- * Inscreve usuário na sequência de Twitter Discovery
- * Chamado quando usuário bate o limite diário de figurinhas
- *
- * @param userId - UUID do usuário
- * @param metadata - Dados extras (daily_count, daily_limit, etc.)
- */
-export async function enrollInTwitterDiscovery(
-  userId: string,
-  metadata?: Record<string, unknown>
-): Promise<string | null> {
-  return enrollUserInSequence(userId, 'twitter_discovery', {
-    trigger: 'limit_hit',
-    metadata,
-  });
-}
-
-/**
- * Inscreve usuário na sequência de Cleanup Feature
- * Chamado após usuário criar N figurinhas
- *
- * @param userId - UUID do usuário
- * @param metadata - Dados extras
- */
-export async function enrollInCleanupFeature(
-  userId: string,
-  metadata?: Record<string, unknown>
-): Promise<string | null> {
-  return enrollUserInSequence(userId, 'cleanup_feature', {
-    trigger: 'nth_sticker',
-    metadata,
-  });
-}
+// REMOVIDO: enrollInTwitterDiscovery - substituído por enrollInTwitterDiscoveryV2 em campaignService.ts
+// REMOVIDO: enrollInCleanupFeature - substituído por enrollInCleanupFeatureV2 em campaignService.ts
+// As sequences foram migradas para o sistema unificado de campaigns
 
 /**
  * Cancela sequência ativa de um usuário

@@ -180,9 +180,9 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
           userNumber,
         });
 
-        // NOTE: Twitter feature presentation removed - now handled by sequence system
-        // Users are enrolled in twitter_discovery sequence when they hit their daily limit
-        // See: webhook.ts enrollInTwitterDiscovery() and processSequenceSteps job
+        // NOTE: Twitter feature presentation handled by unified campaigns system
+        // Users are enrolled in twitter_discovery_v2 campaign when they hit their daily limit
+        // See: webhook.ts enrollInTwitterDiscoveryV2() and processCampaignMessages job
       } else if (status === 'pendente') {
         // User hit limit - notification already handled atomically in webhook
         // Onboarding step was still incremented (user created sticker, even if pending)

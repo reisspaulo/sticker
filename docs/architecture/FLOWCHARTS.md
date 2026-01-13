@@ -1960,6 +1960,6 @@ A campanha é automaticamente cancelada quando o usuário usa uma feature de edi
 
 ---
 
-**Última atualização:** 13/01/2026 - Adicionada campanha cleanup_feature_v2, removidas funções legadas de sequences (enrollInTwitterDiscovery, enrollInCleanupFeature)
+**Última atualização:** 13/01/2026 - Rate limiting conservador (20 msgs/min, 1s delay), cleanup_feature_v2 adicionada
 
 

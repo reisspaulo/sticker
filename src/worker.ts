@@ -1157,8 +1157,9 @@ const scheduledJobsWorker = new Worker<ScheduledJob>(
             });
           }
 
-          // 3. Process pending messages
-          const result = await processPendingCampaignMessages(50, 200);
+          // 3. Process pending messages (conservative rate limiting to avoid WhatsApp ban)
+          // batch: 20 msgs max, delay: 1000ms between each = ~20 msgs/min
+          const result = await processPendingCampaignMessages(20, 1000);
 
           logger.info({
             msg: '[SCHEDULED-JOB] process-campaigns completed',

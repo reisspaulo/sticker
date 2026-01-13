@@ -1960,6 +1960,89 @@ A campanha é automaticamente cancelada quando o usuário usa uma feature de edi
 
 ---
 
-**Última atualização:** 13/01/2026 - Rate limiting conservador (20 msgs/min, 1s delay), cleanup_feature_v2 adicionada
+## 27. Fluxo Limit Reached Campaign V2 (INSTANT)
+
+**Status**: ✅ ATIVO (13/01/2026)
+
+> Campanha instantânea quando usuário atinge limite diário de figurinhas.
+> Substitui o experimento upgrade_message_v1.
+> Tipo: instant (mensagem enviada imediatamente, sem delays)
+
+### Trigger
+
+Usuário atinge limite diário → `getLimitReachedMessage()`
+
+### Variantes A/B (25% cada)
+
+| Variante | Estratégia | Título |
+|----------|------------|--------|
+| `control` | Padrão detalhado | "⚠️ Limite Atingido!" |
+| `benefit` | Foca em ganho | "{count}/{limit} figurinhas usadas ✨" |
+| `social_proof` | Prova social | "Suas figurinhas de hoje acabaram 😊" |
+| `hybrid` | Mix de ambos | "Fim das figurinhas de hoje 🎨" |
+
+### Botões
+
+| Button ID | Ação |
+|-----------|------|
+| `button_premium_plan` | Mostra plano Premium |
+| `button_ultra_plan` | Mostra plano Ultra |
+| `button_dismiss_upgrade` | Dismiss (varia por variante) |
+
+### RPCs
+
+| RPC | Descrição |
+|-----|-----------|
+| `get_instant_campaign_message` | Busca mensagem com variante sorteada |
+| `log_campaign_instant_event` | Loga eventos para analytics |
+
+### Funções
+
+| Função | Arquivo |
+|--------|---------|
+| `getLimitReachedMessage()` | campaignService.ts |
+| `getInstantCampaignMessage()` | campaignService.ts |
+| `logCampaignInstantEvent()` | campaignService.ts |
+
+### Eventos Analytics
+
+- `variant_assigned` - Quando variante é sorteada
+- `menu_shown` - Quando menu é exibido
+- `button_clicked` - Quando usuário clica em botão
+- `upgrade_clicked` - Quando clica em plano
+- `dismiss_clicked` - Quando dispensa
+- `converted` - Quando completa pagamento
+
+---
+
+## Mapa de Sistemas de Comunicação
+
+### Estado Atual (13/01/2026)
+
+| Sistema | Campanhas | Status |
+|---------|-----------|--------|
+| **Campaigns (novo)** | 5 campanhas | ✅ Ativo |
+| - twitter_discovery_v2 | drip, 4 steps | active |
+| - payment_intent_reminder_v2 | hybrid, 3 steps, 4 variantes | active |
+| - cleanup_feature_v2 | drip, 2 steps | draft |
+| - limit_reached_v2 | **instant**, 4 variantes | active |
+| **Experiments (legado)** | 2 experimentos | ⚠️ Pausados |
+| - upgrade_message_v1 | 4 variantes | paused (substituído por limit_reached_v2) |
+| - payment_intent_reminder_v1 | 4 variantes | paused (substituído por PIR v2) |
+| **Sequences (legado)** | 1 sequence | ⚠️ Pausada |
+| - twitter_discovery | 4 steps | paused (substituído por TD v2) |
+
+### RPCs por Sistema
+
+| Sistema | RPCs |
+|---------|------|
+| **Campaigns (drip)** | enroll_user_in_campaign, get_pending_campaign_messages, advance_campaign_step, handle_campaign_button_click, check_campaign_cancel_conditions, get_campaign_analytics |
+| **Campaigns (instant)** | get_instant_campaign_message, log_campaign_instant_event |
+| **Experiments (legado)** | assign_experiment_variant, log_experiment_event, get_experiment_metrics |
+| **Sequences (legado)** | handle_sequence_button_click (para usuários antigos) |
+
+---
+
+**Última atualização:** 13/01/2026 - Adicionada limit_reached_v2 (instant campaign), removido job processSequenceSteps
 
 

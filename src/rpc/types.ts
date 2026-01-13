@@ -240,6 +240,24 @@ export interface CampaignAnalytics {
 }
 
 // ============================================
+// INSTANT CAMPAIGN FUNCTIONS
+// ============================================
+
+/**
+ * Resultado de get_instant_campaign_message
+ * Retorna mensagem de campanha instant com variante sorteada
+ */
+export interface InstantCampaignMessageResult {
+  campaign_id: string;
+  variant: string;
+  title: string;
+  body: string;
+  buttons: Array<{ id: string; text: string }> | null;
+  content_type: string;
+  is_new_assignment: boolean;
+}
+
+// ============================================
 // GENERIC TYPES
 // ============================================
 

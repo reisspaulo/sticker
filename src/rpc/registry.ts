@@ -25,6 +25,7 @@ import type {
   SequenceAnalytics,
   CampaignPendingMessage,
   CampaignAnalytics,
+  InstantCampaignMessageResult,
 } from './types.js';
 
 // ============================================
@@ -397,6 +398,42 @@ export const RPC_REGISTRY = {
     type: 'scalar' as const,
     params: {} as { p_older_than_minutes?: number },
     returns: {} as number,
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // INSTANT CAMPAIGN FUNCTIONS (Mensagens instantâneas, sem delay)
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Busca mensagem de campanha instant (tipo limit_reached_v2)
+   * Sorteia variante para o usuário e retorna mensagem configurada
+   * Registra atribuição para analytics
+   * @returns Mensagem com variante, título, body e botões
+   */
+  get_instant_campaign_message: {
+    type: 'table' as const,
+    params: {} as {
+      p_user_id: string;
+      p_campaign_name: string;
+      p_metadata?: Record<string, unknown>;
+    },
+    returns: {} as InstantCampaignMessageResult,
+  },
+
+  /**
+   * Loga evento de campanha instant para analytics
+   * Eventos: menu_shown, button_clicked, dismiss_clicked, converted, etc.
+   * @returns UUID do evento criado
+   */
+  log_campaign_instant_event: {
+    type: 'scalar' as const,
+    params: {} as {
+      p_user_id: string;
+      p_campaign_name: string;
+      p_event_type: string;
+      p_metadata?: Record<string, unknown>;
+    },
+    returns: {} as string | null,
   },
 } as const;
 

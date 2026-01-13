@@ -28,6 +28,7 @@ export type CampaignName =
   | 'twitter_discovery_v2'
   | 'cleanup_feature_v2'
   | 'limit_upsell'
+  | 'limit_reached_v2'  // Instant campaign for limit reached
   | 'welcome_drip'
   | 'reengagement_30d'
   | 'payment_intent_reminder_v2';
@@ -639,5 +640,203 @@ export async function handleCampaignButton(
       campaignName,
       error: error instanceof Error ? error.message : 'Unknown error',
     });
+  }
+}
+
+// ============================================
+// INSTANT CAMPAIGN FUNCTIONS
+// ============================================
+
+/**
+ * Resultado de get_instant_campaign_message
+ */
+export interface InstantCampaignMessage {
+  campaign_id: string;
+  variant: string;
+  title: string;
+  body: string;
+  buttons: Array<{ id: string; text: string }> | null;
+  content_type: string;
+  is_new_assignment: boolean;
+}
+
+/**
+ * Busca mensagem de campanha instant com variante sorteada
+ * Usado para limit_reached_v2 e futuras campanhas instant
+ *
+ * @param userId - UUID do usuário
+ * @param campaignName - Nome da campanha instant
+ * @param metadata - Dados extras para analytics
+ * @returns Mensagem com variante, ou null se campanha não ativa
+ */
+export async function getInstantCampaignMessage(
+  userId: string,
+  campaignName: string,
+  metadata?: Record<string, unknown>
+): Promise<InstantCampaignMessage | null> {
+  try {
+    logger.info({
+      msg: '[CAMPAIGN-INSTANT] Getting message',
+      userId,
+      campaignName,
+    });
+
+    const result = await rpc('get_instant_campaign_message', {
+      p_user_id: userId,
+      p_campaign_name: campaignName,
+      p_metadata: metadata || {},
+    });
+
+    if (!result) {
+      logger.warn({
+        msg: '[CAMPAIGN-INSTANT] No message returned - campaign not active?',
+        userId,
+        campaignName,
+      });
+      return null;
+    }
+
+    logger.info({
+      msg: '[CAMPAIGN-INSTANT] Message retrieved',
+      userId,
+      campaignName,
+      variant: result.variant,
+      isNewAssignment: result.is_new_assignment,
+    });
+
+    return {
+      campaign_id: result.campaign_id,
+      variant: result.variant,
+      title: result.title,
+      body: result.body,
+      buttons: result.buttons,
+      content_type: result.content_type,
+      is_new_assignment: result.is_new_assignment,
+    };
+  } catch (error) {
+    logger.error({
+      msg: '[CAMPAIGN-INSTANT] Error getting message',
+      userId,
+      campaignName,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return null;
+  }
+}
+
+/**
+ * Loga evento de campanha instant para analytics
+ * Eventos: menu_shown, button_clicked, dismiss_clicked, upgrade_clicked, converted
+ *
+ * @param userId - UUID do usuário
+ * @param campaignName - Nome da campanha instant
+ * @param eventType - Tipo do evento
+ * @param metadata - Dados extras
+ * @returns UUID do evento ou null se falhou
+ */
+export async function logCampaignInstantEvent(
+  userId: string,
+  campaignName: string,
+  eventType: string,
+  metadata?: Record<string, unknown>
+): Promise<string | null> {
+  try {
+    logger.debug({
+      msg: '[CAMPAIGN-EVENT] Logging event',
+      userId,
+      campaignName,
+      eventType,
+    });
+
+    const eventId = await rpc('log_campaign_instant_event', {
+      p_user_id: userId,
+      p_campaign_name: campaignName,
+      p_event_type: eventType,
+      p_metadata: metadata || {},
+    });
+
+    if (eventId) {
+      logger.info({
+        msg: '[CAMPAIGN-EVENT] Event logged',
+        userId,
+        campaignName,
+        eventType,
+        eventId,
+      });
+    }
+
+    return eventId;
+  } catch (error) {
+    logger.error({
+      msg: '[CAMPAIGN-EVENT] Error logging event',
+      userId,
+      campaignName,
+      eventType,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return null;
+  }
+}
+
+/**
+ * Busca mensagem de limite atingido da campanha limit_reached_v2
+ * Substitui a função getUpgradeDismissVariant do experimentService
+ *
+ * @param userId - UUID do usuário
+ * @param count - Quantidade de figurinhas usadas
+ * @param limit - Limite diário do usuário
+ * @returns Mensagem formatada com placeholders substituídos
+ */
+export async function getLimitReachedMessage(
+  userId: string,
+  count: number,
+  limit: number
+): Promise<InstantCampaignMessage | null> {
+  try {
+    logger.info({
+      msg: '[LIMIT-REACHED] Getting message',
+      userId,
+      count,
+      limit,
+    });
+
+    const message = await getInstantCampaignMessage(userId, 'limit_reached_v2', {
+      count,
+      limit,
+      triggered_at: new Date().toISOString(),
+    });
+
+    if (!message) {
+      logger.warn({
+        msg: '[LIMIT-REACHED] No message - falling back to default',
+        userId,
+      });
+      return null;
+    }
+
+    // Substituir placeholders
+    message.title = message.title
+      .replace(/{count}/g, String(count))
+      .replace(/{limit}/g, String(limit));
+
+    message.body = message.body
+      .replace(/{count}/g, String(count))
+      .replace(/{limit}/g, String(limit));
+
+    logger.info({
+      msg: '[LIMIT-REACHED] Message ready',
+      userId,
+      variant: message.variant,
+      isNewAssignment: message.is_new_assignment,
+    });
+
+    return message;
+  } catch (error) {
+    logger.error({
+      msg: '[LIMIT-REACHED] Error getting message',
+      userId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return null;
   }
 }

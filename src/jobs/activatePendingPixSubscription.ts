@@ -149,7 +149,28 @@ export async function activatePendingPixSubscriptionJob(
       amount: planPrices[plan as keyof typeof planPrices] ?? 0,
     });
 
-    // Log experiment event for converted
+    // Log campaign event for converted (novo sistema)
+    try {
+      const { logCampaignInstantEvent } = await import('../services/campaignService');
+      await logCampaignInstantEvent(userId, 'limit_reached_v2', 'converted', {
+        plan,
+        payment_method: 'pix',
+        source: 'pix_activation',
+      });
+      logger.info({
+        msg: '[PIX JOB] Campaign conversion logged',
+        userId,
+        plan,
+        campaign: 'limit_reached_v2',
+      });
+    } catch (campaignError) {
+      logger.debug({
+        msg: '[PIX JOB] No campaign to log conversion',
+        userId,
+      });
+    }
+
+    // Log experiment event for converted (legado - usuários antigos)
     try {
       const { logExperimentEvent, getUpgradeDismissVariant } =
         await import('../services/experimentService');
@@ -163,19 +184,17 @@ export async function activatePendingPixSubscriptionJob(
           { plan, payment_method: 'pix', source: 'pix_activation' }
         );
         logger.info({
-          msg: '[PIX JOB] Experiment conversion logged',
+          msg: '[PIX JOB] Experiment conversion logged (legacy)',
           userId,
           variant: experimentResult.variant,
           plan,
         });
       }
     } catch (experimentError) {
-      logger.warn({
-        msg: '[PIX JOB] Failed to log experiment conversion event',
-        error: experimentError instanceof Error ? experimentError.message : 'Unknown error',
+      logger.debug({
+        msg: '[PIX JOB] No experiment to log conversion',
         userId,
       });
-      // Don't fail job - subscription was activated successfully
     }
 
     logger.info({

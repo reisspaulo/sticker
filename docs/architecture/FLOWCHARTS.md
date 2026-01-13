@@ -1987,7 +1987,8 @@ Usuário atinge limite diário → `getLimitReachedMessage()`
 |-----------|------|
 | `button_premium_plan` | Mostra plano Premium |
 | `button_ultra_plan` | Mostra plano Ultra |
-| `button_dismiss_upgrade` | Dismiss (varia por variante) |
+
+> **Nota:** Botão dismiss removido em 13/01/2026 para melhorar conversão.
 
 ### RPCs
 
@@ -2008,10 +2009,8 @@ Usuário atinge limite diário → `getLimitReachedMessage()`
 
 - `variant_assigned` - Quando variante é sorteada
 - `menu_shown` - Quando menu é exibido
-- `button_clicked` - Quando usuário clica em botão
-- `upgrade_clicked` - Quando clica em plano
-- `dismiss_clicked` - Quando dispensa
-- `converted` - Quando completa pagamento
+- `upgrade_clicked` - Quando clica em Premium/Ultra
+- `converted` - Quando completa pagamento (Stripe ou PIX)
 
 ---
 
@@ -2043,6 +2042,6 @@ Usuário atinge limite diário → `getLimitReachedMessage()`
 
 ---
 
-**Última atualização:** 13/01/2026 - Migrado menuService para usar campaigns (limit_reached_v2), substituído experimentService por campaignService
+**Última atualização:** 13/01/2026 - Fix RPC get_instant_campaign_message, removido botão dismiss, adicionado log converted na campanha
 
 

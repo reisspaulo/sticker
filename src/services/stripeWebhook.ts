@@ -145,7 +145,28 @@ export async function handleCheckoutCompleted(session: Stripe.Checkout.Session):
       // Don't throw - subscription was created successfully
     }
 
-    // Log experiment event for converted
+    // Log campaign event for converted (novo sistema)
+    try {
+      const { logCampaignInstantEvent } = await import('./campaignService');
+      await logCampaignInstantEvent(user.id, 'limit_reached_v2', 'converted', {
+        plan: planType,
+        payment_method: 'stripe',
+        source: 'checkout_completed',
+      });
+      logger.info({
+        msg: '[CAMPAIGN] Conversion logged',
+        userId: user.id,
+        planType,
+        campaign: 'limit_reached_v2',
+      });
+    } catch (campaignError) {
+      logger.debug({
+        msg: '[CAMPAIGN] No campaign to log conversion (user may not have seen limit menu)',
+        userId: user.id,
+      });
+    }
+
+    // Log experiment event for converted (legado - usuários antigos)
     try {
       const { logExperimentEvent, getUpgradeDismissVariant } = await import('./experimentService');
       const experimentResult = await getUpgradeDismissVariant(user.id, phoneNumber);
@@ -158,19 +179,17 @@ export async function handleCheckoutCompleted(session: Stripe.Checkout.Session):
           { plan: planType, payment_method: 'stripe', source: 'checkout_completed' }
         );
         logger.info({
-          msg: 'Experiment conversion logged',
+          msg: '[EXPERIMENT-LEGACY] Conversion logged',
           userId: user.id,
           variant: experimentResult.variant,
           planType,
         });
       }
     } catch (experimentError) {
-      logger.warn({
-        msg: 'Failed to log experiment conversion event',
-        error: experimentError instanceof Error ? experimentError.message : 'Unknown error',
+      logger.debug({
+        msg: '[EXPERIMENT-LEGACY] No experiment to log conversion',
         userId: user.id,
       });
-      // Don't throw - subscription was activated successfully
     }
 
     logger.info({

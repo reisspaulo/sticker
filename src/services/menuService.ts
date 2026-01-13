@@ -151,7 +151,6 @@ export async function sendLimitReachedMenu(
       buttons = [
         { id: 'button_premium_plan', text: '💰 Premium - R$ 5/mês' },
         { id: 'button_ultra_plan', text: '🚀 Ultra - R$ 9,90/mês' },
-        { id: 'button_dismiss_upgrade', text: '❌ Agora Não' },
       ];
     } else {
       // Premium user
@@ -161,7 +160,6 @@ export async function sendLimitReachedMenu(
 
       buttons = [
         { id: 'button_ultra_plan', text: '🚀 Upgrade para Ultra' },
-        { id: 'button_dismiss_upgrade', text: '❌ Agora Não' },
       ];
     }
   }

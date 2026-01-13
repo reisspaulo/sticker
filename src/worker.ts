@@ -180,56 +180,9 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
           userNumber,
         });
 
-        // Step 6.5: Check if should present Twitter feature (after Nth sticker based on user's limit)
-        // Onboarding step was already incremented atomically in webhook
-        try {
-          const { checkTwitterFeaturePresentation } = await import('./services/onboardingService');
-
-          // Get current onboarding step AND daily_limit from database
-          const { data: userData } = await supabase
-            .from('users')
-            .select('onboarding_step, daily_limit')
-            .eq('whatsapp_number', userNumber)
-            .single();
-
-          const currentStep = userData?.onboarding_step || 0;
-          const userDailyLimit = userData?.daily_limit || 4;
-
-          logger.info({
-            msg: 'Onboarding step already updated by webhook (atomic)',
-            jobId: job.id,
-            userNumber,
-            currentStep,
-            userDailyLimit,
-          });
-
-          // Check if should present Twitter feature
-          // step = 1 (welcome) + stickers_created
-          // Show after user creates min(daily_limit, 3) stickers
-          // For limit_2: after 2nd sticker → step === 3 (1 + 2)
-          // For limit_3: after 3rd sticker → step === 4 (1 + 3)
-          // For limit_4: after 3rd sticker → step === 4 (1 + 3, capped at 3)
-          const stickersToTrigger = Math.min(userDailyLimit, 3);
-          const triggerStep = stickersToTrigger + 1; // +1 because welcome sets step to 1
-          const shouldShowTwitter = currentStep === triggerStep;
-
-          if (shouldShowTwitter) {
-            // Pass stickersToTrigger for the message (actual count at trigger time)
-            await checkTwitterFeaturePresentation(
-              userNumber,
-              userName,
-              currentStep,
-              stickersToTrigger
-            );
-          }
-        } catch (error) {
-          // Non-critical - don't fail the job
-          logger.warn({
-            msg: 'Error checking Twitter feature presentation (non-critical)',
-            error: error instanceof Error ? error.message : 'Unknown error',
-            userNumber,
-          });
-        }
+        // NOTE: Twitter feature presentation removed - now handled by sequence system
+        // Users are enrolled in twitter_discovery sequence when they hit their daily limit
+        // See: webhook.ts enrollInTwitterDiscovery() and processSequenceSteps job
       } else if (status === 'pendente') {
         // User hit limit - notification already handled atomically in webhook
         // Onboarding step was still incremented (user created sticker, even if pending)

@@ -483,6 +483,22 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
                   errorMessage: error instanceof Error ? error.message : 'Unknown error',
                 }).catch(() => {}); // Don't fail if alert fails
               }
+
+              // Enroll user in Twitter Discovery sequence (non-blocking)
+              try {
+                const { enrollInTwitterDiscovery } = await import('../services/sequenceService');
+                await enrollInTwitterDiscovery(user.id, {
+                  daily_count: limitCheck.daily_count,
+                  daily_limit: limitCheck.effective_limit,
+                  source: 'twitter_conversion',
+                });
+              } catch (error) {
+                fastify.log.warn({
+                  msg: 'Failed to enroll user in Twitter Discovery sequence (non-critical)',
+                  userNumber,
+                  error: error instanceof Error ? error.message : 'Unknown error',
+                });
+              }
             } else {
               fastify.log.info({
                 msg: 'User already notified today - skipping message - Twitter conversion',
@@ -1889,6 +1905,23 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
                 messageType: 'limit_reached_control',
                 errorMessage: error instanceof Error ? error.message : 'Unknown error',
               }).catch(() => {}); // Don't fail if alert fails
+            }
+
+            // Enroll user in Twitter Discovery sequence (non-blocking)
+            // Will be sent 4h after hitting limit, unless user already saw/used Twitter feature
+            try {
+              const { enrollInTwitterDiscovery } = await import('../services/sequenceService');
+              await enrollInTwitterDiscovery(user.id, {
+                daily_count: limitCheck.daily_count,
+                daily_limit: limitCheck.effective_limit,
+              });
+            } catch (error) {
+              // Non-critical - don't fail the request
+              fastify.log.warn({
+                msg: 'Failed to enroll user in Twitter Discovery sequence (non-critical)',
+                userNumber,
+                error: error instanceof Error ? error.message : 'Unknown error',
+              });
             }
           } else {
             fastify.log.info({

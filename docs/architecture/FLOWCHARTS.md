@@ -1694,6 +1694,97 @@ const count = await rpc('increment_daily_count', { p_user_id: userId });
 
 ---
 
-**Última atualização:** 12/01/2026 - Sprint 14 concluída (RPC type-safe), CI pipeline adicionado, corrigido bug do experimento de limite diário
+---
+
+## 24. Fluxo Twitter Discovery Sequence
+
+**Status**: ✅ ATIVO (12/01/2026)
+
+> Sistema de sequências de comunicação para descoberta de features.
+> Substitui o trigger antigo após 3 figurinhas.
+
+```mermaid
+flowchart TD
+    START([Usuário atinge limite diário]) --> CHECK_GROUP{Grupo A/B?}
+
+    CHECK_GROUP -->|Control| ENROLL[Inscreve na sequência twitter_discovery]
+    CHECK_GROUP -->|Bonus| SKIP[Não inscreve - experimento pausado]
+
+    ENROLL --> CHECK_DATE{Criado após<br/>10/01/2026?}
+
+    CHECK_DATE -->|Não| SKIP_OLD[Não inscreve - usuário antigo]
+    CHECK_DATE -->|Sim| SCHEDULE[Agenda step 0 para NOW + 4h]
+
+    SCHEDULE --> JOB_RUN[Job roda a cada 5 min]
+
+    JOB_RUN --> CHECK_CANCEL{Cancel condition<br/>met?}
+
+    CHECK_CANCEL -->|twitter_feature_used = true| CANCEL[Cancela sequência]
+    CHECK_CANCEL -->|Não| CHECK_TIME{next_scheduled_at<br/>≤ NOW?}
+
+    CHECK_TIME -->|Não| WAIT[Aguarda próxima execução]
+    CHECK_TIME -->|Sim| SEND_MSG[Envia mensagem do step atual]
+
+    SEND_MSG --> ADVANCE[Avança para próximo step]
+
+    ADVANCE --> CHECK_COMPLETE{Último step?}
+
+    CHECK_COMPLETE -->|Sim| COMPLETE[Marca sequência como completed]
+    CHECK_COMPLETE -->|Não| SCHEDULE_NEXT[Agenda próximo step]
+
+    SCHEDULE_NEXT --> JOB_RUN
+
+    SKIP --> END([Fim])
+    SKIP_OLD --> END
+    CANCEL --> END
+    COMPLETE --> END
+    WAIT --> END
+
+    style ENROLL fill:#c8e6c9
+    style CANCEL fill:#ffcdd2
+    style SEND_MSG fill:#fff3e0
+```
+
+### Steps da Sequência
+
+| Step | Delay | Mensagem |
+|------|-------|----------|
+| d0 | +4 horas | "Sabia que você pode baixar vídeos do Twitter/X e transformar em figurinha?" |
+| d7 | +7 dias | "Lembrete rápido: dá pra baixar vídeos..." |
+| d15 | +15 dias | "Já experimentou baixar vídeos do Twitter/X?" |
+| d30 | +30 dias | "Última dica: você pode baixar vídeos..." |
+
+### Rate Limiting
+
+```
+Job a cada 5 min
+    ↓
+Máx 50 mensagens por execução
+    ↓
+200ms entre cada mensagem
+    ↓
+= 600 msgs/hora máximo
+```
+
+### RPCs Utilizadas
+
+| RPC | Função |
+|-----|--------|
+| `enroll_user_in_sequence` | Inscreve usuário (filtro >= 10/01) |
+| `get_pending_sequence_steps` | Busca steps prontos para envio |
+| `advance_sequence_step` | Avança/completa sequência |
+| `check_sequence_cancel_conditions` | Cancela se condition met |
+| `batch_enroll_twitter_discovery` | Enrollment retroativo em lotes |
+
+### Código Relevante
+
+- `src/routes/webhook.ts:1910-1925` - Trigger de enrollment
+- `src/jobs/processSequenceSteps.ts` - Job de processamento
+- `src/services/sequenceService.ts` - Funções de enrollment
+- `src/rpc/registry.ts` - RPCs registradas
+
+---
+
+**Última atualização:** 12/01/2026 - Sprint 14 concluída (RPC type-safe), CI pipeline adicionado, corrigido bug do experimento de limite diário, adicionado sistema de sequências Twitter Discovery
 
 

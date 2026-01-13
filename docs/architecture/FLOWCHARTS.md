@@ -2043,6 +2043,6 @@ Usuário atinge limite diário → `getLimitReachedMessage()`
 
 ---
 
-**Última atualização:** 13/01/2026 - Adicionada limit_reached_v2 (instant campaign), removido job processSequenceSteps
+**Última atualização:** 13/01/2026 - Migrado menuService para usar campaigns (limit_reached_v2), substituído experimentService por campaignService
 
 

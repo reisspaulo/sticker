@@ -1,39 +1,8 @@
 import { PlanType, PLAN_LIMITS } from '../types/subscription';
 import logger from '../config/logger';
 import { sendList, sendButtons } from './avisaApi';
-import {
-  getUpgradeDismissVariant,
-  logExperimentEvent,
-  type ExperimentVariantConfig,
-} from './experimentService';
+import { getLimitReachedMessage, logCampaignInstantEvent } from './campaignService';
 import { logLimitMenuSent } from './usageLogs';
-
-// ============================================
-// EXPERIMENT MESSAGE HELPERS
-// ============================================
-
-interface MessageContext {
-  count: number;
-  limit: number;
-  feature: string;
-  emoji: string;
-  userName: string;
-  plan: string;
-}
-
-/**
- * Replace placeholders in message templates
- * Placeholders: {count}, {limit}, {feature}, {emoji}, {userName}, {plan}
- */
-function replacePlaceholders(template: string, context: MessageContext): string {
-  return template
-    .replace(/{count}/g, String(context.count))
-    .replace(/{limit}/g, String(context.limit))
-    .replace(/{feature}/g, context.feature)
-    .replace(/{emoji}/g, context.emoji)
-    .replace(/{userName}/g, context.userName)
-    .replace(/{plan}/g, context.plan);
-}
 
 // Payment links from Stripe
 const PAYMENT_LINKS = {
@@ -93,21 +62,29 @@ Digite *1* ou *2* para fazer upgrade agora!`;
 }
 
 /**
- * Send limit reached menu with interactive buttons (A/B Test implementation)
- * - Control Group: Direct upsell buttons based on current plan
- * - Bonus Group: Bonus credits option + upsell buttons
- * - Experiment: Different dismiss button variants (control, remind_2h, remind_tomorrow, no_button)
+ * Send limit reached menu with interactive buttons
+ * Usa o sistema de campanhas para A/B testing de mensagens
+ *
+ * Campanhas:
+ * - limit_reached_v2 (instant) - 4 variantes: control, benefit, social_proof, hybrid
+ *
+ * Fluxo:
+ * 1. Busca mensagem da campanha limit_reached_v2 (com variante sorteada)
+ * 2. Se campanha não ativa, usa fallback hardcoded
+ * 3. Envia botões de upgrade
+ * 4. Loga evento menu_shown para analytics
  */
 export async function sendLimitReachedMenu(
   userNumber: string,
   options: {
-    userId: string; // Required for experiment assignment
+    userId: string;
     userName: string;
     currentPlan: PlanType;
     dailyCount: number;
     dailyLimit: number;
     isTwitter?: boolean;
-    abTestGroup: 'control' | 'bonus';
+    // Legacy params - mantidos para compatibilidade mas não mais usados
+    abTestGroup?: 'control' | 'bonus';
     bonusCreditsUsed?: number;
   }
 ): Promise<void> {
@@ -117,133 +94,75 @@ export async function sendLimitReachedMenu(
     dailyCount,
     dailyLimit,
     isTwitter = false,
-    abTestGroup,
-    bonusCreditsUsed = 0,
   } = options;
 
   const feature = isTwitter ? 'vídeos do Twitter' : 'figurinhas';
   const emoji = isTwitter ? '🐦' : '🎨';
 
-  // === EXPERIMENT: Get variant for this user ===
-  const experimentResult = await getUpgradeDismissVariant(userId, userNumber);
-  let experimentId: string | null = null;
-  let experimentVariant: string = 'control';
-  let expConfig: ExperimentVariantConfig | null = null;
+  logger.info({
+    msg: '[LIMIT-MENU] Getting campaign message',
+    userId,
+    userNumber,
+    dailyCount,
+    dailyLimit,
+  });
 
-  if (experimentResult) {
-    experimentId = experimentResult.experiment_id;
-    experimentVariant = experimentResult.variant;
-    expConfig = experimentResult.config;
+  // === CAMPAIGN: Buscar mensagem da campanha limit_reached_v2 ===
+  const campaignMessage = await getLimitReachedMessage(userId, dailyCount, dailyLimit);
 
-    logger.info({
-      msg: 'Experiment variant assigned',
-      userId,
-      variant: experimentVariant,
-      hasMessageConfig: !!(expConfig?.message_title || expConfig?.message_body),
-    });
-  }
-
-  // Build context for placeholder replacement
-  const msgContext: MessageContext = {
-    count: dailyCount,
-    limit: dailyLimit,
-    feature,
-    emoji,
-    userName: options.userName,
-    plan: currentPlan,
-  };
-
-  // === BUILD BUTTONS ===
-  const buttons: Array<{ id: string; text: string }> = [];
-
-  // NOTE: Botão de bônus removido - experimento pausado
-  // Usuários antigos do grupo 'bonus' não verão mais o botão
-
-  // Upgrade buttons - use experiment config if available
-  if (currentPlan === 'free') {
-    buttons.push({
-      id: 'button_upgrade_premium',
-      text: expConfig?.button_premium_text || '💰 Premium - R$ 5/mês',
-    });
-    buttons.push({
-      id: 'button_upgrade_ultra',
-      text: expConfig?.button_ultra_text || '🚀 Ultra - R$ 9,90/mês',
-    });
-  } else if (currentPlan === 'premium') {
-    buttons.push({
-      id: 'button_upgrade_ultra',
-      text: expConfig?.button_ultra_text || '🚀 Upgrade para Ultra',
-    });
-  }
-
-  // NOTE: Botão dismiss removido para melhorar conversão
-  // Usuário vê apenas Premium/Ultra - se não quiser, ignora a mensagem
-
-  // === BUILD MESSAGE ===
   let messageTitle: string;
   let messageDesc: string;
+  let buttons: Array<{ id: string; text: string }>;
+  let variant: string = 'fallback';
+  let campaignId: string | null = null;
 
-  // Check if experiment has custom message config
-  if (expConfig?.message_title && expConfig?.message_body) {
-    // Use experiment message (new variants)
-    messageTitle = replacePlaceholders(expConfig.message_title, msgContext);
-    messageDesc = replacePlaceholders(expConfig.message_body, msgContext);
+  if (campaignMessage) {
+    // Usar mensagem da campanha
+    messageTitle = campaignMessage.title;
+    messageDesc = campaignMessage.body;
+    buttons = campaignMessage.buttons || [];
+    variant = campaignMessage.variant;
+    campaignId = campaignMessage.campaign_id;
 
     logger.info({
-      msg: 'Using experiment message config',
-      variant: experimentVariant,
-      titleTemplate: expConfig.message_title,
+      msg: '[LIMIT-MENU] Using campaign message',
+      userId,
+      variant,
+      isNewAssignment: campaignMessage.is_new_assignment,
     });
   } else {
-    // Fallback to legacy hardcoded messages (control behavior)
+    // Fallback: campanha não ativa ou erro
+    logger.warn({
+      msg: '[LIMIT-MENU] Campaign not active, using fallback',
+      userId,
+    });
+
     messageTitle = `⚠️ *Limite Atingido!* ${emoji}`;
+    messageDesc = `Você já usou *${dailyCount}/${dailyLimit} ${feature}* hoje.\n\n`;
+    messageDesc += `Seu limite será renovado às *00:00* (horário de Brasília).\n\n`;
+    messageDesc += `💎 *FAÇA UPGRADE E TENHA MAIS!*\n\n`;
 
-    if (abTestGroup === 'control') {
-      messageDesc = `Você já usou *${dailyCount}/${dailyLimit} ${feature}* hoje.\n\n`;
-      messageDesc += `Seu limite será renovado às *00:00* (horário de Brasília).\n\n`;
-      messageDesc += `💎 *FAÇA UPGRADE E TENHA MAIS!*\n\n`;
+    if (currentPlan === 'free') {
+      messageDesc += `💰 *Premium (R$ 5/mês)*\n`;
+      messageDesc += `• ${PLAN_LIMITS.premium.daily_sticker_limit} figurinhas/dia\n\n`;
+      messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
+      messageDesc += `• Figurinhas *ILIMITADAS*`;
 
-      if (currentPlan === 'free') {
-        messageDesc += `💰 *Premium (R$ 5/mês)*\n`;
-        messageDesc += `• ${PLAN_LIMITS.premium.daily_sticker_limit} figurinhas/dia\n`;
-        messageDesc += `• ${PLAN_LIMITS.premium.daily_twitter_limit} vídeos Twitter/dia\n\n`;
-        messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
-        messageDesc += `• Figurinhas *ILIMITADAS*\n`;
-        messageDesc += `• Vídeos Twitter *ILIMITADOS*\n`;
-        messageDesc += `• Processamento prioritário`;
-      } else if (currentPlan === 'premium') {
-        messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
-        messageDesc += `• Figurinhas *ILIMITADAS*\n`;
-        messageDesc += `• Vídeos Twitter *ILIMITADOS*\n`;
-        messageDesc += `• Processamento prioritário\n`;
-        messageDesc += `• Nunca mais espere! 🔥`;
-      }
+      buttons = [
+        { id: 'button_premium_plan', text: '💰 Premium - R$ 5/mês' },
+        { id: 'button_ultra_plan', text: '🚀 Ultra - R$ 9,90/mês' },
+        { id: 'button_dismiss_upgrade', text: '❌ Agora Não' },
+      ];
     } else {
-      // Bonus group
-      messageDesc = `Você já usou *${dailyCount}/${dailyLimit} ${feature}* hoje.\n\n`;
+      // Premium user
+      messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
+      messageDesc += `• Figurinhas *ILIMITADAS*\n`;
+      messageDesc += `• Nunca mais espere! 🔥`;
 
-      if (bonusCreditsUsed < 2) {
-        const bonusRemaining = 2 - bonusCreditsUsed;
-        messageDesc += `🎁 *PRESENTE ESPECIAL!*\n`;
-        messageDesc += `Ganhe *+${bonusRemaining} ${feature}* extras hoje!\n\n`;
-        messageDesc += `Seu limite será renovado às *00:00*.\n\n`;
-      } else {
-        messageDesc += `Você já usou seus bônus extras hoje.\n`;
-        messageDesc += `Seu limite será renovado às *00:00*.\n\n`;
-      }
-
-      messageDesc += `💎 *OU FAÇA UPGRADE:*\n\n`;
-
-      if (currentPlan === 'free') {
-        messageDesc += `💰 *Premium (R$ 5/mês)*\n`;
-        messageDesc += `• ${PLAN_LIMITS.premium.daily_sticker_limit} figurinhas/dia\n`;
-        messageDesc += `• ${PLAN_LIMITS.premium.daily_twitter_limit} vídeos Twitter/dia\n\n`;
-        messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
-        messageDesc += `• *ILIMITADO* 🔥`;
-      } else if (currentPlan === 'premium') {
-        messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
-        messageDesc += `• *ILIMITADO* 🔥`;
-      }
+      buttons = [
+        { id: 'button_ultra_plan', text: '🚀 Upgrade para Ultra' },
+        { id: 'button_dismiss_upgrade', text: '❌ Agora Não' },
+      ];
     }
   }
 
@@ -257,36 +176,33 @@ export async function sendLimitReachedMenu(
     });
 
     logger.info({
-      msg: 'Limit reached menu sent with A/B test',
+      msg: '[LIMIT-MENU] Menu sent successfully',
       userNumber,
       currentPlan,
-      abTestGroup,
-      bonusCreditsUsed,
-      isTwitter,
-      buttonsShown: buttons.length,
-      experimentVariant,
-      experimentId,
+      variant,
+      buttonsShown: buttons.map((b) => b.id),
     });
 
-    // Log to database for debugging
+    // Log to database for debugging (legacy - mantido para compatibilidade)
     await logLimitMenuSent({
       userNumber,
       userName: options.userName,
       currentPlan,
-      abTestGroup,
-      bonusCreditsUsed,
+      abTestGroup: 'control', // Legacy field
+      bonusCreditsUsed: 0,
       buttonsShown: buttons.map((b) => b.id),
       success: true,
     });
 
-    // Log experiment event: menu_shown
-    if (experimentId) {
-      await logExperimentEvent(userId, experimentId, experimentVariant, 'menu_shown', {
+    // Log campaign event: menu_shown
+    if (campaignId) {
+      await logCampaignInstantEvent(userId, 'limit_reached_v2', 'menu_shown', {
         buttons_shown: buttons.map((b) => b.id),
         current_plan: currentPlan,
         daily_count: dailyCount,
         daily_limit: dailyLimit,
         is_twitter: isTwitter,
+        variant,
       });
     }
   } catch (error) {
@@ -295,15 +211,15 @@ export async function sendLimitReachedMenu(
       userNumber,
       userName: options.userName,
       currentPlan,
-      abTestGroup,
-      bonusCreditsUsed,
+      abTestGroup: 'control',
+      bonusCreditsUsed: 0,
       buttonsShown: buttons.map((b) => b.id),
       success: false,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
     });
 
     logger.error({
-      msg: 'Error sending limit reached menu',
+      msg: '[LIMIT-MENU] Error sending menu',
       userNumber,
       error: error instanceof Error ? error.message : 'Unknown error',
     });

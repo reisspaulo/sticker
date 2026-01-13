@@ -691,47 +691,52 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           return reply.status(200).send({ status: 'video_only' });
         }
 
-        // Handle upgrade button clicks (A/B Test - Limit Reached Menu)
+        // Handle upgrade button clicks (Campaign limit_reached_v2 or legacy)
+        // Campaign buttons: button_premium_plan, button_ultra_plan
+        // Legacy buttons: button_upgrade_premium, button_upgrade_ultra
         if (
           interactive.id === 'button_upgrade_premium' ||
-          interactive.id === 'button_upgrade_ultra'
+          interactive.id === 'button_upgrade_ultra' ||
+          interactive.id === 'button_premium_plan' ||
+          interactive.id === 'button_ultra_plan'
         ) {
-          const selectedPlan = interactive.id.replace('button_upgrade_', '') as 'premium' | 'ultra';
+          // Map button IDs to plan names
+          const planMap: Record<string, 'premium' | 'ultra'> = {
+            button_upgrade_premium: 'premium',
+            button_upgrade_ultra: 'ultra',
+            button_premium_plan: 'premium',
+            button_ultra_plan: 'ultra',
+          };
+          const selectedPlan = planMap[interactive.id];
 
           fastify.log.info({
-            msg: 'User clicked upgrade button from limit menu',
+            msg: '[UPGRADE-CLICK] User clicked upgrade button from limit menu',
             userNumber,
+            buttonId: interactive.id,
             plan: selectedPlan,
-            abTestGroup: user.ab_test_group,
           });
 
-          // Track A/B test conversion attempt
-          logMenuInteraction(userNumber, 'ab_test_upgrade_click', selectedPlan);
+          // Track interaction
+          logMenuInteraction(userNumber, 'limit_menu_upgrade_click', selectedPlan);
 
           // Log to usage_logs for funnel analysis
           logUpgradeClicked({
             userNumber,
             userName: user.name ?? undefined,
             planClicked: selectedPlan,
-            currentPlan: 'free', // Users clicking upgrade are typically on free plan
+            currentPlan: 'free',
             dailyCount: user.daily_count ?? undefined,
             dailyLimit: user.daily_limit ?? undefined,
             source: 'limit_menu',
           });
 
-          // Log experiment event for upgrade_clicked
-          const { logExperimentEvent, getUpgradeDismissVariant } =
-            await import('../services/experimentService');
-          const experimentResult = await getUpgradeDismissVariant(user.id, userNumber);
-          if (experimentResult) {
-            await logExperimentEvent(
-              user.id,
-              experimentResult.experiment_id,
-              experimentResult.variant,
-              'upgrade_clicked',
-              { plan: selectedPlan, source: 'limit_menu_button' }
-            );
-          }
+          // Log campaign event for upgrade_clicked
+          const { logCampaignInstantEvent } = await import('../services/campaignService');
+          await logCampaignInstantEvent(user.id, 'limit_reached_v2', 'upgrade_clicked', {
+            plan: selectedPlan,
+            button_id: interactive.id,
+            source: 'limit_menu_button',
+          });
 
           // Send payment method selection list
           await sendPaymentMethodList(userNumber, selectedPlan);
@@ -830,34 +835,21 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // Handle dismiss upgrade button (control variant)
+        // Handle dismiss upgrade button (limit_reached_v2 campaign)
         if (interactive.id === 'button_dismiss_upgrade') {
           fastify.log.info({
-            msg: 'User dismissed upgrade offer',
+            msg: '[DISMISS-CLICK] User dismissed upgrade offer',
             userNumber,
-            abTestGroup: user.ab_test_group,
           });
 
-          // Track A/B test dismissal
-          logMenuInteraction(
-            userNumber,
-            'ab_test_upgrade_dismissed',
-            user.ab_test_group || 'unknown'
-          );
+          // Track dismissal
+          logMenuInteraction(userNumber, 'limit_menu_dismissed', 'dismiss');
 
-          // Log experiment event
-          const { logExperimentEvent, getUpgradeDismissVariant } =
-            await import('../services/experimentService');
-          const experimentResult = await getUpgradeDismissVariant(user.id, userNumber);
-          if (experimentResult) {
-            await logExperimentEvent(
-              user.id,
-              experimentResult.experiment_id,
-              experimentResult.variant,
-              'dismiss_clicked',
-              { button_id: 'button_dismiss_upgrade' }
-            );
-          }
+          // Log campaign event
+          const { logCampaignInstantEvent } = await import('../services/campaignService');
+          await logCampaignInstantEvent(user.id, 'limit_reached_v2', 'dismiss_clicked', {
+            button_id: 'button_dismiss_upgrade',
+          });
 
           await sendText(
             userNumber,
@@ -867,7 +859,15 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           return reply.status(200).send({ status: 'upgrade_dismissed' });
         }
 
-        // Handle remind_2h button (experiment variant)
+        // ═══════════════════════════════════════════════════════════════
+        // LEGACY: Reminder handlers (experiment upgrade_message_v1)
+        // Mantidos para backward compatibility com usuários que podem ter
+        // recebido mensagens antigas com esses botões antes da migração.
+        // TODO: Remover após 30 dias (14/02/2026) quando não houver mais
+        // lembretes pendentes no banco.
+        // ═══════════════════════════════════════════════════════════════
+
+        // Handle remind_2h button (legacy experiment variant)
         if (interactive.id === 'button_remind_2h') {
           fastify.log.info({
             msg: 'User requested 2h reminder',

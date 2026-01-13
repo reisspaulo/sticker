@@ -84,12 +84,12 @@ flowchart TD
     BTN -->|use_bonus| BONUS[🎁 +2 créditos]
     BONUS --> END_OK
 
-    %% Fluxo de Botões - Sequência Twitter Discovery
-    BTN -->|btn_seq_twitter_learn| SEQ_LEARN[📱 Tutorial Twitter]
-    BTN -->|btn_seq_twitter_dismiss| SEQ_DISMISS[❌ Cancela sequência]
-    SEQ_LEARN --> SEQ_CANCEL[🔄 Cancela sequência]
-    SEQ_DISMISS --> SEQ_CANCEL
-    SEQ_CANCEL --> END_OK
+    %% Fluxo de Botões - Campanha Twitter Discovery V2
+    BTN -->|btn_campaign_twitter_learn| CAMP_LEARN[📱 Tutorial Twitter]
+    BTN -->|btn_campaign_twitter_dismiss| CAMP_DISMISS[❌ Cancela campanha]
+    CAMP_LEARN --> CAMP_CANCEL[🔄 Cancela campanha]
+    CAMP_DISMISS --> CAMP_CANCEL
+    CAMP_CANCEL --> END_OK
 
     %% Limite
     LIMIT_MSG --> END_OK
@@ -447,6 +447,7 @@ flowchart LR
         Q5[🚧 edit-buttons DESATIVADO<br/>Worker existe mas nenhum job é adicionado<br/>concurrency: 5 / debounce: 10s]
         Q6[🚧 activate-pix-subscription<br/>concurrency: 2<br/>DEPRECATED: agora é instantâneo]
         Q7[✅ scheduled-jobs<br/>concurrency: 1]
+        Q8[✅ process-campaigns<br/>Scheduler 60s<br/>Campanhas unificadas]
     end
 
     subgraph saida["📤 SAÍDA"]
@@ -469,6 +470,7 @@ flowchart LR
     Q5 --> AV
     Q6 --> EV
     Q7 --> EV
+    Q8 --> AV
 
     style Q1 fill:#e3f2fd
     style Q2 fill:#fff3e0
@@ -477,6 +479,7 @@ flowchart LR
     style Q5 fill:#e8f5e9
     style Q6 fill:#fce4ec
     style Q7 fill:#efebe9
+    style Q8 fill:#c8e6c9
 ```
 
 ---
@@ -1203,6 +1206,7 @@ flowchart TB
     subgraph CRON["⏰ Cron Jobs (node-cron)"]
         MIDNIGHT[00:00 - Meia-noite]
         MORNING[08:00 - Manhã]
+        CAMPAIGN[A cada 60s - Campanhas]
     end
 
     subgraph MIDNIGHT_JOBS["🌙 Jobs Meia-noite"]
@@ -1221,6 +1225,15 @@ flowchart TB
         MR5[Update status enviado]
     end
 
+    subgraph CAMPAIGN_JOBS["🎯 Jobs Campanhas (60s)"]
+        C1[revertStuckProcessing]
+        C2[Reverte status stuck > 10min]
+        C3[checkCancelConditions]
+        C4[Cancela por condição met]
+        C5[processPendingCampaignMessages]
+        C6[Envia mensagens pendentes]
+    end
+
     MIDNIGHT --> M1
     M1 --> M2
     M2 --> M3
@@ -1232,6 +1245,13 @@ flowchart TB
     MR2 --> MR3
     MR3 --> MR4
     MR4 --> MR5
+
+    CAMPAIGN --> C1
+    C1 --> C2
+    C2 --> C3
+    C3 --> C4
+    C4 --> C5
+    C5 --> C6
 ```
 
 **Configuração (src/jobs/index.ts):**
@@ -1703,46 +1723,61 @@ const count = await rpc('increment_daily_count', { p_user_id: userId });
 
 ---
 
-## 24. Fluxo Twitter Discovery Sequence
+## 24. Fluxo Twitter Discovery Campaign V2
 
-**Status**: ✅ ATIVO (12/01/2026)
+**Status**: ✅ ATIVO (13/01/2026)
 
-> Sistema de sequências de comunicação para descoberta de features.
-> Substitui o trigger antigo após 3 figurinhas.
+> Sistema unificado de campanhas (substitui sequences e experiments).
+> Combina drip campaigns, event triggers e A/B testing em uma única arquitetura.
 
 ```mermaid
 flowchart TD
-    START([Usuário atinge limite diário]) --> CHECK_GROUP{Grupo A/B?}
+    START([Usuário atinge limite diário]) --> ENROLL[enrollInTwitterDiscoveryV2]
 
-    CHECK_GROUP -->|Control| ENROLL[Inscreve na sequência twitter_discovery]
-    CHECK_GROUP -->|Bonus| SKIP[Não inscreve - experimento pausado]
+    ENROLL --> CHECK_ACTIVE{Campanha<br/>ativa?}
 
-    ENROLL --> CHECK_DATE{Criado após<br/>10/01/2026?}
+    CHECK_ACTIVE -->|Não| SKIP[Não inscreve]
+    CHECK_ACTIVE -->|Sim| CHECK_DUP{Já inscrito<br/>nesta campanha?}
 
-    CHECK_DATE -->|Não| SKIP_OLD[Não inscreve - usuário antigo]
-    CHECK_DATE -->|Sim| SCHEDULE[Agenda step 0 para NOW + 4h]
+    CHECK_DUP -->|Sim| SKIP
+    CHECK_DUP -->|Não| CHECK_FILTER{target_filter<br/>match?}
 
-    SCHEDULE --> JOB_RUN[Job roda a cada 5 min]
+    CHECK_FILTER -->|subscription_plan != free| SKIP
+    CHECK_FILTER -->|subscription_plan = free| CREATE[Cria user_campaign]
 
-    JOB_RUN --> CHECK_CANCEL{Cancel condition<br/>met?}
+    CREATE --> SCHEDULE[Agenda step day_0 para NOW + 4h]
 
-    CHECK_CANCEL -->|twitter_feature_used = true| CANCEL[Cancela sequência]
-    CHECK_CANCEL -->|Não| CHECK_TIME{next_scheduled_at<br/>≤ NOW?}
+    SCHEDULE --> JOB_RUN[Scheduler roda a cada 60s]
 
-    CHECK_TIME -->|Não| WAIT[Aguarda próxima execução]
-    CHECK_TIME -->|Sim| SEND_MSG[Envia mensagem do step atual]
+    JOB_RUN --> REVERT[revertStuckProcessing > 10min]
 
-    SEND_MSG --> ADVANCE[Avança para próximo step]
+    REVERT --> CHECK_CANCEL[checkCancelConditions]
 
-    ADVANCE --> CHECK_COMPLETE{Último step?}
+    CHECK_CANCEL --> EVAL_SQL{Avalia SQL:<br/>twitter_feature_used = true}
 
-    CHECK_COMPLETE -->|Sim| COMPLETE[Marca sequência como completed]
+    EVAL_SQL -->|TRUE| CANCEL[Cancela campanha]
+    EVAL_SQL -->|FALSE| PROCESS[processPendingCampaignMessages]
+
+    PROCESS --> LOCK[FOR UPDATE SKIP LOCKED]
+
+    LOCK --> CHECK_WINDOW{Dentro da<br/>janela 8h-22h?}
+
+    CHECK_WINDOW -->|Não| WAIT[Aguarda janela de envio]
+    CHECK_WINDOW -->|Sim| CHECK_TIME{next_scheduled_at<br/>≤ NOW?}
+
+    CHECK_TIME -->|Não| WAIT
+    CHECK_TIME -->|Sim| SEND_MSG[sendCampaignMessage]
+
+    SEND_MSG --> ADVANCE[advance_campaign_step]
+
+    ADVANCE --> CHECK_COMPLETE{Último step<br/>day_30?}
+
+    CHECK_COMPLETE -->|Sim| COMPLETE[status = completed]
     CHECK_COMPLETE -->|Não| SCHEDULE_NEXT[Agenda próximo step]
 
     SCHEDULE_NEXT --> JOB_RUN
 
     SKIP --> END([Fim])
-    SKIP_OLD --> END
     CANCEL --> END
     COMPLETE --> END
     WAIT --> END
@@ -1750,48 +1785,85 @@ flowchart TD
     style ENROLL fill:#c8e6c9
     style CANCEL fill:#ffcdd2
     style SEND_MSG fill:#fff3e0
+    style LOCK fill:#e3f2fd
 ```
 
-### Steps da Sequência
+### Steps da Campanha
 
 | Step | Delay | Mensagem |
 |------|-------|----------|
-| d0 | +4 horas | "Sabia que você pode baixar vídeos do Twitter/X e transformar em figurinha?" |
-| d7 | +7 dias | "Lembrete rápido: dá pra baixar vídeos..." |
-| d15 | +15 dias | "Já experimentou baixar vídeos do Twitter/X?" |
-| d30 | +30 dias | "Última dica: você pode baixar vídeos..." |
+| day_0 | +4 horas | "Sabia que você pode baixar vídeos do Twitter/X..." + botões |
+| day_7 | +7 dias | "Lembrete rápido: dá pra baixar vídeos..." + botões |
+| day_15 | +15 dias | "Já experimentou baixar vídeos do Twitter/X?" + botões |
+| day_30 | +30 dias | "Última dica: você pode baixar vídeos..." + botões |
 
-### Rate Limiting
+### Botões das Mensagens
+
+| Button ID | Ação |
+|-----------|------|
+| `btn_campaign_twitter_learn` | Mostra tutorial + marca twitter_feature_used + cancela campanha |
+| `btn_campaign_twitter_dismiss` | Cancela campanha silenciosamente |
+
+### Rate Limiting & Janela de Envio
 
 ```
-Job a cada 5 min
+Scheduler a cada 60s (via worker.ts)
     ↓
 Máx 50 mensagens por execução
     ↓
 200ms entre cada mensagem
     ↓
-= 600 msgs/hora máximo
+Janela de envio: 8h-22h (America/Sao_Paulo)
+    ↓
+= 600 msgs/hora máximo, apenas horário comercial
+```
+
+### Proteção contra Race Conditions
+
+```sql
+-- Padrão de lock atômico
+UPDATE user_campaigns
+SET status = 'processing'
+WHERE id = (
+    SELECT id FROM user_campaigns
+    WHERE status = 'active'
+    AND next_scheduled_at <= NOW()
+    FOR UPDATE SKIP LOCKED
+    LIMIT 1
+)
 ```
 
 ### RPCs Utilizadas
 
 | RPC | Função |
 |-----|--------|
-| `enroll_user_in_sequence` | Inscreve usuário (filtro >= 10/01) |
-| `get_pending_sequence_steps` | Busca steps prontos para envio |
-| `advance_sequence_step` | Avança/completa sequência |
-| `check_sequence_cancel_conditions` | Cancela se condition met |
-| `batch_enroll_twitter_discovery` | Enrollment retroativo em lotes |
+| `enroll_user_in_campaign` | Inscreve usuário com validações |
+| `get_pending_campaign_messages` | Busca mensagens prontas (com janela 8h-22h) |
+| `advance_campaign_step` | Avança step ou completa campanha |
+| `check_campaign_cancel_conditions` | Avalia SQL do cancel_condition |
+| `handle_campaign_button_click` | Processa clique atomicamente |
+| `revert_stuck_campaign_processing` | Recovery de status stuck |
+
+### Tabelas Envolvidas
+
+| Tabela | Descrição |
+|--------|-----------|
+| `campaigns` | Definição da campanha (name, type, trigger, cancel_condition) |
+| `campaign_steps` | Steps ordenados com delay_hours |
+| `campaign_messages` | Mensagens com variant A/B, buttons, content_type |
+| `user_campaigns` | Inscrição do usuário com current_step, status |
+| `campaign_events` | Eventos (enrolled, message_sent, button_clicked, etc) |
 
 ### Código Relevante
 
-- `src/routes/webhook.ts:1910-1925` - Trigger de enrollment
-- `src/jobs/processSequenceSteps.ts` - Job de processamento
-- `src/services/sequenceService.ts` - Funções de enrollment
+- `src/routes/webhook.ts` - Trigger de enrollment + button handlers
+- `src/worker.ts` - Campaign scheduler (60s interval)
+- `src/services/campaignService.ts` - Todas as funções de campanha
 - `src/rpc/registry.ts` - RPCs registradas
+- `supabase/migrations/20260113_seed_twitter_discovery_v2.sql` - Seed da campanha
 
 ---
 
-**Última atualização:** 12/01/2026 - Sprint 14 concluída (RPC type-safe), CI pipeline adicionado, corrigido bug do experimento de limite diário, adicionado sistema de sequências Twitter Discovery
+**Última atualização:** 13/01/2026 - Sistema unificado de campanhas (Sprint 13), substituindo sequences por campaigns v2, campaign scheduler no worker.ts, botões btn_campaign_twitter_*
 
 

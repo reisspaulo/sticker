@@ -30,7 +30,7 @@ import { activatePendingPixSubscriptionJob } from './jobs/activatePendingPixSubs
 import type { ActivatePixJobData } from './jobs/activatePendingPixSubscription';
 
 interface ScheduledJob {
-  type: 'reset-counters' | 'send-pending';
+  type: 'reset-counters' | 'send-pending' | 'process-campaigns';
 }
 
 // Redis connection configuration for Workers
@@ -1129,6 +1129,70 @@ const scheduledJobsWorker = new Worker<ScheduledJob>(
 
           throw error;
         }
+
+      case 'process-campaigns':
+        // Process pending campaign messages
+        try {
+          const {
+            processPendingCampaignMessages,
+            checkCancelConditions,
+            revertStuckProcessing,
+          } = await import('./services/campaignService');
+
+          // 1. Revert stuck campaigns (recovery from crashes)
+          const reverted = await revertStuckProcessing(10);
+          if (reverted > 0) {
+            logger.warn({
+              msg: '[CAMPAIGN-JOB] Reverted stuck campaigns',
+              count: reverted,
+            });
+          }
+
+          // 2. Check and cancel campaigns that met cancel conditions
+          const cancelled = await checkCancelConditions();
+          if (cancelled > 0) {
+            logger.info({
+              msg: '[CAMPAIGN-JOB] Cancelled campaigns by condition',
+              count: cancelled,
+            });
+          }
+
+          // 3. Process pending messages
+          const result = await processPendingCampaignMessages(50, 200);
+
+          logger.info({
+            msg: '[SCHEDULED-JOB] process-campaigns completed',
+            jobId: job.id,
+            reverted,
+            cancelled,
+            ...result,
+          });
+
+          return {
+            success: true,
+            type,
+            stats: { reverted, cancelled, ...result },
+          };
+        } catch (error) {
+          logger.error({
+            msg: '[SCHEDULED-JOB] process-campaigns failed',
+            jobId: job.id,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+
+          // Alert on failure
+          const { alertWorkerFailure } = await import('./services/alertService');
+          await alertWorkerFailure({
+            service: 'scheduled-jobs',
+            errorType: 'process-campaigns',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            additionalInfo: {
+              jobId: job.id,
+            },
+          });
+
+          throw error;
+        }
     }
 
     return { success: true, type };
@@ -1543,9 +1607,72 @@ editButtonsWorker.on('failed', (job, err) => {
   });
 });
 
+// ============================================
+// CAMPAIGN MESSAGE SCHEDULER
+// Runs every 60 seconds to process pending campaign messages
+// ============================================
+import { scheduledJobsQueue } from './config/queue';
+
+let campaignSchedulerInterval: NodeJS.Timeout | null = null;
+
+async function startCampaignScheduler() {
+  logger.info({
+    msg: '[CAMPAIGN-SCHEDULER] Starting campaign message scheduler',
+    intervalMs: 60000,
+  });
+
+  // Run immediately on startup
+  try {
+    await scheduledJobsQueue.add(
+      'process-campaigns',
+      { type: 'process-campaigns' as const },
+      {
+        jobId: `campaign-${Date.now()}`,
+        removeOnComplete: true,
+        removeOnFail: { age: 3600 }, // Keep failed for 1 hour
+      }
+    );
+  } catch (error) {
+    logger.error({
+      msg: '[CAMPAIGN-SCHEDULER] Error scheduling initial campaign job',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+
+  // Then schedule every 60 seconds
+  campaignSchedulerInterval = setInterval(async () => {
+    try {
+      await scheduledJobsQueue.add(
+        'process-campaigns',
+        { type: 'process-campaigns' as const },
+        {
+          jobId: `campaign-${Date.now()}`,
+          removeOnComplete: true,
+          removeOnFail: { age: 3600 },
+        }
+      );
+
+      logger.debug({
+        msg: '[CAMPAIGN-SCHEDULER] Campaign job scheduled',
+      });
+    } catch (error) {
+      logger.error({
+        msg: '[CAMPAIGN-SCHEDULER] Error scheduling campaign job',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }, 60000); // Every 60 seconds
+}
+
+// Start the campaign scheduler
+startCampaignScheduler();
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, closing workers...');
+  if (campaignSchedulerInterval) {
+    clearInterval(campaignSchedulerInterval);
+  }
   await processStickerWorker.close();
   await scheduledJobsWorker.close();
   await downloadTwitterVideoWorker.close();
@@ -1558,6 +1685,9 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received, closing workers...');
+  if (campaignSchedulerInterval) {
+    clearInterval(campaignSchedulerInterval);
+  }
   await processStickerWorker.close();
   await scheduledJobsWorker.close();
   await downloadTwitterVideoWorker.close();
@@ -1576,3 +1706,4 @@ logger.info('  - convert-twitter-sticker (concurrency: 2)');
 logger.info('  - activate-pix-subscription (concurrency: 2)');
 logger.info('  - cleanup-sticker (concurrency: 2)');
 logger.info('  - edit-buttons (concurrency: 5, debounced 10s)');
+logger.info('  - campaign-scheduler (interval: 60s)');

@@ -445,6 +445,53 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           return reply.status(200).send({ status: 'seq_twitter_dismissed' });
         }
 
+        // Handle Campaign Twitter Discovery buttons (unified campaigns system)
+        if (interactive.id === 'btn_campaign_twitter_learn') {
+          const { handleCampaignButton } = await import('../services/campaignService');
+          const { markTwitterFeatureAsUsed } = await import('../services/onboardingService');
+
+          // Processar clique e enviar resposta
+          await handleCampaignButton(
+            userNumber,
+            userName,
+            'btn_campaign_twitter_learn',
+            'twitter_discovery_v2',
+            `Ótimo, {name}! 🎬\n\nPara baixar um vídeo do Twitter/X:\n\n1️⃣ Abra o Twitter/X\n2️⃣ Encontre um tweet com vídeo\n3️⃣ Copie o link do tweet\n4️⃣ Cole aqui no chat!\n\nVou baixar o vídeo E transformar em figurinha animada pra você! ✨`,
+            true // Cancela campanha após clique
+          );
+
+          // Marcar feature como usada (cancela campanhas futuras)
+          await markTwitterFeatureAsUsed(userNumber);
+
+          fastify.log.info({
+            msg: 'Campaign Twitter learn button clicked',
+            userNumber,
+          });
+
+          return reply.status(200).send({ status: 'campaign_twitter_learn' });
+        }
+
+        if (interactive.id === 'btn_campaign_twitter_dismiss') {
+          const { handleCampaignButton } = await import('../services/campaignService');
+
+          // Processar clique e enviar resposta
+          await handleCampaignButton(
+            userNumber,
+            userName,
+            'btn_campaign_twitter_dismiss',
+            'twitter_discovery_v2',
+            `Tudo bem, {name}! 👍\n\nSe mudar de ideia, é só me mandar um link de tweet com vídeo que eu baixo pra você! 🎬`,
+            true // Cancela campanha após clique
+          );
+
+          fastify.log.info({
+            msg: 'Campaign Twitter dismiss button clicked',
+            userNumber,
+          });
+
+          return reply.status(200).send({ status: 'campaign_twitter_dismissed' });
+        }
+
         // Handle Twitter video conversion to sticker
         if (interactive.id.startsWith('button_convert_sticker_')) {
           const downloadId = interactive.id.replace('button_convert_sticker_', '');
@@ -509,17 +556,17 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
                 }).catch(() => {}); // Don't fail if alert fails
               }
 
-              // Enroll user in Twitter Discovery sequence (non-blocking)
+              // Enroll user in Twitter Discovery V2 campaign (non-blocking)
               try {
-                const { enrollInTwitterDiscovery } = await import('../services/sequenceService');
-                await enrollInTwitterDiscovery(user.id, {
+                const { enrollInTwitterDiscoveryV2 } = await import('../services/campaignService');
+                await enrollInTwitterDiscoveryV2(user.id, {
                   daily_count: limitCheck.daily_count,
                   daily_limit: limitCheck.effective_limit,
                   source: 'twitter_conversion',
                 });
               } catch (error) {
                 fastify.log.warn({
-                  msg: 'Failed to enroll user in Twitter Discovery sequence (non-critical)',
+                  msg: 'Failed to enroll user in Twitter Discovery V2 campaign (non-critical)',
                   userNumber,
                   error: error instanceof Error ? error.message : 'Unknown error',
                 });
@@ -1932,18 +1979,18 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
               }).catch(() => {}); // Don't fail if alert fails
             }
 
-            // Enroll user in Twitter Discovery sequence (non-blocking)
+            // Enroll user in Twitter Discovery V2 campaign (non-blocking)
             // Will be sent 4h after hitting limit, unless user already saw/used Twitter feature
             try {
-              const { enrollInTwitterDiscovery } = await import('../services/sequenceService');
-              await enrollInTwitterDiscovery(user.id, {
+              const { enrollInTwitterDiscoveryV2 } = await import('../services/campaignService');
+              await enrollInTwitterDiscoveryV2(user.id, {
                 daily_count: limitCheck.daily_count,
                 daily_limit: limitCheck.effective_limit,
               });
             } catch (error) {
               // Non-critical - don't fail the request
               fastify.log.warn({
-                msg: 'Failed to enroll user in Twitter Discovery sequence (non-critical)',
+                msg: 'Failed to enroll user in Twitter Discovery V2 campaign (non-critical)',
                 userNumber,
                 error: error instanceof Error ? error.message : 'Unknown error',
               });

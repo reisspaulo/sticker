@@ -23,6 +23,8 @@ import type {
   SequenceStepPending,
   AdvanceStepResult,
   SequenceAnalytics,
+  CampaignPendingMessage,
+  CampaignAnalytics,
 } from './types.js';
 
 // ============================================
@@ -300,6 +302,101 @@ export const RPC_REGISTRY = {
       p_cancel_reason?: string;
     },
     returns: {} as boolean,
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // CAMPAIGN FUNCTIONS (Unified Campaigns System)
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Inscreve usuario em uma campanha
+   * @returns UUID do user_campaign criado, ou NULL se nao inscreveu
+   */
+  enroll_user_in_campaign: {
+    type: 'scalar' as const,
+    params: {} as {
+      p_user_id: string;
+      p_campaign_name: string;
+      p_metadata?: Record<string, unknown>;
+    },
+    returns: {} as string | null,
+  },
+
+  /**
+   * Busca mensagens de campanha prontas para envio
+   * @returns Array de mensagens pendentes com dados do usuario e conteudo
+   */
+  get_pending_campaign_messages: {
+    type: 'table' as const,
+    params: {} as { p_limit?: number },
+    returns: {} as CampaignPendingMessage,
+  },
+
+  /**
+   * Avanca campanha para proximo step apos envio
+   * @returns Status da operacao: 'advanced', 'completed', 'failed', 'not_found'
+   */
+  advance_campaign_step: {
+    type: 'scalar' as const,
+    params: {} as {
+      p_user_campaign_id: string;
+      p_success?: boolean;
+      p_metadata?: Record<string, unknown>;
+    },
+    returns: {} as string,
+  },
+
+  /**
+   * Processa clique de botao em campanha de forma atomica
+   * - Registra evento button_clicked
+   * - Cancela a campanha se p_should_cancel = true
+   * - Usa FOR UPDATE SKIP LOCKED para evitar duplicacao
+   * @returns TRUE se foi o primeiro clique (deve processar), FALSE se ja processado
+   */
+  handle_campaign_button_click: {
+    type: 'scalar' as const,
+    params: {} as {
+      p_user_number: string;
+      p_campaign_name: string;
+      p_button_id: string;
+      p_should_cancel?: boolean;
+    },
+    returns: {} as boolean,
+  },
+
+  /**
+   * Verifica e cancela campanhas que atingiram cancel_condition
+   * @returns Numero de campanhas canceladas
+   */
+  check_campaign_cancel_conditions: {
+    type: 'scalar' as const,
+    params: {} as Record<string, never>,
+    returns: {} as number,
+  },
+
+  /**
+   * Busca analytics completos de uma campanha
+   * @returns JSONB com totais, por variante, por step e funil
+   */
+  get_campaign_analytics: {
+    type: 'scalar' as const,
+    params: {} as {
+      p_campaign_name: string;
+      p_start_date?: string;
+      p_end_date?: string;
+    },
+    returns: {} as CampaignAnalytics,
+  },
+
+  /**
+   * Reverte user_campaigns travados em 'processing'
+   * Usado para recovery de workers que crasharam
+   * @returns Numero de campanhas revertidas
+   */
+  revert_stuck_campaign_processing: {
+    type: 'scalar' as const,
+    params: {} as { p_older_than_minutes?: number },
+    returns: {} as number,
   },
 } as const;
 

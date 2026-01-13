@@ -1965,6 +1965,1023 @@ UPDATE sequence_messages SET variants = '{
 
 ---
 
+---
+
+# PARTE 3: Sistema Unificado de Campanhas (Campaigns)
+
+**Status:** IMPLEMENTADO
+**Data Implementacao:** 13/01/2026
+
+---
+
+## Resumo Executivo
+
+### O Que E?
+
+Sistema unificado que combina Experimentos A/B e Sequencias de Comunicacao em uma unica estrutura chamada **Campaigns**. Resolve a fragmentacao entre os dois sistemas anteriores e incorpora TODOS os aprendizados/bugs encontrados durante o desenvolvimento.
+
+### Por Que Unificar?
+
+1. **Duplicacao de codigo**: Experiments e Sequences tinham logicas muito similares
+2. **Bugs repetidos**: Os mesmos erros (race conditions, tipos VARCHAR vs TEXT) apareciam nos dois sistemas
+3. **Flexibilidade**: Novo sistema permite:
+   - A/B testing POR STEP da campanha
+   - Drip campaigns com variacoes
+   - Event-based triggers + follow-ups temporais
+4. **Manutencao**: Um unico sistema para manter ao inves de dois
+
+### Tipos de Campanhas Suportados
+
+| Tipo | Descricao | Exemplo |
+|------|-----------|---------|
+| `drip` | Baseado em tempo (d+0, d+7, d+15, d+30) | Welcome sequence |
+| `event` | Dispara em evento especifico | Limite atingido → upsell |
+| `hybrid` | Evento inicial + follow-ups por tempo | Limite → upsell + lembretes d+3, d+7 |
+
+---
+
+## Arquitetura do Sistema
+
+### Visao Geral
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      UNIFIED CAMPAIGNS SYSTEM                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌───────────┐    ┌──────────────┐    ┌──────────────────┐                 │
+│  │ campaigns │───▶│campaign_steps│───▶│campaign_messages │                 │
+│  │ (config)  │    │ (A/B/step)   │    │ (conteudo)       │                 │
+│  └───────────┘    └──────────────┘    └──────────────────┘                 │
+│        │                                                                     │
+│        ▼                                                                     │
+│  ┌──────────────┐    ┌──────────────────┐                                   │
+│  │user_campaigns│───▶│ campaign_events  │                                   │
+│  │ (inscricao)  │    │ (tracking)       │                                   │
+│  └──────────────┘    └──────────────────┘                                   │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────┐        │
+│  │                JOB: processPendingCampaignMessages               │        │
+│  │         (roda periodicamente, envia mensagens agendadas)         │        │
+│  └─────────────────────────────────────────────────────────────────┘        │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Fluxo de Enrollment
+
+```
+Evento acontece (ex: limite_hit)
+       ↓
+Codigo chama enrollUserInCampaign()
+       ↓
+RPC enroll_user_in_campaign
+       ↓
+Verifica: campanha esta 'active'?
+       ↓ Sim
+Verifica: usuario ja esta inscrito?
+       ↓ Nao
+Verifica: target_filter (created_after, subscription_plan, etc)
+       ↓ Passou
+Verifica: cancel_condition ja e true?
+       ↓ Nao
+Verifica: max_users atingido?
+       ↓ Nao
+Sorteia variante (se step tem A/B)
+       ↓
+Cria user_campaign com next_scheduled_at = NOW() + delay + random(0-30min)
+       ↓
+Registra evento 'enrolled'
+       ↓
+Retorna user_campaign_id
+```
+
+### Fluxo de Envio de Mensagens
+
+```
+[Job CRON periodico]
+       ↓
+RPC get_pending_campaign_messages (com FOR UPDATE SKIP LOCKED)
+       ↓
+Atualiza status para 'processing' (lock atomico)
+       ↓
+Para cada mensagem:
+  ├─ sendCampaignMessage() baseado no content_type
+  │     ├─ text: sendText()
+  │     ├─ buttons: sendButtons() via Avisa API
+  │     └─ sticker/image/video: TODO
+  ├─ Rate limit: 200ms entre envios
+  └─ RPC advance_campaign_step()
+       ├─ success=true: avanca para proximo step ou completa
+       └─ success=false: volta status para 'active' (retry)
+       ↓
+Proximo step agendado (ou campanha completada)
+```
+
+### Fluxo de Clique em Botao
+
+```
+Usuario clica botao (btn_campaign_*)
+       ↓
+webhook.ts identifica prefixo btn_campaign_
+       ↓
+handleCampaignButton() ou handler especifico
+       ↓
+RPC handle_campaign_button_click (com FOR UPDATE SKIP LOCKED)
+       ↓
+Ja processado por outro request?
+       ↓ Nao (primeiro clique)
+Registra evento 'button_clicked'
+       ↓
+Cancela campanha (se shouldCancel=true)
+       ↓
+Envia resposta ao usuario
+```
+
+---
+
+## Modelo de Dados
+
+### Tabela: campaigns
+
+Definicao da campanha (equivale a experiments + sequences unificado).
+
+```sql
+CREATE TABLE campaigns (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Identificacao
+    name VARCHAR(100) UNIQUE NOT NULL,
+    description TEXT,
+
+    -- Tipo: 'drip', 'event', 'hybrid'
+    campaign_type VARCHAR(50) NOT NULL,
+
+    -- Configuracao do trigger
+    -- drip: {"initial_delay_hours": 4}
+    -- event: {"event_name": "limit_hit", "send_immediately": true}
+    -- hybrid: {"event_name": "limit_hit", "initial_delay_hours": 4}
+    trigger_config JSONB NOT NULL DEFAULT '{}',
+
+    -- Filtro de elegibilidade
+    -- Ex: {"min_stickers": 3, "subscription_plan": "free", "created_after": "2026-01-10"}
+    target_filter JSONB,
+
+    -- Condicao SQL para cancelamento automatico
+    -- Ex: "twitter_feature_used = true"
+    cancel_condition TEXT,
+
+    -- Controle
+    status VARCHAR(20) NOT NULL DEFAULT 'draft',  -- draft, active, paused, ended
+    priority INT DEFAULT 0,
+    max_users INT,  -- NULL = ilimitado
+
+    -- Settings gerais
+    settings JSONB DEFAULT '{
+        "rate_limit_ms": 200,
+        "batch_size": 50,
+        "randomize_minutes": 30,
+        "send_window_start": 8,
+        "send_window_end": 22
+    }',
+
+    -- Timestamps
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    activated_at TIMESTAMPTZ,
+    ended_at TIMESTAMPTZ
+);
+```
+
+### Tabela: campaign_steps
+
+Steps da campanha com suporte a A/B testing POR STEP.
+
+```sql
+CREATE TABLE campaign_steps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+
+    -- Ordem e identificacao
+    step_order INT NOT NULL,          -- 0, 1, 2, 3...
+    step_key VARCHAR(50) NOT NULL,    -- 'day_0', 'wave_1', 'welcome'
+
+    -- Timing
+    delay_hours INT DEFAULT 0,        -- 0 = imediato, 168 = 7 dias
+    send_window JSONB,                -- {"start_hour": 8, "end_hour": 22}
+
+    -- A/B Testing neste step
+    -- Ex: ["control", "benefit", "urgency", "social_proof"]
+    variants JSONB,
+
+    -- Pesos das variantes (NULL = distribuicao igual)
+    -- Ex: {"control": 25, "benefit": 25, "urgency": 25, "social_proof": 25}
+    variant_weights JSONB,
+
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE(campaign_id, step_order),
+    UNIQUE(campaign_id, step_key)
+);
+```
+
+### Tabela: campaign_messages
+
+Conteudo das mensagens por variante.
+
+```sql
+CREATE TABLE campaign_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    step_id UUID NOT NULL REFERENCES campaign_steps(id) ON DELETE CASCADE,
+
+    -- Variante ('default' se nao tem A/B)
+    variant VARCHAR(50) DEFAULT 'default',
+
+    -- Tipo: 'text', 'buttons', 'sticker', 'image', 'video'
+    content_type VARCHAR(20) NOT NULL DEFAULT 'text',
+
+    -- Conteudo
+    title TEXT NOT NULL DEFAULT '',  -- OBRIGATORIO pela Avisa API!
+    body TEXT NOT NULL,
+    footer TEXT,
+
+    -- Botoes (para content_type = 'buttons')
+    -- Ex: [{"id": "btn_campaign_learn", "text": "Quero ver!"}]
+    buttons JSONB,
+
+    -- Midia (para sticker/image/video)
+    media JSONB,
+
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE(step_id, variant)
+);
+```
+
+**IMPORTANTE:** Campo `title` NUNCA pode ser NULL (Avisa API exige)!
+
+### Tabela: user_campaigns
+
+Inscricao de usuarios em campanhas.
+
+```sql
+CREATE TABLE user_campaigns (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+
+    -- Progresso
+    current_step INT DEFAULT 0,
+    variant VARCHAR(50),
+    next_scheduled_at TIMESTAMPTZ,
+
+    -- Status com suporte a lock atomico
+    -- IMPORTANTE: 'processing' permite lock sem constraint violation
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    -- pending, active, processing, completed, cancelled
+
+    cancel_reason VARCHAR(100),
+    metadata JSONB DEFAULT '{}',
+
+    -- Timestamps
+    enrolled_at TIMESTAMPTZ DEFAULT NOW(),
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE(user_id, campaign_id)
+);
+```
+
+**Status 'processing':** Permite que o job marque o registro como "em processamento" antes de enviar. Se outro worker tentar processar o mesmo registro, o `FOR UPDATE SKIP LOCKED` pula. Isso evita mensagens duplicadas.
+
+### Tabela: campaign_events
+
+Todos os eventos de todas as campanhas em um unico lugar.
+
+```sql
+CREATE TABLE campaign_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Referencias
+    user_campaign_id UUID REFERENCES user_campaigns(id) ON DELETE SET NULL,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+
+    -- Evento
+    event_type VARCHAR(50) NOT NULL,
+    -- enrolled, step_scheduled, step_sent, step_failed
+    -- button_clicked, converted, cancelled, completed
+    -- menu_shown, upgrade_clicked, payment_started, dismiss_clicked
+
+    -- Contexto
+    step_key VARCHAR(50),
+    variant VARCHAR(50),
+
+    -- Dados extras
+    metadata JSONB DEFAULT '{}',
+
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+---
+
+## RPCs Implementados
+
+### 1. campaign_select_variant
+
+Helper function para sortear variante baseado nos pesos.
+
+```sql
+CREATE OR REPLACE FUNCTION campaign_select_variant(
+    p_variants JSONB,       -- ["control", "test_a", "test_b"]
+    p_weights JSONB         -- {"control": 50, "test_a": 25, "test_b": 25} ou NULL
+)
+RETURNS TEXT  -- IMPORTANTE: TEXT nao VARCHAR!
+```
+
+**Retorna:** Nome da variante sorteada, ou 'default' se nao tem variantes.
+
+### 2. enroll_user_in_campaign
+
+Inscreve usuario em uma campanha com todas as validacoes.
+
+```sql
+CREATE OR REPLACE FUNCTION enroll_user_in_campaign(
+    p_user_id UUID,
+    p_campaign_name VARCHAR(100),
+    p_metadata JSONB DEFAULT '{}'
+)
+RETURNS UUID  -- IMPORTANTE: Retorna primitivo, nao RECORD!
+```
+
+**Validacoes:**
+1. Campanha esta 'active'
+2. Usuario nao esta inscrito ainda
+3. Usuario passa no target_filter
+4. cancel_condition nao e true
+5. max_users nao atingido
+6. Campanha tem pelo menos 1 step
+
+**Retorna:** UUID do user_campaign criado, ou NULL se nao inscreveu.
+
+### 3. get_pending_campaign_messages
+
+Busca mensagens prontas para envio com lock atomico.
+
+```sql
+CREATE OR REPLACE FUNCTION get_pending_campaign_messages(
+    p_limit INT DEFAULT 50
+)
+RETURNS TABLE (
+    user_campaign_id UUID,
+    user_id UUID,
+    user_number TEXT,      -- IMPORTANTE: TEXT nao VARCHAR!
+    user_name TEXT,        -- IMPORTANTE: TEXT nao VARCHAR!
+    campaign_id UUID,
+    campaign_name VARCHAR(100),
+    campaign_type VARCHAR(50),
+    step_order INT,
+    step_key VARCHAR(50),
+    variant VARCHAR(50),
+    content_type VARCHAR(20),
+    title TEXT,
+    body TEXT,
+    footer TEXT,
+    buttons JSONB,
+    media JSONB,
+    cancel_condition TEXT,
+    settings JSONB
+)
+```
+
+**Comportamento:**
+1. `FOR UPDATE SKIP LOCKED` - cada worker pega registros diferentes
+2. Atualiza status para 'processing' antes de retornar
+3. Retorna dados completos para envio (usuario + campanha + mensagem)
+
+### 4. advance_campaign_step
+
+Avanca para proximo step apos envio.
+
+```sql
+CREATE OR REPLACE FUNCTION advance_campaign_step(
+    p_user_campaign_id UUID,
+    p_success BOOLEAN DEFAULT true,
+    p_metadata JSONB DEFAULT '{}'
+)
+RETURNS TEXT  -- IMPORTANTE: TEXT nao VARCHAR!
+-- Retorna: 'advanced', 'completed', 'failed', 'not_found'
+```
+
+**Comportamento:**
+- `success=true`: Avanca para proximo step ou marca como 'completed'
+- `success=false`: Volta status para 'active' (permite retry)
+- Registra eventos `step_sent` ou `step_failed`
+- Calcula `next_scheduled_at` com randomizacao
+
+### 5. handle_campaign_button_click
+
+Processa clique de botao de forma atomica.
+
+```sql
+CREATE OR REPLACE FUNCTION handle_campaign_button_click(
+    p_user_number TEXT,          -- IMPORTANTE: TEXT nao VARCHAR!
+    p_campaign_name VARCHAR(100),
+    p_button_id VARCHAR(100),
+    p_should_cancel BOOLEAN DEFAULT true
+)
+RETURNS BOOLEAN  -- IMPORTANTE: Retorna primitivo!
+-- TRUE = primeiro clique (deve processar), FALSE = ja processado
+```
+
+**Comportamento:**
+1. `FOR UPDATE SKIP LOCKED` - evita duplicacao em cliques rapidos
+2. Registra evento `button_clicked` com button_id
+3. Cancela campanha se `p_should_cancel=true`
+4. Retorna FALSE se registro ja estava travado (outro request processando)
+
+### 6. check_campaign_cancel_conditions
+
+Verifica e cancela campanhas que atingiram cancel_condition.
+
+```sql
+CREATE OR REPLACE FUNCTION check_campaign_cancel_conditions()
+RETURNS INT  -- Numero de campanhas canceladas
+```
+
+**Uso:** Chamar periodicamente pelo worker para cancelar campanhas de usuarios que ja converteram.
+
+### 7. get_campaign_analytics
+
+Retorna analytics completos de uma campanha.
+
+```sql
+CREATE OR REPLACE FUNCTION get_campaign_analytics(
+    p_campaign_name VARCHAR(100),
+    p_start_date TIMESTAMPTZ DEFAULT NOW() - INTERVAL '30 days',
+    p_end_date TIMESTAMPTZ DEFAULT NOW()
+)
+RETURNS JSONB
+```
+
+**Retorna:**
+```json
+{
+  "campaign": "nome_campanha",
+  "period": {"start": "...", "end": "..."},
+  "totals": {
+    "enrolled": 100,
+    "completed": 45,
+    "cancelled": 20,
+    "button_clicks": 30,
+    "messages_sent": 200,
+    "messages_failed": 5
+  },
+  "by_variant": {
+    "control": {"enrolled": 50, "button_clicks": 15, "click_rate": 30.0, ...},
+    "test_a": {"enrolled": 50, "button_clicks": 15, "click_rate": 30.0, ...}
+  },
+  "by_step": {
+    "day_0": {"sent": 100, "failed": 2, "clicks": 20},
+    "day_7": {"sent": 78, "failed": 1, "clicks": 10}
+  },
+  "funnel": [
+    {"step": 0, "step_key": "day_0", "users_reached": 100, "drop_off_rate": 0},
+    {"step": 1, "step_key": "day_7", "users_reached": 78, "drop_off_rate": 22.0}
+  ]
+}
+```
+
+### 8. revert_stuck_campaign_processing
+
+Recupera campanhas travadas em 'processing' (worker crash recovery).
+
+```sql
+CREATE OR REPLACE FUNCTION revert_stuck_campaign_processing(
+    p_older_than_minutes INT DEFAULT 10
+)
+RETURNS INT  -- Numero de campanhas revertidas
+```
+
+**Uso:** Chamar no inicio do job para recuperar registros que ficaram travados por crash.
+
+---
+
+## Service Layer: campaignService.ts
+
+### Funcoes de Enrollment
+
+```typescript
+// Enrollment generico
+async function enrollUserInCampaign(
+  userId: string,
+  campaignName: CampaignName,
+  options: EnrollmentOptions
+): Promise<string | null>
+
+// Convenience functions
+async function enrollInTwitterDiscoveryV2(userId, metadata): Promise<string | null>
+async function enrollInCleanupFeatureV2(userId, metadata): Promise<string | null>
+async function enrollInLimitUpsell(userId, metadata): Promise<string | null>
+async function enrollInWelcomeDrip(userId, metadata): Promise<string | null>
+```
+
+### Funcoes de Button Handling
+
+```typescript
+// Handler atomico de clique
+async function handleCampaignButtonClick(
+  userNumber: string,
+  campaignName: CampaignName,
+  buttonId: string,
+  shouldCancel: boolean = true
+): Promise<boolean>
+
+// Handler completo (clique + resposta)
+async function handleCampaignButton(
+  userNumber: string,
+  userName: string,
+  buttonId: string,
+  campaignName: CampaignName,
+  responseMessage: string,
+  shouldCancel: boolean = true
+): Promise<void>
+```
+
+### Funcoes para Worker
+
+```typescript
+// Processa mensagens agendadas
+async function processPendingCampaignMessages(
+  limit: number = 50,
+  rateLimitMs: number = 200
+): Promise<{ sent: number; failed: number; total: number }>
+
+// Verifica cancel_conditions
+async function checkCancelConditions(): Promise<number>
+
+// Recovery de locks travados
+async function revertStuckProcessing(
+  olderThanMinutes: number = 10
+): Promise<number>
+```
+
+### Funcoes de Envio
+
+```typescript
+// Envia baseado no content_type
+async function sendCampaignMessage(
+  message: CampaignPendingMessage
+): Promise<boolean>
+```
+
+**Suporta:**
+- `text`: Envia via `sendText()`
+- `buttons`: Envia via `sendButtons()` (Avisa API)
+- `sticker/image/video`: TODO (fallback para text)
+
+### Analytics
+
+```typescript
+async function getCampaignAnalytics(
+  campaignName: CampaignName,
+  startDate?: string,
+  endDate?: string
+): Promise<CampaignAnalytics | null>
+```
+
+---
+
+## Tipos TypeScript
+
+### types.ts
+
+```typescript
+// Mensagem pendente de campanha
+interface CampaignPendingMessage {
+  user_campaign_id: string;
+  user_id: string;
+  user_number: string;
+  user_name: string;
+  campaign_id: string;
+  campaign_name: string;
+  campaign_type: 'drip' | 'event' | 'hybrid';
+  step_order: number;
+  step_key: string;
+  variant: string;
+  content_type: 'text' | 'buttons' | 'sticker' | 'image' | 'video';
+  title: string;
+  body: string;
+  footer: string | null;
+  buttons: Array<{ id: string; text: string }> | null;
+  media: { type: string; url: string; sticker_id?: string } | null;
+  cancel_condition: string | null;
+  settings: {
+    rate_limit_ms?: number;
+    batch_size?: number;
+    randomize_minutes?: number;
+    send_window_start?: number;
+    send_window_end?: number;
+  };
+}
+
+// Analytics de campanha
+interface CampaignAnalytics {
+  campaign: string;
+  period: { start: string; end: string };
+  totals: {
+    enrolled: number;
+    completed: number;
+    cancelled: number;
+    button_clicks: number;
+    messages_sent: number;
+    messages_failed: number;
+  };
+  by_variant: Record<string, { enrolled; button_clicks; completed; click_rate; completion_rate }>;
+  by_step: Record<string, { sent; failed; clicks }>;
+  funnel: Array<{ step; step_key; users_reached; drop_off_rate }>;
+}
+```
+
+### campaignService.ts Types
+
+```typescript
+// Nomes de campanhas disponiveis
+type CampaignName =
+  | 'twitter_discovery_v2'
+  | 'cleanup_feature_v2'
+  | 'limit_upsell'
+  | 'welcome_drip'
+  | 'reengagement_30d';
+
+// Triggers possiveis
+type CampaignTrigger =
+  | 'limit_hit'
+  | 'first_sticker'
+  | 'nth_sticker'
+  | 'feature_used'
+  | 'inactivity'
+  | 'manual'
+  | 'scheduled'
+  | 'webhook';
+```
+
+---
+
+## Protecoes contra Bugs (Baseado em Analise de Commits)
+
+O sistema foi projetado incorporando TODOS os bugs encontrados durante o desenvolvimento de Experiments e Sequences.
+
+### 1. Race Conditions (6 bugs encontrados)
+
+**Protecao:** `FOR UPDATE SKIP LOCKED` em todas as RPCs que processam registros.
+
+```sql
+-- Exemplo em get_pending_campaign_messages
+SELECT array_agg(uc.id) INTO v_locked_ids
+FROM user_campaigns uc
+WHERE uc.status IN ('pending', 'active')
+  AND uc.next_scheduled_at <= NOW()
+ORDER BY uc.next_scheduled_at ASC
+LIMIT p_limit
+FOR UPDATE SKIP LOCKED;
+```
+
+### 2. Tipos VARCHAR vs TEXT (3 bugs encontrados)
+
+**Protecao:** Todas as RPCs usam `TEXT` para campos que sao `TEXT` na tabela.
+
+```sql
+-- CORRETO
+user_number TEXT,
+user_name TEXT,
+RETURNS TEXT
+
+-- ERRADO (causava erro 400)
+user_number VARCHAR,
+user_name VARCHAR,
+RETURNS VARCHAR
+```
+
+### 3. Retorno RECORD vs Primitivo (2 bugs encontrados)
+
+**Protecao:** RPCs retornam valores primitivos, nao objetos.
+
+```sql
+-- CORRETO: Retorna primitivo
+RETURNS BOOLEAN
+RETURNS UUID
+RETURNS TEXT
+
+-- ERRADO: JavaScript interpreta {} como truthy mesmo vazio
+RETURNS TABLE(result BOOLEAN)
+```
+
+### 4. Status Intermediario 'processing' (2 bugs encontrados)
+
+**Protecao:** Constraint permite status 'processing' para lock atomico.
+
+```sql
+status VARCHAR(20) NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'active', 'processing', 'completed', 'cancelled'))
+```
+
+### 5. Campo title NULL (1 bug encontrado)
+
+**Protecao:** `title TEXT NOT NULL DEFAULT ''` - nunca sera NULL.
+
+### 6. Falta de Tracking de Cliques (1 bug encontrado)
+
+**Protecao:** `handle_campaign_button_click` registra evento com button_id e metadata.
+
+### 7. JobId Colisao (1 bug encontrado)
+
+**Protecao:** Usar `crypto.randomUUID()` ao inves de `Date.now()` para IDs.
+
+---
+
+## Migracao: Sequences → Campaigns
+
+### Estrategia Recomendada
+
+1. **Nao migrar dados existentes** - Deixar sequences funcionando para usuarios ja inscritos
+2. **Novos enrollments usam campaigns** - Configurar mesma sequencia como campaign
+3. **Gradual phase-out** - Quando todas as sequences ativas terminarem, desativar sistema antigo
+
+### Como Recriar Sequencia como Campanha
+
+```sql
+-- Exemplo: Recriar twitter_discovery como campanha
+
+-- 1. Criar campanha
+INSERT INTO campaigns (name, description, campaign_type, trigger_config, cancel_condition, status)
+VALUES (
+  'twitter_discovery_v2',
+  'Apresenta feature de download de videos do Twitter',
+  'hybrid',
+  '{"event_name": "limit_hit", "initial_delay_hours": 4}'::jsonb,
+  'twitter_feature_used = true',
+  'active'
+);
+
+-- 2. Criar steps
+INSERT INTO campaign_steps (campaign_id, step_order, step_key, delay_hours, variants)
+VALUES
+  ((SELECT id FROM campaigns WHERE name = 'twitter_discovery_v2'), 0, 'day_0', 4, NULL),
+  ((SELECT id FROM campaigns WHERE name = 'twitter_discovery_v2'), 1, 'day_7', 168, NULL),
+  ((SELECT id FROM campaigns WHERE name = 'twitter_discovery_v2'), 2, 'day_15', 360, NULL),
+  ((SELECT id FROM campaigns WHERE name = 'twitter_discovery_v2'), 3, 'day_30', 720, NULL);
+
+-- 3. Criar mensagens
+INSERT INTO campaign_messages (step_id, variant, content_type, title, body, buttons)
+VALUES
+  (
+    (SELECT id FROM campaign_steps WHERE step_key = 'day_0'),
+    'default',
+    'buttons',
+    'Dica do Sticker Bot',
+    'Sabia que voce pode baixar videos do Twitter/X...',
+    '[{"id": "btn_campaign_twitter_learn", "text": "Quero ver!"}, {"id": "btn_campaign_twitter_dismiss", "text": "Agora nao"}]'
+  );
+-- ... repetir para outros steps
+```
+
+---
+
+## Arquivos Criados/Modificados
+
+### Novos Arquivos
+
+| Arquivo | Descricao |
+|---------|-----------|
+| `supabase/migrations/20260113_create_unified_campaigns.sql` | Schema completo (987 linhas) |
+| `src/services/campaignService.ts` | Service layer (450+ linhas) |
+| `src/rpc/types.ts` | Adicionado `CampaignPendingMessage` e `CampaignAnalytics` |
+| `src/rpc/registry.ts` | Adicionado 7 RPCs de campaign |
+
+### Migration (20260113_create_unified_campaigns.sql)
+
+**Conteudo:**
+- 5 tabelas: campaigns, campaign_steps, campaign_messages, user_campaigns, campaign_events
+- 8 RPCs com todas as protecoes
+- Indices otimizados
+- Grants para service_role
+- Comentarios explicativos
+
+---
+
+## Checklist: Criacao de Nova Campanha
+
+### 1. BANCO DE DADOS
+
+- [ ] Criar registro em `campaigns` (status = 'draft')
+- [ ] Criar steps em `campaign_steps` com delays corretos
+- [ ] Criar mensagens em `campaign_messages` para cada step/variante
+- [ ] Campo `title` preenchido em todas as mensagens
+- [ ] Se tem botoes: IDs com prefixo `btn_campaign_`
+- [ ] Cancel condition testada via SQL
+
+### 2. CODIGO
+
+- [ ] Adicionar nome da campanha em `CampaignName` type
+- [ ] Criar convenience function de enrollment (opcional)
+- [ ] Criar handlers de botoes no `webhook.ts`
+- [ ] Usar `handleCampaignButton()` para handlers simples
+- [ ] Para handlers complexos: usar `handleCampaignButtonClick()` + logica custom
+
+### 3. WEBHOOK.TS
+
+```typescript
+// Exemplo de handler simples
+if (interactive.id === 'btn_campaign_twitter_learn') {
+  const { handleCampaignButton } = await import('../services/campaignService');
+  await handleCampaignButton(
+    userNumber,
+    userName,
+    'btn_campaign_twitter_learn',
+    'twitter_discovery_v2',
+    `Opa ${userName}! Para baixar videos do Twitter...`
+  );
+  return reply.status(200).send({ status: 'campaign_twitter_learn' });
+}
+```
+
+### 4. WORKER
+
+- [ ] Adicionar job `process-campaign-messages` se ainda nao existe
+- [ ] Configurar frequencia (ex: a cada 5 minutos)
+- [ ] Chamar `revertStuckProcessing()` no inicio
+- [ ] Chamar `processPendingCampaignMessages()`
+- [ ] Chamar `checkCancelConditions()` periodicamente
+
+### 5. ATIVACAO
+
+- [ ] Testar enrollment manual via SQL
+- [ ] Testar envio de mensagem (verificar WhatsApp)
+- [ ] Testar clique de botao
+- [ ] Testar cancel_condition
+- [ ] Atualizar status para 'active'
+
+### 6. MONITORAMENTO
+
+```sql
+-- Ver status das inscricoes
+SELECT status, current_step, COUNT(*)
+FROM user_campaigns uc
+JOIN campaigns c ON c.id = uc.campaign_id
+WHERE c.name = 'NOME_CAMPANHA'
+GROUP BY status, current_step;
+
+-- Ver eventos de erro
+SELECT * FROM campaign_events
+WHERE event_type = 'step_failed'
+  AND campaign_id = (SELECT id FROM campaigns WHERE name = 'NOME_CAMPANHA')
+ORDER BY created_at DESC LIMIT 20;
+
+-- Ver duplicacoes
+SELECT user_id, COUNT(*)
+FROM campaign_events
+WHERE event_type = 'step_sent'
+GROUP BY user_id
+HAVING COUNT(*) > (SELECT COUNT(*) FROM campaign_steps WHERE campaign_id = 'ID');
+```
+
+---
+
+## Proximos Passos
+
+1. ~~**Criar job no worker.ts** para processar campanhas~~ ✅ FEITO
+2. ~~**Migrar twitter_discovery para twitter_discovery_v2**~~ ✅ FEITO
+3. **Criar campanha limit_upsell** (substituir sistema de experiments atual)
+4. **Criar dashboard no admin-panel** para gerenciar campanhas
+5. **Documentar API de campanhas** para criacao via admin
+
+---
+
+## Pente Fino - Analise de Schema e Correcoes
+
+**Data:** 13/01/2026
+**Status:** CONCLUIDO
+
+### Problemas Encontrados e Corrigidos
+
+#### 1. Falta de Triggers `updated_at`
+
+**Problema:** As tabelas de campanhas nao tinham triggers para atualizar automaticamente o campo `updated_at` em UPDATEs.
+
+**Solucao:** Migration `add_campaign_updated_at_triggers`
+```sql
+CREATE TRIGGER campaigns_updated_at
+    BEFORE UPDATE ON campaigns
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER campaign_steps_updated_at
+    BEFORE UPDATE ON campaign_steps
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER campaign_messages_updated_at
+    BEFORE UPDATE ON campaign_messages
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER user_campaigns_updated_at
+    BEFORE UPDATE ON user_campaigns
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+#### 2. RPC Nao Respeitava Janela de Envio
+
+**Problema:** `get_pending_campaign_messages()` nao verificava `send_window_start/end`, permitindo envio de mensagens de madrugada.
+
+**Solucao:** Migration `fix_campaign_send_window`
+```sql
+-- Adicionado na RPC:
+v_current_hour := EXTRACT(HOUR FROM NOW() AT TIME ZONE 'America/Sao_Paulo')::INT;
+
+-- Filtro adicionado:
+AND v_current_hour >= COALESCE((c.settings->>'send_window_start')::INT, 8)
+AND v_current_hour < COALESCE((c.settings->>'send_window_end')::INT, 22)
+```
+
+#### 3. Crash se `body` for NULL
+
+**Problema:** Se um step nao tiver mensagem configurada, `sendCampaignMessage()` crashava em `body.replace()`.
+
+**Solucao:** Validacao em `campaignService.ts`:
+```typescript
+if (!body) {
+  logger.error({
+    msg: '[CAMPAIGN] Message body is NULL - step has no message configured',
+    userCampaignId: message.user_campaign_id,
+    campaignName: message.campaign_name,
+    stepKey: message.step_key,
+  });
+  return false;
+}
+```
+
+#### 4. Duplicacao com Sequence Antiga
+
+**Problema:** 348 usuarios ativos na sequence `twitter_discovery` (sistema antigo) poderiam receber mensagens duplicadas da nova campanha.
+
+**Solucao:** Executado via SQL:
+```sql
+-- Pausar sequence antiga
+UPDATE sequences SET status = 'paused' WHERE name = 'twitter_discovery';
+
+-- Cancelar user_sequences ativos
+UPDATE user_sequences
+SET status = 'cancelled', cancel_reason = 'migrated_to_campaign_v2'
+WHERE sequence_id = (SELECT id FROM sequences WHERE name = 'twitter_discovery')
+  AND status IN ('pending', 'active');
+-- Resultado: 348 usuarios migrados
+```
+
+### Verificacoes Positivas (OK)
+
+| Item | Status | Observacao |
+|------|--------|------------|
+| 5 tabelas criadas | ✅ | campaigns, campaign_steps, campaign_messages, user_campaigns, campaign_events |
+| 8 RPCs funcionando | ✅ | Todos com tipos corretos (TEXT nao VARCHAR) |
+| Indices para performance | ✅ | idx_user_campaigns_scheduled, idx_campaign_events_*, etc |
+| Constraints (FK, CHECK, UNIQUE) | ✅ | Status check, content_type check, user_id+campaign_id unique |
+| FOR UPDATE SKIP LOCKED | ✅ | Presente em get_pending_campaign_messages e handle_campaign_button_click |
+| Status `processing` | ✅ | Permite atomic lock sem constraint violation |
+| Logs no campaignService | ✅ | 25+ chamadas de logger (info, warn, error, debug) |
+| `whatsapp_number` NOT NULL | ✅ | Constraint na tabela users |
+| `twitter_feature_used` existe | ✅ | Coluna boolean com default false |
+| Campanha twitter_discovery_v2 | ✅ | 1 campanha, 4 steps, 4 mensagens |
+
+### Logs Disponiveis
+
+Prefixos para busca:
+- `[CAMPAIGN]` - Enrollment, envio, cliques, erros
+- `[CAMPAIGN-JOB]` - Worker processing (reverted, cancelled, sent/failed)
+- `[CAMPAIGN-SCHEDULER]` - Agendamento de jobs
+
+### Migrations Aplicadas
+
+1. `20260113_create_unified_campaigns` - Schema completo
+2. `20260113_seed_twitter_discovery_v2` - Dados da campanha
+3. `20260113_add_campaign_updated_at_triggers` - Triggers de updated_at
+4. `20260113_fix_campaign_send_window` - Janela de envio 8h-22h
+
+### Resultado Final
+
+**Sistema de Campanhas Unificadas pronto para producao!**
+
+- Worker rodando a cada 60 segundos
+- Mensagens enviadas apenas entre 8h-22h (horario de Brasilia)
+- Sequence antiga desativada, 348 usuarios migrados
+- Todos os bugs conhecidos corrigidos preventivamente
+
+---
+
 ## Historico de Alteracoes
 
 | Data | Mudanca |
@@ -1975,3 +2992,16 @@ UPDATE sequence_messages SET variants = '{
 | 13/01/2026 | Fix: Campo title obrigatorio |
 | 13/01/2026 | Fix: FOR UPDATE SKIP LOCKED (duplicacao) |
 | 13/01/2026 | Adicionado checklist completo de lancamento |
+| 13/01/2026 | **PARTE 3: Sistema Unificado de Campanhas** |
+| 13/01/2026 | Criado schema unificado (5 tabelas, 8 RPCs) |
+| 13/01/2026 | Criado campaignService.ts |
+| 13/01/2026 | Adicionado types em registry.ts e types.ts |
+| 13/01/2026 | Criado job process-campaigns no worker.ts (60s) |
+| 13/01/2026 | Seed campanha twitter_discovery_v2 (4 steps) |
+| 13/01/2026 | Handlers btn_campaign_* no webhook.ts |
+| 13/01/2026 | Migrado enrollment para campaignService |
+| 13/01/2026 | **PENTE FINO - 4 correcoes criticas** |
+| 13/01/2026 | Fix: Triggers updated_at nas tabelas |
+| 13/01/2026 | Fix: Janela de envio 8h-22h |
+| 13/01/2026 | Fix: Validacao body NULL |
+| 13/01/2026 | Migrado 348 usuarios da sequence antiga |

@@ -160,6 +160,85 @@ export interface SequenceAnalytics {
 }
 
 // ============================================
+// CAMPAIGN FUNCTIONS (Unified Campaigns System)
+// ============================================
+
+/**
+ * Mensagem pendente de campanha
+ * Retornado por get_pending_campaign_messages (TABLE)
+ */
+export interface CampaignPendingMessage {
+  user_campaign_id: string;
+  user_id: string;
+  user_number: string;
+  user_name: string;
+  campaign_id: string;
+  campaign_name: string;
+  campaign_type: 'drip' | 'event' | 'hybrid';
+  step_order: number;
+  step_key: string;
+  variant: string;
+  content_type: 'text' | 'buttons' | 'sticker' | 'image' | 'video';
+  title: string;
+  body: string;
+  footer: string | null;
+  buttons: Array<{ id: string; text: string }> | null;
+  media: { type: string; url: string; sticker_id?: string } | null;
+  cancel_condition: string | null;
+  settings: {
+    rate_limit_ms?: number;
+    batch_size?: number;
+    randomize_minutes?: number;
+    send_window_start?: number;
+    send_window_end?: number;
+  };
+}
+
+/**
+ * Analytics de uma campanha
+ * Retornado por get_campaign_analytics (JSONB)
+ */
+export interface CampaignAnalytics {
+  campaign: string;
+  period: {
+    start: string;
+    end: string;
+  };
+  totals: {
+    enrolled: number;
+    completed: number;
+    cancelled: number;
+    button_clicks: number;
+    messages_sent: number;
+    messages_failed: number;
+  };
+  by_variant: Record<
+    string,
+    {
+      enrolled: number;
+      button_clicks: number;
+      completed: number;
+      click_rate: number;
+      completion_rate: number;
+    }
+  >;
+  by_step: Record<
+    string,
+    {
+      sent: number;
+      failed: number;
+      clicks: number;
+    }
+  >;
+  funnel: Array<{
+    step: number;
+    step_key: string;
+    users_reached: number;
+    drop_off_rate: number;
+  }>;
+}
+
+// ============================================
 // GENERIC TYPES
 // ============================================
 

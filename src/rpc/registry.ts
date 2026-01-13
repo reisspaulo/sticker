@@ -283,6 +283,24 @@ export const RPC_REGISTRY = {
     },
     returns: {} as SequenceAnalytics,
   },
+
+  /**
+   * Processa clique de botao em sequencia de forma atomica
+   * - Registra evento button_clicked
+   * - Cancela a sequencia
+   * - Usa FOR UPDATE SKIP LOCKED para evitar duplicacao
+   * @returns TRUE se foi o primeiro clique (deve processar), FALSE se ja processado
+   */
+  handle_sequence_button_click: {
+    type: 'scalar' as const,
+    params: {} as {
+      p_user_number: string;
+      p_sequence_name: string;
+      p_button_id: string;
+      p_cancel_reason?: string;
+    },
+    returns: {} as boolean,
+  },
 } as const;
 
 // ============================================

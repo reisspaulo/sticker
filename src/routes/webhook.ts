@@ -420,6 +420,31 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           return reply.status(200).send({ status: 'twitter_dismissed' });
         }
 
+        // Handle Sequence Twitter Discovery buttons (different context from onboarding)
+        if (interactive.id === 'btn_seq_twitter_learn') {
+          const { handleSeqTwitterLearnMore } = await import('../services/sequenceService');
+          await handleSeqTwitterLearnMore(userNumber, userName);
+
+          fastify.log.info({
+            msg: 'Sequence Twitter learn button clicked',
+            userNumber,
+          });
+
+          return reply.status(200).send({ status: 'seq_twitter_learn' });
+        }
+
+        if (interactive.id === 'btn_seq_twitter_dismiss') {
+          const { handleSeqTwitterDismiss } = await import('../services/sequenceService');
+          await handleSeqTwitterDismiss(userNumber, userName);
+
+          fastify.log.info({
+            msg: 'Sequence Twitter dismiss button clicked',
+            userNumber,
+          });
+
+          return reply.status(200).send({ status: 'seq_twitter_dismissed' });
+        }
+
         // Handle Twitter video conversion to sticker
         if (interactive.id.startsWith('button_convert_sticker_')) {
           const downloadId = interactive.id.replace('button_convert_sticker_', '');

@@ -84,6 +84,13 @@ flowchart TD
     BTN -->|use_bonus| BONUS[🎁 +2 créditos]
     BONUS --> END_OK
 
+    %% Fluxo de Botões - Sequência Twitter Discovery
+    BTN -->|btn_seq_twitter_learn| SEQ_LEARN[📱 Tutorial Twitter]
+    BTN -->|btn_seq_twitter_dismiss| SEQ_DISMISS[❌ Cancela sequência]
+    SEQ_LEARN --> SEQ_CANCEL[🔄 Cancela sequência]
+    SEQ_DISMISS --> SEQ_CANCEL
+    SEQ_CANCEL --> END_OK
+
     %% Limite
     LIMIT_MSG --> END_OK
 

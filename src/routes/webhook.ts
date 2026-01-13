@@ -538,6 +538,40 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           }
         }
 
+        // Handle Cleanup Feature campaign buttons (btn_cleanup_*)
+        if (interactive.id.startsWith('btn_cleanup_')) {
+          const { handleCampaignButtonClick } = await import('../services/campaignService');
+
+          // Cancelar campanha ao clicar em qualquer botão
+          await handleCampaignButtonClick(
+            userNumber,
+            'cleanup_feature_v2',
+            interactive.id,
+            true // Cancela campanha
+          );
+
+          if (interactive.id === 'btn_cleanup_learn') {
+            // Usuário quer aprender sobre as features de edição
+            await sendText(
+              userNumber,
+              '✨ *Como usar as ferramentas de edição:*\n\n' +
+                '1️⃣ Envie uma imagem para criar sua figurinha\n' +
+                '2️⃣ Após receber a figurinha, você verá botões:\n\n' +
+                '🎨 *Remover Fundo* - Remove tudo ao redor da pessoa/objeto\n' +
+                '🧹 *Remover Bordas* - Elimina bordas brancas extras\n\n' +
+                'É só clicar no botão desejado e pronto! 🚀'
+            );
+            fastify.log.info({ msg: 'Cleanup: Learn message sent', userNumber });
+            return reply.status(200).send({ status: 'cleanup_learn_sent' });
+          }
+
+          if (interactive.id === 'btn_cleanup_dismiss') {
+            // Apenas cancela silenciosamente (já cancelado acima)
+            fastify.log.info({ msg: 'Cleanup: Dismissed by user', userNumber });
+            return reply.status(200).send({ status: 'cleanup_dismissed' });
+          }
+        }
+
         // Handle Twitter video conversion to sticker
         if (interactive.id.startsWith('button_convert_sticker_')) {
           const downloadId = interactive.id.replace('button_convert_sticker_', '');

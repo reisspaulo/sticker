@@ -1862,6 +1862,7 @@ WHERE id = (
 - `src/rpc/registry.ts` - RPCs registradas
 - `supabase/migrations/20260113_seed_twitter_discovery_v2.sql` - Seed Twitter Discovery
 - `supabase/migrations/20260113_seed_payment_intent_reminder_v2.sql` - Seed Payment Intent Reminder
+- `supabase/migrations/20260113_seed_cleanup_feature_v2.sql` - Seed Cleanup Feature
 
 ---
 
@@ -1921,6 +1922,44 @@ A campanha é automaticamente cancelada quando o usuário paga.
 
 ---
 
-**Última atualização:** 13/01/2026 - Adicionada campanha payment_intent_reminder_v2 (3 steps, 4 variantes A/B, botões btn_pir_*)
+## 26. Fluxo Cleanup Feature Campaign V2
+
+**Status**: 📝 DRAFT (13/01/2026)
+
+> Campanha de descoberta das features de edição (remover fundo, remover bordas).
+> Substitui a sequence cleanup_feature que estava em draft.
+
+### Trigger
+
+Usuário cria N figurinhas (nth_sticker) → `enrollInCleanupFeatureV2`
+
+### Target Filter
+
+- Apenas usuários `free`
+
+### Steps da Campanha
+
+| Step | Delay | Mensagem |
+|------|-------|----------|
+| day_0 | +4 horas | Apresentação das features de edição |
+| day_7 | +168 horas (7 dias) | Lembrete |
+
+### Botões
+
+| Button ID | Ação |
+|-----------|------|
+| `btn_cleanup_learn` | Envia instruções de como usar as features |
+| `btn_cleanup_dismiss` | Cancela campanha silenciosamente |
+
+### Cancel Condition
+
+```sql
+cleanup_feature_used = true
+```
+A campanha é automaticamente cancelada quando o usuário usa uma feature de edição.
+
+---
+
+**Última atualização:** 13/01/2026 - Adicionada campanha cleanup_feature_v2 (2 steps, botões btn_cleanup_*)
 
 

@@ -63,14 +63,14 @@ Digite *1* ou *2* para fazer upgrade agora!`;
 
 /**
  * Send limit reached menu with interactive buttons
- * Usa o sistema de campanhas para A/B testing de mensagens
+ * Usa o sistema de campanhas para mensagem padronizada
  *
  * Campanhas:
- * - limit_reached_v2 (instant) - 4 variantes: control, benefit, social_proof, hybrid
+ * - limit_reached_v2 (instant) - variante única: control
  *
  * Fluxo:
- * 1. Busca mensagem da campanha limit_reached_v2 (com variante sorteada)
- * 2. Se campanha não ativa, usa fallback hardcoded
+ * 1. Busca mensagem da campanha limit_reached_v2
+ * 2. Se campanha não ativa, usa fallback hardcoded (idêntico ao control)
  * 3. Envia botões de upgrade
  * 4. Loga evento menu_shown para analytics
  */
@@ -131,37 +131,26 @@ export async function sendLimitReachedMenu(
       isNewAssignment: campaignMessage.is_new_assignment,
     });
   } else {
-    // Fallback: campanha não ativa ou erro
+    // Fallback: campanha não ativa ou erro (idêntico ao control do banco)
     logger.warn({
       msg: '[LIMIT-MENU] Campaign not active, using fallback',
       userId,
     });
 
-    messageTitle = `⚠️ *Limite Atingido!* ${emoji}`;
+    // Mensagem idêntica ao control do banco
+    messageTitle = `⚠️ *Limite Atingido!* 😊`;
     messageDesc = `Você já usou *${dailyCount}/${dailyLimit} ${feature}* hoje.\n\n`;
     messageDesc += `Seu limite será renovado às *00:00* (horário de Brasília).\n\n`;
     messageDesc += `💎 *FAÇA UPGRADE E TENHA MAIS!*\n\n`;
+    messageDesc += `💰 *Premium (R$ 5/mês)*\n`;
+    messageDesc += `• 20 figurinhas/dia\n\n`;
+    messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
+    messageDesc += `• Figurinhas *ILIMITADAS*`;
 
-    if (currentPlan === 'free') {
-      messageDesc += `💰 *Premium (R$ 5/mês)*\n`;
-      messageDesc += `• ${PLAN_LIMITS.premium.daily_sticker_limit} figurinhas/dia\n\n`;
-      messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
-      messageDesc += `• Figurinhas *ILIMITADAS*`;
-
-      buttons = [
-        { id: 'button_premium_plan', text: '💰 Premium - R$ 5/mês' },
-        { id: 'button_ultra_plan', text: '🚀 Ultra - R$ 9,90/mês' },
-      ];
-    } else {
-      // Premium user
-      messageDesc += `🚀 *Ultra (R$ 9,90/mês)*\n`;
-      messageDesc += `• Figurinhas *ILIMITADAS*\n`;
-      messageDesc += `• Nunca mais espere! 🔥`;
-
-      buttons = [
-        { id: 'button_ultra_plan', text: '🚀 Upgrade para Ultra' },
-      ];
-    }
+    buttons = [
+      { id: 'button_premium_plan', text: '💰 Premium - R$ 5/mês' },
+      { id: 'button_ultra_plan', text: '🚀 Ultra - R$ 9,90/mês' },
+    ];
   }
 
   try {

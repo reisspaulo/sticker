@@ -1962,7 +1962,7 @@ A campanha é automaticamente cancelada quando o usuário usa uma feature de edi
 
 ## 27. Fluxo Limit Reached Campaign V2 (INSTANT)
 
-**Status**: ✅ ATIVO (13/01/2026)
+**Status**: ✅ ATIVO (14/01/2026)
 
 > Campanha instantânea quando usuário atinge limite diário de figurinhas.
 > Substitui o experimento upgrade_message_v1.
@@ -1972,14 +1972,14 @@ A campanha é automaticamente cancelada quando o usuário usa uma feature de edi
 
 Usuário atinge limite diário → `getLimitReachedMessage()`
 
-### Variantes A/B (25% cada)
+### Mensagem Padrão (variante única)
 
-| Variante | Estratégia | Título |
-|----------|------------|--------|
-| `control` | Padrão detalhado | "⚠️ Limite Atingido!" |
-| `benefit` | Foca em ganho | "{count}/{limit} figurinhas usadas ✨" |
-| `social_proof` | Prova social | "Suas figurinhas de hoje acabaram 😊" |
-| `hybrid` | Mix de ambos | "Fim das figurinhas de hoje 🎨" |
+| Variante | Título |
+|----------|--------|
+| `control` | "⚠️ *Limite Atingido!* 😊" |
+
+> **Histórico:** A/B test com 4 variantes foi desativado em 14/01/2026.
+> Agora usa apenas a variante `control` para todos os usuários.
 
 ### Botões
 
@@ -2024,7 +2024,7 @@ Usuário atinge limite diário → `getLimitReachedMessage()`
 | - twitter_discovery_v2 | drip, 4 steps | active |
 | - payment_intent_reminder_v2 | hybrid, 3 steps, 4 variantes | active |
 | - cleanup_feature_v2 | drip, 2 steps | draft |
-| - limit_reached_v2 | **instant**, 4 variantes | active |
+| - limit_reached_v2 | **instant**, 1 variante (control) | active |
 | **Experiments (legado)** | 2 experimentos | ⚠️ Pausados |
 | - upgrade_message_v1 | 4 variantes | paused (substituído por limit_reached_v2) |
 | - payment_intent_reminder_v1 | 4 variantes | paused (substituído por PIR v2) |

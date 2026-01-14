@@ -97,7 +97,6 @@ export async function sendLimitReachedMenu(
   } = options;
 
   const feature = isTwitter ? 'vídeos do Twitter' : 'figurinhas';
-  const emoji = isTwitter ? '🐦' : '🎨';
 
   logger.info({
     msg: '[LIMIT-MENU] Getting campaign message',

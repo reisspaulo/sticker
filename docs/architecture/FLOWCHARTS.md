@@ -2050,3 +2050,4 @@ Usuário atinge limite diário → `getLimitReachedMessage()`
 **Última atualização:** 13/01/2026 - Fix RPC get_instant_campaign_message, removido botão dismiss, adicionado log converted na campanha
 
 
+

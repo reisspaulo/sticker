@@ -1733,12 +1733,33 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // 2. EXISTING USER WHO HIT LIMIT → Upgrade menu (conversion opportunity!)
+        // 2. EXISTING USER WHO HIT LIMIT → Upgrade menu (only once per day)
         const userLimits = await getUserLimits(user.id);
         const effectiveLimit = userLimits.daily_sticker_limit + (user.bonus_credits_today || 0);
         const hasReachedLimit = (user.daily_count || 0) >= effectiveLimit;
 
         if (hasReachedLimit) {
+          // THROTTLE: Only send menu once per day (same as image flow)
+          const { setLimitNotifiedAtomic } = await import('../services/atomicLimitService');
+          const wasAlreadyNotified = await setLimitNotifiedAtomic(user.id);
+
+          if (wasAlreadyNotified) {
+            // User already received menu today - silent ignore
+            fastify.log.debug({
+              msg: 'User already notified today - skipping menu (text input)',
+              userNumber,
+              dailyCount: user.daily_count,
+              effectiveLimit,
+            });
+
+            return reply.status(200).send({
+              status: 'ignored',
+              reason: 'already_notified_today',
+              trigger: 'text_input',
+            });
+          }
+
+          // First notification today - send menu
           const currentPlan = await getUserPlan(user.id);
           const { sendLimitReachedMenu } = await import('../services/menuService');
 

@@ -39,11 +39,16 @@ flowchart TD
     CMD -->|planos| PLANS_LIST[📋 Lista de planos]
     CMD -->|ajuda| HELP[❓ Mensagem ajuda]
     CMD -->|status| STATUS[📊 Status assinatura]
-    CMD -->|outro| WELCOME[👋 Boas-vindas]
+    CMD -->|outro texto| TEXT_CHECK{Usuário<br/>atingiu limite?}
     PLANS_LIST --> END_OK
     HELP --> END_OK
     STATUS --> END_OK
-    WELCOME --> END_OK
+
+    %% Fluxo de Texto (throttled - 1x por dia)
+    TEXT_CHECK -->|Sim + não notificado| LIMIT_MSG
+    TEXT_CHECK -->|Sim + já notificado| SILENT[🔇 Ignora silencioso]
+    TEXT_CHECK -->|Não| SILENT
+    SILENT --> END_OK
 
     %% Fluxo Twitter
     TW_LIMIT -->|Sim| TW_DOWNLOAD[📥 Baixa vídeo]

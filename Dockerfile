@@ -22,6 +22,14 @@ RUN npm run build
 # Production stage
 FROM node:20-slim
 
+# Build arguments for versioning
+ARG GIT_COMMIT_SHA=unknown
+ARG DEPLOYED_AT=unknown
+
+# Set as environment variables
+ENV GIT_COMMIT_SHA=$GIT_COMMIT_SHA
+ENV DEPLOYED_AT=$DEPLOYED_AT
+
 # Install ffmpeg for GIF processing and Python for rembg
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \

@@ -1,6 +1,32 @@
 #!/bin/bash
 set -e
 
+# ============================================================================
+# ⚠️  DEPRECATED: Prefira usar CI/CD automático!
+# ============================================================================
+#
+# Este script existe para emergências. Para deploy normal, use:
+#   git push origin main  (CI/CD automático com versão SHA)
+#
+# Problemas com build manual:
+#   1. Não injeta GIT_COMMIT_SHA → health check mostra "unknown"
+#   2. Usa tag :latest → difícil rastrear versão em produção
+#   3. Não passa pela validação de versão do CI/CD
+#
+# Use APENAS se o CI/CD estiver fora do ar!
+# ============================================================================
+
+echo ""
+echo "⚠️  DEPRECATED: Prefira usar 'git push origin main' para deploy!"
+echo ""
+read -p "Continuar com build manual? (y/N) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "❌ Cancelado. Use 'git push origin main' para deploy seguro."
+    exit 1
+fi
+echo ""
+
 # Build and Push Docker Image to GHCR
 # Usage: ./scripts/build-and-push.sh [tag]
 

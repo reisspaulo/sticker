@@ -1,6 +1,33 @@
 #!/bin/bash
 set -e
 
+# ============================================================================
+# ⚠️  ATENÇÃO: Este script NÃO faz build de código novo!
+# ============================================================================
+#
+# Use este script APENAS para:
+#   - Atualizar variáveis de ambiente (secrets do Doppler)
+#   - Recriar a stack Docker (mudanças de infraestrutura)
+#
+# Para deploy de CÓDIGO NOVO, use:
+#   git push origin main  (CI/CD automático)
+#
+# Este script usa a imagem :latest que pode estar desatualizada!
+# O CI/CD usa tags específicas (:SHA) que garantem o código correto.
+# ============================================================================
+
+echo ""
+echo "⚠️  AVISO: Este script é para deploy de INFRAESTRUTURA, não código!"
+echo "   Para código novo, use: git push origin main"
+echo ""
+read -p "Continuar mesmo assim? (y/N) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "❌ Cancelado. Use 'git push origin main' para deploy de código."
+    exit 1
+fi
+echo ""
+
 # Deploy Sticker Bot Stack with Doppler Secrets
 # Usage: ./deploy/deploy-sticker.sh [dev|prd]
 

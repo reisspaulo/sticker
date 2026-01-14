@@ -71,6 +71,9 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          build-args: |
+            GIT_COMMIT_SHA=${{ github.sha }}
+            DEPLOYED_AT=${{ github.event.head_commit.timestamp }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           labels: ${{ steps.meta.outputs.labels }}
@@ -121,12 +124,43 @@ jobs:
             echo "✅ Verifying worker deployment..."
             docker service ps sticker_worker --filter "desired-state=running" --format "{{.CurrentState}}"
 
-      - name: Health check
+      - name: Health check and version verification
         run: |
           echo "🏥 Running health check..."
           sleep 10
-          curl --fail https://stickers.ytem.com.br/health || exit 1
-          echo "✅ Health check passed!"
+
+          # Get health response
+          HEALTH_RESPONSE=$(curl -s https://stickers.ytem.com.br/health)
+          echo "Health response: $HEALTH_RESPONSE"
+
+          # Check if healthy
+          STATUS=$(echo $HEALTH_RESPONSE | jq -r '.status')
+          if [ "$STATUS" != "healthy" ] && [ "$STATUS" != "degraded" ]; then
+            echo "❌ Health check failed! Status: $STATUS"
+            exit 1
+          fi
+
+          # Verify deployed commit SHA matches
+          DEPLOYED_SHA=$(echo $HEALTH_RESPONSE | jq -r '.git_sha')
+          EXPECTED_SHA="${{ github.sha }}"
+
+          echo "📦 Expected SHA: $EXPECTED_SHA"
+          echo "🚀 Deployed SHA: $DEPLOYED_SHA"
+
+          if [ "$DEPLOYED_SHA" != "$EXPECTED_SHA" ]; then
+            echo "⚠️ WARNING: Deployed version ($DEPLOYED_SHA) does not match expected ($EXPECTED_SHA)"
+            echo "This may indicate the deploy did not complete correctly."
+            # Don't fail yet - give rolling update more time
+            sleep 30
+            HEALTH_RESPONSE=$(curl -s https://stickers.ytem.com.br/health)
+            DEPLOYED_SHA=$(echo $HEALTH_RESPONSE | jq -r '.git_sha')
+            if [ "$DEPLOYED_SHA" != "$EXPECTED_SHA" ]; then
+              echo "❌ CRITICAL: Version mismatch persists after retry!"
+              exit 1
+            fi
+          fi
+
+          echo "✅ Health check passed! Correct version deployed."
 
       - name: Rollback on failure
         if: failure()

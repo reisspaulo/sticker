@@ -14,7 +14,9 @@ export default async function healthRoutes(fastify: FastifyInstance) {
 
       return reply.status(statusCode).send({
         ...health,
-        version: '1.0.2', // Test zero-downtime deployment with 2 replicas
+        version: '1.0.3',
+        git_sha: process.env.GIT_COMMIT_SHA || 'unknown',
+        deployed_at: process.env.DEPLOYED_AT || 'unknown',
       });
     } catch (error) {
       fastify.log.error({ msg: 'Health check failed', error });

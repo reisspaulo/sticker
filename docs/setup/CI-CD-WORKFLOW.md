@@ -1170,5 +1170,201 @@ gh run list --workflow=ci.yml --limit 5
 
 ---
 
-**Última atualização:** 12/01/2026
-**Testado e validado com:** Zero-downtime deployment test + GHCR authentication fix + BullMQ queue pattern + Admin Panel deployment + CI Pipeline RPC Type-Safe
+## 🔍 Version Tracking e Deploy Verification
+
+### Visão Geral
+
+A partir de 14/01/2026, o sistema possui **verificação automática de versão** após cada deploy. Isso garante que o código correto está rodando em produção.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 Version Tracking Flow                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   [CI/CD Build]                                              │
+│        │                                                     │
+│        ├──→ Injeta GIT_COMMIT_SHA no Dockerfile              │
+│        │    (ARG GIT_COMMIT_SHA=${{ github.sha }})           │
+│        │                                                     │
+│        ├──→ Injeta DEPLOYED_AT timestamp                     │
+│        │                                                     │
+│        └──→ Push imagem com SHA embutido                     │
+│                                                              │
+│   [Deploy na VPS]                                            │
+│        │                                                     │
+│        └──→ Service update com nova imagem                   │
+│                                                              │
+│   [Health Check Verification]                                │
+│        │                                                     │
+│        ├──→ curl /health → retorna { git_sha: "abc123" }     │
+│        │                                                     │
+│        └──→ Compara SHA esperado vs deployado                │
+│             │                                                │
+│             ├── ✅ Match → Deploy sucesso                    │
+│             └── ❌ Mismatch → ROLLBACK automático            │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Como Funciona
+
+#### 1. Build Arguments no Dockerfile
+
+```dockerfile
+# Build arguments for versioning
+ARG GIT_COMMIT_SHA=unknown
+ARG DEPLOYED_AT=unknown
+
+# Set as environment variables
+ENV GIT_COMMIT_SHA=$GIT_COMMIT_SHA
+ENV DEPLOYED_AT=$DEPLOYED_AT
+```
+
+#### 2. Injeção no CI/CD
+
+```yaml
+- name: Build and push Docker image
+  uses: docker/build-push-action@v5
+  with:
+    build-args: |
+      GIT_COMMIT_SHA=${{ github.sha }}
+      DEPLOYED_AT=${{ github.event.head_commit.timestamp }}
+```
+
+#### 3. Health Check Endpoint
+
+```typescript
+// src/routes/health.ts
+return reply.status(statusCode).send({
+  ...health,
+  version: '1.0.3',
+  git_sha: process.env.GIT_COMMIT_SHA || 'unknown',
+  deployed_at: process.env.DEPLOYED_AT || 'unknown',
+});
+```
+
+#### 4. Verificação Automática no CI/CD
+
+```yaml
+- name: Health check and version verification
+  run: |
+    HEALTH_RESPONSE=$(curl -s https://stickers.ytem.com.br/health)
+    DEPLOYED_SHA=$(echo $HEALTH_RESPONSE | jq -r '.git_sha')
+    EXPECTED_SHA="${{ github.sha }}"
+
+    if [ "$DEPLOYED_SHA" != "$EXPECTED_SHA" ]; then
+      echo "❌ CRITICAL: Version mismatch!"
+      exit 1  # Triggers automatic rollback
+    fi
+
+    echo "✅ Correct version deployed."
+```
+
+### Verificar Versão em Produção
+
+```bash
+# Ver versão atual
+curl -s https://stickers.ytem.com.br/health | jq '{git_sha, deployed_at, version}'
+
+# Output esperado:
+{
+  "git_sha": "868b438762129d2e5b41f5a12a7ea1db41643bee",
+  "deployed_at": "2026-01-14T00:02:44-03:00",
+  "version": "1.0.3"
+}
+
+# Comparar com commit local
+git rev-parse HEAD
+# Deve bater com git_sha do health check
+```
+
+### Troubleshooting Version Mismatch
+
+Se o CI/CD falhar com "Version mismatch":
+
+1. **Aguardar rolling update** - O CI tenta novamente após 30s
+2. **Verificar se pull funcionou** - VPS pode estar usando cache
+3. **Forçar update manual**:
+   ```bash
+   vps-ssh "docker service update --force --with-registry-auth --image ghcr.io/reisspaulo/stickerbot:$SHA sticker_backend"
+   ```
+
+### Scripts Manuais (Deprecated)
+
+Os scripts manuais agora exigem confirmação e mostram warnings:
+
+```bash
+# build-and-push.sh - Mostra warning:
+⚠️  DEPRECATED: Prefira usar 'git push origin main' para deploy!
+# Motivo: Não injeta GIT_COMMIT_SHA, health check mostra "unknown"
+
+# deploy-sticker.sh - Mostra warning:
+⚠️  AVISO: Este script é para deploy de INFRAESTRUTURA, não código!
+# Motivo: Usa :latest que pode estar desatualizada
+```
+
+**Use scripts manuais APENAS se:**
+- CI/CD estiver fora do ar
+- Precisa atualizar secrets/variáveis de ambiente
+- Mudanças de infraestrutura (não código)
+
+---
+
+### 14/01/2026 - Problema de Nome de Imagem Docker
+
+**Problema**:
+Usuários recebiam mensagens antigas (ex: "Digite começar", menu com "[1] Premium [2] Ultra") que não existiam mais no código atual. O deploy parecia funcionar, mas código antigo continuava rodando.
+
+**Investigação**:
+1. Verificamos imagens Docker na VPS - estavam 8 dias desatualizadas
+2. CI/CD mostrava sucesso nos deploys
+3. Descobrimos que as imagens na VPS vinham de uma fonte diferente
+
+**Causa Raiz**:
+**Mismatch no nome da imagem Docker:**
+- CI/CD pushava para: `ghcr.io/reisspaulo/stickerbot`
+- Scripts manuais usavam: `ghcr.io/reisspaulo/sticker-bot-backend` ❌
+
+Quando alguém usava o script manual de deploy, ele puxava uma imagem **diferente** (antiga) do GHCR, sobrescrevendo o código atual.
+
+```
+CI/CD → ghcr.io/reisspaulo/stickerbot:sha123    ✅ Código novo
+Manual → ghcr.io/reisspaulo/sticker-bot-backend  ❌ Código de semanas atrás
+```
+
+**Solução**:
+1. Corrigir todos os scripts para usar `stickerbot`
+2. Corrigir toda a documentação
+3. Adicionar verificação de versão no CI/CD
+4. Deprecar scripts manuais com warnings
+
+**Medidas Preventivas Implementadas**:
+
+| Medida | Descrição | Arquivo |
+|--------|-----------|---------|
+| **Version tracking** | Health check retorna `git_sha` e `deployed_at` | `src/routes/health.ts` |
+| **Build-args** | CI/CD injeta SHA durante build | `Dockerfile`, `deploy-sticker.yml` |
+| **Verificação automática** | CI/CD compara SHA esperado vs deployado | `deploy-sticker.yml` |
+| **Deprecation warnings** | Scripts manuais exigem confirmação | `build-and-push.sh`, `deploy-sticker.sh` |
+
+**Aprendizados**:
+- ✅ Sempre verificar se a versão em produção bate com o commit
+- ✅ Manter um único nome de imagem em todo o projeto
+- ✅ Scripts manuais devem ser última opção, não padrão
+- ✅ Automatizar verificação de versão no pipeline
+
+**Como detectar esse problema no futuro**:
+```bash
+# 1. Verificar health check
+curl -s https://stickers.ytem.com.br/health | jq '.git_sha'
+
+# 2. Comparar com último commit
+git log -1 --format='%H'
+
+# Se não baterem, algo está errado no deploy!
+```
+
+---
+
+**Última atualização:** 14/01/2026
+**Testado e validado com:** Zero-downtime deployment test + GHCR authentication fix + BullMQ queue pattern + Admin Panel deployment + CI Pipeline RPC Type-Safe + Version Tracking System

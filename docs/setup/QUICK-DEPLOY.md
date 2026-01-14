@@ -38,12 +38,12 @@ curl https://stickers.ytem.com.br/health | jq
 
 # 2. Build + transferir + deploy
 docker build --no-cache --platform linux/amd64 -t ghcr.io/reisspaulo/stickerbot:latest .
-docker tag ghcr.io/reisspaulo/stickerbot:latest ghcr.io/reisspaulo/sticker-bot-backend:latest
+docker tag ghcr.io/reisspaulo/stickerbot:latest ghcr.io/reisspaulo/stickerbot:latest
 
-docker save ghcr.io/reisspaulo/sticker-bot-backend:latest | gzip | vps-ssh "gunzip | docker load"
+docker save ghcr.io/reisspaulo/stickerbot:latest | gzip | vps-ssh "gunzip | docker load"
 docker save ghcr.io/reisspaulo/stickerbot:latest | gzip | vps-ssh "gunzip | docker load"
 
-vps-ssh "docker service update --force --image ghcr.io/reisspaulo/sticker-bot-backend:latest sticker_backend"
+vps-ssh "docker service update --force --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
 vps-ssh "docker service update --force --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker"
 
 # 3. Verificar

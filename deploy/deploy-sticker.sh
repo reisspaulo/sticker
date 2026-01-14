@@ -62,7 +62,7 @@ networks:
 services:
   # Backend API
   backend:
-    image: ghcr.io/reisspaulo/sticker-bot-backend:latest
+    image: ghcr.io/reisspaulo/stickerbot:latest
     command: ["node", "dist/server.js"]
     environment:
       - NODE_ENV=production
@@ -126,7 +126,7 @@ services:
 
   # Worker (BullMQ processor)
   worker:
-    image: ghcr.io/reisspaulo/sticker-bot-worker:latest
+    image: ghcr.io/reisspaulo/stickerbot:latest
     command: ["node", "dist/worker.js"]
     environment:
       - NODE_ENV=production

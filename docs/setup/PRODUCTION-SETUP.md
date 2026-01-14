@@ -99,7 +99,7 @@ networks:
 
 ```yaml
 Service: sticker_backend
-Image: ghcr.io/reisspaulo/sticker-bot-backend:latest
+Image: ghcr.io/reisspaulo/stickerbot:latest
 Command: node dist/server.js
 Replicas: 1
 Placement: manager node
@@ -159,7 +159,7 @@ traefik.http.services.sticker-api.loadbalancer.healthcheck.interval: 30s
 
 ```yaml
 Service: sticker_worker
-Image: ghcr.io/reisspaulo/sticker-bot-worker:latest
+Image: ghcr.io/reisspaulo/stickerbot:latest
 Command: node dist/worker.js
 Replicas: 1
 Placement: manager node
@@ -513,15 +513,15 @@ npm run build
 
 # 2. Build e push Docker
 docker buildx build --platform linux/amd64 \
-  -t ghcr.io/reisspaulo/sticker-bot-backend:latest \
-  -t ghcr.io/reisspaulo/sticker-bot-worker:latest \
+  -t ghcr.io/reisspaulo/stickerbot:latest \
+  -t ghcr.io/reisspaulo/stickerbot:latest \
   . --push
 
 # 3. Update services
 vps-ssh "docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/sticker-bot-backend:latest sticker_backend && \
+  --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend && \
   docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/sticker-bot-worker:latest sticker_worker"
+  --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker"
 ```
 
 ### **Container Registry**
@@ -530,8 +530,8 @@ vps-ssh "docker service update --force --with-registry-auth \
 Registry: GitHub Container Registry (ghcr.io)
 Organization: reisspaulo
 Images:
-  - ghcr.io/reisspaulo/sticker-bot-backend:latest
-  - ghcr.io/reisspaulo/sticker-bot-worker:latest
+  - ghcr.io/reisspaulo/stickerbot:latest
+  - ghcr.io/reisspaulo/stickerbot:latest
 Visibility: Private
 Authentication: GitHub PAT (via docker login)
 ```

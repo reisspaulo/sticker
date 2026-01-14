@@ -1,16 +1,15 @@
 #!/bin/bash
 set -e
 
-# Build and Push Docker Images to GHCR
+# Build and Push Docker Image to GHCR
 # Usage: ./scripts/build-and-push.sh [tag]
 
 TAG="${1:-latest}"
 REGISTRY="ghcr.io"
 NAMESPACE="reisspaulo"
-BACKEND_IMAGE="${REGISTRY}/${NAMESPACE}/sticker-bot-backend"
-WORKER_IMAGE="${REGISTRY}/${NAMESPACE}/sticker-bot-worker"
+IMAGE_NAME="${REGISTRY}/${NAMESPACE}/stickerbot"
 
-echo "🐳 Building and pushing Sticker Bot images..."
+echo "🐳 Building and pushing Sticker Bot image..."
 echo "   Tag: ${TAG}"
 echo "   Platform: linux/amd64"
 echo ""
@@ -29,39 +28,28 @@ if ! docker info 2>/dev/null | grep -q "ghcr.io"; then
   fi
 fi
 
-# Build images
-echo "1️⃣  Building backend image..."
+# Build image
+echo "1️⃣  Building image..."
 docker build \
   --platform linux/amd64 \
-  -t "${BACKEND_IMAGE}:${TAG}" \
+  -t "${IMAGE_NAME}:${TAG}" \
   -f Dockerfile \
   .
 
 echo ""
-echo "2️⃣  Building worker image (same base, different command)..."
-# Worker usa mesma imagem mas com comando diferente no stack
-docker tag "${BACKEND_IMAGE}:${TAG}" "${WORKER_IMAGE}:${TAG}"
+echo "2️⃣  Pushing image to GHCR..."
+docker push "${IMAGE_NAME}:${TAG}"
 
 echo ""
-echo "3️⃣  Pushing images to GHCR..."
-
-echo "   Pushing backend..."
-docker push "${BACKEND_IMAGE}:${TAG}"
-
-echo "   Pushing worker..."
-docker push "${WORKER_IMAGE}:${TAG}"
-
+echo "✅ Image pushed successfully!"
 echo ""
-echo "✅ Images pushed successfully!"
-echo ""
-echo "   Backend: ${BACKEND_IMAGE}:${TAG}"
-echo "   Worker:  ${WORKER_IMAGE}:${TAG}"
+echo "   Image: ${IMAGE_NAME}:${TAG}"
 echo ""
 echo "📝 Next steps:"
 echo "   1. Deploy to VPS:"
 echo "      ./deploy/deploy-sticker.sh prd"
 echo ""
-echo "   2. Or update service manually:"
-echo "      vps-ssh \"docker service update --force --image ${BACKEND_IMAGE}:${TAG} sticker_backend\""
-echo "      vps-ssh \"docker service update --force --image ${WORKER_IMAGE}:${TAG} sticker_worker\""
+echo "   2. Or update services manually:"
+echo "      vps-ssh \"docker service update --force --image ${IMAGE_NAME}:${TAG} sticker_backend\""
+echo "      vps-ssh \"docker service update --force --image ${IMAGE_NAME}:${TAG} sticker_worker\""
 echo ""

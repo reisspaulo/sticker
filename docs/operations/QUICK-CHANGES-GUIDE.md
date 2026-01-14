@@ -183,8 +183,7 @@ vps-ssh "echo 'Conexão OK' && hostname"
 ### **Imagens Docker**
 
 ```bash
-ghcr.io/reisspaulo/sticker-bot-backend:latest  # Backend + Worker (mesma imagem)
-ghcr.io/reisspaulo/sticker-bot-worker:latest   # Worker (mesma imagem)
+ghcr.io/reisspaulo/stickerbot:latest  # Backend + Worker (mesma imagem)
 ghcr.io/reisspaulo/sticker-admin:latest        # Admin Panel (Next.js)
 ```
 
@@ -275,8 +274,7 @@ npm run build
 # Build para arquitetura AMD64 (VPS) e push para GitHub Container Registry
 docker buildx build \
   --platform linux/amd64 \
-  -t ghcr.io/reisspaulo/sticker-bot-backend:latest \
-  -t ghcr.io/reisspaulo/sticker-bot-worker:latest \
+  -t ghcr.io/reisspaulo/stickerbot:latest \
   . \
   --push
 ```
@@ -289,9 +287,9 @@ docker buildx build \
 
 ```bash
 vps-ssh "docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/sticker-bot-backend:latest sticker_backend && \
+  --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend && \
   docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/sticker-bot-worker:latest sticker_worker"
+  --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker"
 ```
 
 #### **4. Verificar Saúde e Logs**
@@ -342,10 +340,9 @@ export async function sendWelcomeMessage(
 ```bash
 npm run build
 docker buildx build --platform linux/amd64 \
-  -t ghcr.io/reisspaulo/sticker-bot-backend:latest \
-  -t ghcr.io/reisspaulo/sticker-bot-worker:latest . --push
+  -t ghcr.io/reisspaulo/stickerbot:latest . --push
 vps-ssh "docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/sticker-bot-backend:latest sticker_backend"
+  --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
 ```
 
 **Tempo:** ~5 minutos
@@ -795,7 +792,7 @@ curl https://stickers.ytem.com.br/health | jq '.services.supabase'
 ```bash
 # Force pull da nova imagem
 vps-ssh "docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/sticker-bot-backend:latest sticker_backend"
+  --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
 ```
 
 ---
@@ -889,7 +886,7 @@ vps-ssh "docker system prune -af"
 | Supabase Dashboard | https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje |
 | Doppler (Secrets) | https://dashboard.doppler.com/ |
 | GitHub Actions | https://github.com/reisspaulo/sticker/actions |
-| GitHub Container Registry | https://github.com/reisspaulo/sticker-bot/pkgs/container/sticker-bot-backend |
+| GitHub Container Registry | https://github.com/reisspaulo/sticker/pkgs/container/stickerbot |
 
 ### **Credenciais**
 
@@ -938,7 +935,7 @@ VPS_PASSWORD
 vps-ssh "docker service inspect sticker_backend --format='{{.PreviousSpec.TaskTemplate.ContainerSpec.Image}}'"
 
 # Voltar para versão anterior (se souber o SHA)
-vps-ssh "docker service update --image ghcr.io/reisspaulo/sticker-bot-backend@sha256:XXXXX sticker_backend"
+vps-ssh "docker service update --image ghcr.io/reisspaulo/stickerbot@sha256:XXXXX sticker_backend"
 ```
 
 2. **Desligar tudo:**

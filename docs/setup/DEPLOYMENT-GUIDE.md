@@ -128,12 +128,12 @@ cd /Users/paulohenrique/sticker
 npm run build
 
 # Build imagem Docker
-docker build -t ghcr.io/reisspaulo/sticker-bot-backend:latest .
-docker build -t ghcr.io/reisspaulo/sticker-bot-worker:latest .
+docker build -t ghcr.io/reisspaulo/stickerbot:latest .
+docker build -t ghcr.io/reisspaulo/stickerbot:latest .
 
 # Push para registry
-docker push ghcr.io/reisspaulo/sticker-bot-backend:latest
-docker push ghcr.io/reisspaulo/sticker-bot-worker:latest
+docker push ghcr.io/reisspaulo/stickerbot:latest
+docker push ghcr.io/reisspaulo/stickerbot:latest
 ```
 
 ---
@@ -145,9 +145,9 @@ docker push ghcr.io/reisspaulo/sticker-bot-worker:latest
 ```bash
 # 1. Build e push imagens
 npm run build
-docker build -t ghcr.io/reisspaulo/sticker-bot-backend:latest -t ghcr.io/reisspaulo/sticker-bot-worker:latest .
-docker push ghcr.io/reisspaulo/sticker-bot-backend:latest
-docker push ghcr.io/reisspaulo/sticker-bot-worker:latest
+docker build -t ghcr.io/reisspaulo/stickerbot:latest -t ghcr.io/reisspaulo/stickerbot:latest .
+docker push ghcr.io/reisspaulo/stickerbot:latest
+docker push ghcr.io/reisspaulo/stickerbot:latest
 
 # 2. Deploy stack com Doppler secrets
 ./deploy/deploy-sticker.sh prd
@@ -159,22 +159,22 @@ docker push ghcr.io/reisspaulo/sticker-bot-worker:latest
 # 1. Fazer mudanças no código
 # 2. Build e push nova imagem
 npm run build
-docker build -t ghcr.io/reisspaulo/sticker-bot-backend:latest .
-docker push ghcr.io/reisspaulo/sticker-bot-backend:latest
+docker build -t ghcr.io/reisspaulo/stickerbot:latest .
+docker push ghcr.io/reisspaulo/stickerbot:latest
 
 # 3. Atualizar serviço (zero downtime)
-ssh root@157.230.50.63 'docker service update --image ghcr.io/reisspaulo/sticker-bot-backend:latest sticker_backend'
+ssh root@157.230.50.63 'docker service update --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend'
 ```
 
 ### Deploy Apenas Worker
 
 ```bash
 # Build e push
-docker build -t ghcr.io/reisspaulo/sticker-bot-worker:latest .
-docker push ghcr.io/reisspaulo/sticker-bot-worker:latest
+docker build -t ghcr.io/reisspaulo/stickerbot:latest .
+docker push ghcr.io/reisspaulo/stickerbot:latest
 
 # Update
-ssh root@157.230.50.63 'docker service update --image ghcr.io/reisspaulo/sticker-bot-worker:latest sticker_worker'
+ssh root@157.230.50.63 'docker service update --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker'
 ```
 
 ---
@@ -306,7 +306,7 @@ ssh root@157.230.50.63 'docker exec -it $(docker ps -q -f name=redis) redis-cli 
 ssh root@157.230.50.63 'docker service rollback sticker_backend'
 
 # Ou especificar uma imagem antiga
-ssh root@157.230.50.63 'docker service update --image ghcr.io/reisspaulo/sticker-bot-backend:v1.0.0 sticker_backend'
+ssh root@157.230.50.63 'docker service update --image ghcr.io/reisspaulo/stickerbot:v1.0.0 sticker_backend'
 ```
 
 ### Remover Stack Completamente
@@ -419,8 +419,8 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker build -t ghcr.io/reisspaulo/sticker-bot-backend:${{ github.sha }} .
-          docker push ghcr.io/reisspaulo/sticker-bot-backend:${{ github.sha }}
+          docker build -t ghcr.io/reisspaulo/stickerbot:${{ github.sha }} .
+          docker push ghcr.io/reisspaulo/stickerbot:${{ github.sha }}
 
       - name: Deploy to VPS
         run: |

@@ -178,33 +178,20 @@ docker build \
 - VPS usa arquitetura x86_64 (AMD64)
 - Mac usa ARM64 (Apple Silicon), precisa cross-compile
 
-#### 3. Tag para Backend
-
-```bash
-# Backend e Worker usam mesma imagem base
-docker tag ghcr.io/reisspaulo/stickerbot:latest ghcr.io/reisspaulo/sticker-bot-backend:latest
-```
-
-#### 4. Transferir para VPS
+#### 3. Transferir para VPS
 
 ```bash
 # Exportar imagem local e carregar na VPS (via pipe)
-# Backend
-docker save ghcr.io/reisspaulo/sticker-bot-backend:latest | gzip | vps-ssh "gunzip | docker load"
-
-# Worker
 docker save ghcr.io/reisspaulo/stickerbot:latest | gzip | vps-ssh "gunzip | docker load"
 ```
 
 **Tamanho**: ~465MB compactado, ~5 minutos de transferência
 
-#### 5. Atualizar Serviços na VPS
+#### 4. Atualizar Serviços na VPS
 
 ```bash
-# Atualizar backend
-vps-ssh "docker service update --force --image ghcr.io/reisspaulo/sticker-bot-backend:latest sticker_backend"
-
-# Atualizar worker
+# Atualizar backend e worker (mesma imagem)
+vps-ssh "docker service update --force --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
 vps-ssh "docker service update --force --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker"
 ```
 
@@ -233,7 +220,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u reisspaulo --password-stdin
 # ❌ Erro: Error saving credentials
 
 # Push das imagens
-docker push ghcr.io/reisspaulo/sticker-bot-backend:latest
+docker push ghcr.io/reisspaulo/stickerbot:latest
 # ❌ Erro: denied: permission_denied
 ```
 
@@ -335,8 +322,8 @@ curl https://stickers.ytem.com.br/webhook
 
 ```bash
 # Força pull da imagem :latest e restart
-vps-ssh "docker service update --force --image ghcr.io/reisspaulo/sticker-bot-backend:latest sticker_backend"
-vps-ssh "docker service update --force --image ghcr.io/reisspaulo/sticker-bot-worker:latest sticker_worker"
+vps-ssh "docker service update --force --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
+vps-ssh "docker service update --force --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker"
 ```
 
 ### Atualizar Variável de Ambiente

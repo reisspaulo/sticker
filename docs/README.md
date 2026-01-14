@@ -304,11 +304,11 @@ doppler secrets set \
 npm run build
 
 # 2. Build imagem Docker
-docker build -t ghcr.io/reisspaulo/sticker-bot-backend:latest -t ghcr.io/reisspaulo/sticker-bot-worker:latest .
+docker build -t ghcr.io/reisspaulo/stickerbot:latest -t ghcr.io/reisspaulo/stickerbot:latest .
 
 # 3. Push para registry
-docker push ghcr.io/reisspaulo/sticker-bot-backend:latest
-docker push ghcr.io/reisspaulo/sticker-bot-worker:latest
+docker push ghcr.io/reisspaulo/stickerbot:latest
+docker push ghcr.io/reisspaulo/stickerbot:latest
 
 # 4. Deploy para VPS (aguarda DNS propagar se necessário)
 ./deploy/deploy-sticker.sh prd

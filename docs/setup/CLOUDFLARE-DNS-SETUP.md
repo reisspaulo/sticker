@@ -210,8 +210,8 @@ cd /Users/paulohenrique/sticker
 
 # Build e push imagem
 npm run build
-docker build -t ghcr.io/reisspaulo/sticker-bot-backend:latest .
-docker push ghcr.io/reisspaulo/sticker-bot-backend:latest
+docker build -t ghcr.io/reisspaulo/stickerbot:latest .
+docker push ghcr.io/reisspaulo/stickerbot:latest
 
 # Deploy para VPS (com Doppler secrets)
 ./deploy/deploy-sticker.sh prd

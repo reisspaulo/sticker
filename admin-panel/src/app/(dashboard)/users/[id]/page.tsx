@@ -20,7 +20,9 @@ import {
   Zap,
   Loader2,
   Activity,
+  Pencil,
 } from 'lucide-react'
+import { UserEditModal } from '@/components/users/user-edit-modal'
 import { format, formatDistanceToNow, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { ActivityHeatmap } from '@/components/charts'
@@ -101,6 +103,7 @@ export default function UserDetailPage() {
   const [heatmapData, setHeatmapData] = useState<HeatmapData[]>([])
   const [loading, setLoading] = useState(true)
   const [totalStickers, setTotalStickers] = useState(0)
+  const [editModalOpen, setEditModalOpen] = useState(false)
 
   useEffect(() => {
     if (userId) {
@@ -224,6 +227,10 @@ export default function UserDetailPage() {
             {formatPhone(user.whatsapp_number)}
           </p>
         </div>
+        <Button variant="outline" size="sm" onClick={() => setEditModalOpen(true)}>
+          <Pencil className="mr-2 h-4 w-4" />
+          Editar
+        </Button>
         <Badge className={planColors[user.subscription_plan] || planColors.free}>
           {user.subscription_plan === 'free' ? 'Free' : user.subscription_plan}
           {user.subscription_plan !== 'free' && <Crown className="ml-1 h-3 w-3" />}
@@ -476,6 +483,14 @@ export default function UserDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Modal */}
+      <UserEditModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        user={user}
+        onUpdate={(updatedUser) => setUser(updatedUser as UserDetails)}
+      />
     </div>
   )
 }

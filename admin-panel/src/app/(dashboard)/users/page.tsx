@@ -228,10 +228,12 @@ export default function UsersPage() {
     const supabase = createClient()
 
     // Fetch users with sticker count
-    const { data: usersData, error } = await supabase
+    // Note: Supabase has a default limit of 1000 rows, so we need to set a higher limit
+    const { data: usersData, error, count } = await supabase
       .from('users')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
+      .limit(10000)
 
     if (error) {
       console.error('Error fetching users:', error)
@@ -239,10 +241,11 @@ export default function UsersPage() {
       return
     }
 
-    // Get sticker counts per user
+    // Get sticker counts per user using aggregation to avoid row limit issues
     const { data: stickerCounts } = await supabase
       .from('stickers')
       .select('user_number')
+      .limit(100000)
 
     const countMap: Record<string, number> = {}
     stickerCounts?.forEach((s) => {
@@ -262,7 +265,7 @@ export default function UsersPage() {
     const activeThreshold = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) // 7 days
 
     setStats({
-      total: usersWithCounts.length,
+      total: count ?? usersWithCounts.length, // Use exact count from Supabase
       today: usersWithCounts.filter(u => new Date(u.created_at) >= todayStart).length,
       premium: usersWithCounts.filter(u => u.subscription_plan !== 'free').length,
       active: usersWithCounts.filter(u => u.last_interaction && new Date(u.last_interaction) >= activeThreshold).length,

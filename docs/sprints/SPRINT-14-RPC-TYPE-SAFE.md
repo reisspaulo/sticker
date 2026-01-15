@@ -442,6 +442,84 @@ SELECT pg_get_function_arguments(oid) FROM pg_proc WHERE proname = 'set_limit_no
 
 ---
 
+## Incidentes Relacionados a RPC
+
+### 13/01/2026 - Falha Silenciosa de RPC Causa Fallback para Codigo Antigo
+
+**Problema:**
+Usuaria Eduarda recebeu menu de limite com botao "Agora nao" (dismiss), que ja tinha sido removido do codigo. O RPC `get_instant_campaign_message` estava falhando silenciosamente.
+
+**Sintoma:**
+```
+Menu exibido para usuario:
+┌────────────────────────────────┐
+│ Voce atingiu seu limite!       │
+│                                │
+│ [Ver Premium] [Ver Ultra]      │
+│ [Agora nao]  ← NAO DEVERIA     │
+└────────────────────────────────┘
+```
+
+**Causa Raiz:**
+O RPC falhava com erro de NOT NULL constraint:
+```
+null value in column "user_id" violates not-null constraint
+```
+
+O codigo tinha fallback silencioso:
+```typescript
+// menuService.ts
+try {
+  const campaignMessage = await getCampaignMessage(userId);
+  return campaignMessage; // ← Codigo novo (sem botao dismiss)
+} catch (error) {
+  // RPC falhou - SILENCIOSAMENTE usa fallback
+  return getLegacyLimitMenu(); // ← Codigo antigo (COM botao dismiss)
+}
+```
+
+**Por que o RPC falhava:**
+A funcao SQL fazia INSERT sem passar `user_id`:
+```sql
+-- ANTES (bugado)
+INSERT INTO campaign_events (campaign_id, event_type, metadata)
+VALUES (v_campaign_id, 'menu_shown', '{}');
+-- user_id é NOT NULL, então falha!
+
+-- DEPOIS (corrigido)
+INSERT INTO campaign_events (user_id, campaign_id, event_type, metadata)
+VALUES (p_user_id, v_campaign_id, 'menu_shown', '{}');
+```
+
+**Relacao com Sprint 14:**
+Este bug reforça a importância da arquitetura type-safe:
+- Se o RPC estivesse no registry com tipos corretos, o TypeScript teria avisado sobre o parâmetro faltando
+- A validação em runtime teria logado o erro com mais contexto
+- O padrão de fallback silencioso é perigoso
+
+**Fix aplicado:** Commit `9deaadd`
+1. Corrigir RPC para incluir `user_id` no INSERT
+2. Remover botao dismiss de todas as variantes
+3. Remover botao dismiss do fallback tambem
+
+**Licoes Aprendidas Adicionais:**
+
+5. **Nunca ignorar erros de RPC silenciosamente** - sempre logar com nivel ERROR
+6. **Fallbacks devem ter o mesmo comportamento** - se removeu feature do codigo novo, remova do fallback
+7. **Testar RPCs com dados reais** - NOT NULL constraints so aparecem em runtime
+8. **Considerar migrar RPCs de campanhas para o registry** - traria os mesmos beneficios de type-safety
+
+**Checklist para novos RPCs (atualizado):**
+```sql
+-- Verificar antes de deploy:
+-- [ ] Todos os campos NOT NULL tem valores passados?
+-- [ ] INSERT tem todos os campos obrigatorios?
+-- [ ] Funcao esta no RPC_REGISTRY com tipos corretos?
+-- [ ] Testar com: SELECT * FROM rpc_function(params);
+```
+
+---
+
 ## Historico
 
 | Data | Mudanca | Autor |
@@ -457,3 +535,6 @@ SELECT pg_get_function_arguments(oid) FROM pg_proc WHERE proname = 'set_limit_no
 | 12/01/2026 | Codigo antigo (supabaseRpc.ts) removido | Claude Opus 4.5 |
 | 12/01/2026 | **BUG:** `set_limit_notified_atomic` retornava objeto ao inves de boolean - mensagens de limite nao enviadas | Claude Opus 4.5 |
 | 12/01/2026 | **FIX:** Removido OUT parameter da funcao PostgreSQL + validacao runtime em client.ts | Claude Opus 4.5 |
+| 13/01/2026 | **BUG:** `get_instant_campaign_message` falhava silenciosamente - fallback mostrava botao dismiss removido | Claude Opus 4.5 |
+| 13/01/2026 | **FIX:** Corrigido INSERT com user_id + removido botao dismiss do fallback | Claude Opus 4.5 |
+| 14/01/2026 | Documentado incidente de RPC silencioso como licao aprendida | Claude Opus 4.5 |

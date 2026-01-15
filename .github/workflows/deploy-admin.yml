@@ -56,11 +56,16 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           VPS_TRAINING_URL: ${{ secrets.VPS_TRAINING_API_URL }}
           VPS_TRAINING_KEY: ${{ secrets.VPS_TRAINING_API_KEY }}
+          EVOLUTION_API_URL: ${{ secrets.EVOLUTION_API_URL }}
+          EVOLUTION_API_KEY: ${{ secrets.EVOLUTION_API_KEY }}
+          EVOLUTION_INSTANCE: ${{ secrets.EVOLUTION_INSTANCE }}
+          AVISA_API_URL: ${{ secrets.AVISA_API_URL }}
+          AVISA_API_TOKEN: ${{ secrets.AVISA_API_TOKEN }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: SUPABASE_URL,SUPABASE_KEY,SUPABASE_SERVICE_KEY,VPS_TRAINING_URL,VPS_TRAINING_KEY
+          envs: SUPABASE_URL,SUPABASE_KEY,SUPABASE_SERVICE_KEY,VPS_TRAINING_URL,VPS_TRAINING_KEY,EVOLUTION_API_URL,EVOLUTION_API_KEY,EVOLUTION_INSTANCE,AVISA_API_URL,AVISA_API_TOKEN
           script: |
             echo "Logging into GHCR..."
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -75,6 +80,11 @@ jobs:
                 --env-add SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_KEY" \
                 --env-add VPS_TRAINING_API_URL="$VPS_TRAINING_URL" \
                 --env-add VPS_TRAINING_API_KEY="$VPS_TRAINING_KEY" \
+                --env-add EVOLUTION_API_URL="$EVOLUTION_API_URL" \
+                --env-add EVOLUTION_API_KEY="$EVOLUTION_API_KEY" \
+                --env-add EVOLUTION_INSTANCE="$EVOLUTION_INSTANCE" \
+                --env-add AVISA_API_URL="$AVISA_API_URL" \
+                --env-add AVISA_API_TOKEN="$AVISA_API_TOKEN" \
                 --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
                 sticker_admin
             else
@@ -89,6 +99,11 @@ jobs:
                 --env SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_KEY" \
                 --env VPS_TRAINING_API_URL="$VPS_TRAINING_URL" \
                 --env VPS_TRAINING_API_KEY="$VPS_TRAINING_KEY" \
+                --env EVOLUTION_API_URL="$EVOLUTION_API_URL" \
+                --env EVOLUTION_API_KEY="$EVOLUTION_API_KEY" \
+                --env EVOLUTION_INSTANCE="$EVOLUTION_INSTANCE" \
+                --env AVISA_API_URL="$AVISA_API_URL" \
+                --env AVISA_API_TOKEN="$AVISA_API_TOKEN" \
                 --label traefik.enable=true \
                 --label "traefik.http.routers.sticker-admin.rule=Host(\`admin-stickers.ytem.com.br\`)" \
                 --label traefik.http.routers.sticker-admin.entrypoints=websecure \

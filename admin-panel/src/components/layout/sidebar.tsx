@@ -17,6 +17,7 @@ import {
   AlertCircle,
   LogOut,
   MessageSquare,
+  Radio,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -87,6 +88,14 @@ const navigation: NavItem[] = [
       { title: 'Sistema', href: '/logs' },
       { title: 'Jobs Agendados', href: '/logs/jobs' },
       { title: 'Erros', href: '/logs/errors' },
+    ],
+  },
+  {
+    title: 'Monitoramento',
+    href: '/monitoring',
+    icon: Radio,
+    children: [
+      { title: 'Conexões WhatsApp', href: '/monitoring/connections' },
     ],
   },
   {

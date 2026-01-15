@@ -256,16 +256,16 @@ export function UserEditModal({ open, onClose, user, onUpdate }: UserEditModalPr
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Select
-                  value={formData.subscription_status}
+                  value={formData.subscription_status || 'none'}
                   onValueChange={(value) =>
-                    setFormData((prev) => ({ ...prev, subscription_status: value }))
+                    setFormData((prev) => ({ ...prev, subscription_status: value === 'none' ? '' : value }))
                   }
                 >
                   <SelectTrigger id="status">
                     <SelectValue placeholder="Nenhum" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     <SelectItem value="active">Ativo</SelectItem>
                     <SelectItem value="canceled">Cancelado</SelectItem>
                     <SelectItem value="expired">Expirado</SelectItem>

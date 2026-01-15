@@ -1366,5 +1366,109 @@ git log -1 --format='%H'
 
 ---
 
+### 13/01/2026 - Falha Silenciosa de RPC Causa Fallback para Código Antigo
+
+**Problema**:
+Usuária Eduarda recebeu menu de limite com botão "Agora não" (dismiss), que já tinha sido removido do código há dias. O código novo não tinha esse botão, mas ele apareceu mesmo assim.
+
+**Sintoma**:
+```
+Menu exibido:
+┌────────────────────────────┐
+│ Você atingiu seu limite!   │
+│                            │
+│ [Ver Premium] [Ver Ultra]  │
+│ [Agora não]  ← NÃO DEVERIA │
+└────────────────────────────┘
+```
+
+**Investigação**:
+1. Código atual não tinha botão "Agora não" ✅
+2. Deploy recente tinha passado com sucesso ✅
+3. Logs mostravam erro de RPC sendo silenciosamente ignorado ❌
+
+**Causa Raiz**:
+O RPC `get_instant_campaign_message` estava falhando com erro:
+```
+null value in column "user_id" violates not-null constraint
+```
+
+O código tinha um fallback para quando o RPC falha:
+```typescript
+// menuService.ts
+try {
+  const campaignMessage = await getCampaignMessage(userId);
+  return campaignMessage; // ← Código novo (sem botão dismiss)
+} catch (error) {
+  // RPC falhou silenciosamente
+  return getLegacyLimitMenu(); // ← Código antigo (COM botão dismiss)
+}
+```
+
+**Por que o RPC falhava**:
+A função SQL `get_instant_campaign_message` fazia INSERT em `campaign_events` mas não passava `user_id`:
+```sql
+-- ANTES (bugado)
+INSERT INTO campaign_events (campaign_id, event_type, metadata)
+VALUES (v_campaign_id, 'menu_shown', '{}');
+-- user_id é NOT NULL, então falha!
+
+-- DEPOIS (corrigido)
+INSERT INTO campaign_events (user_id, campaign_id, event_type, metadata)
+VALUES (p_user_id, v_campaign_id, 'menu_shown', '{}');
+```
+
+**Solução** (commit `9deaadd`):
+1. Corrigir RPC para incluir `user_id` no INSERT
+2. Remover botão dismiss de todas as 4 variantes da campanha
+3. Remover botão dismiss do fallback também (defesa em profundidade)
+
+**Diagrama do Problema**:
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Fluxo do Bug                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   [Usuário atinge limite]                                    │
+│           │                                                  │
+│           ▼                                                  │
+│   [menuService.getLimitReachedMessage()]                     │
+│           │                                                  │
+│           ▼                                                  │
+│   [Tenta RPC get_instant_campaign_message]                   │
+│           │                                                  │
+│           ▼                                                  │
+│   [RPC FALHA: "user_id violates not-null"]  ❌               │
+│           │                                                  │
+│           ▼                                                  │
+│   [catch: Usa fallback legado]                               │
+│           │                                                  │
+│           ▼                                                  │
+│   [Retorna menu ANTIGO com botão dismiss]  😱               │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Aprendizados**:
+- ✅ **Nunca ignorar erros de RPC silenciosamente** - sempre logar com nível ERROR
+- ✅ **Fallbacks devem ter o mesmo comportamento** - se removeu feature do código novo, remova do fallback também
+- ✅ **Testar RPCs com dados reais** - NOT NULL constraints só aparecem em runtime
+- ✅ **Monitorar logs de erro** - o erro estava nos logs, mas passava despercebido
+
+**Como evitar no futuro**:
+1. **Alerting em erros de RPC**: Configurar alerta quando RPC falha mais de X vezes
+2. **Defesa em profundidade**: Manter fallback atualizado com mesmas features
+3. **Testes de integração**: Testar RPC com INSERT real antes de deploy
+
+**Checklist para novos RPCs**:
+```sql
+-- Verificar antes de deploy:
+-- [ ] Todos os campos NOT NULL têm valores passados?
+-- [ ] INSERT tem todos os campos obrigatórios?
+-- [ ] Testar com: SELECT * FROM rpc_function(params);
+```
+
+---
+
 **Última atualização:** 14/01/2026
 **Testado e validado com:** Zero-downtime deployment test + GHCR authentication fix + BullMQ queue pattern + Admin Panel deployment + CI Pipeline RPC Type-Safe + Version Tracking System

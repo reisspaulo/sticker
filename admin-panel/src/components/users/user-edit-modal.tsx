@@ -75,22 +75,22 @@ export function UserEditModal({ open, onClose, user, onUpdate }: UserEditModalPr
 
   const quickActions: QuickAction[] = [
     {
-      label: 'Dar 5 Bonus',
-      description: 'Adiciona 5 creditos bonus para uso hoje',
+      label: 'Dar 5 Bônus',
+      description: 'Adiciona 5 créditos bônus para uso hoje',
       icon: Gift,
       color: 'text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20',
       action: () => ({ bonus_credits_today: formData.bonus_credits_today + 5 }),
     },
     {
-      label: 'Dar 10 Bonus',
-      description: 'Adiciona 10 creditos bonus para uso hoje',
+      label: 'Dar 10 Bônus',
+      description: 'Adiciona 10 créditos bônus para uso hoje',
       icon: Gift,
       color: 'text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20',
       action: () => ({ bonus_credits_today: formData.bonus_credits_today + 10 }),
     },
     {
       label: 'Resetar Contador',
-      description: 'Zera o contador diario de stickers',
+      description: 'Zera o contador diário de stickers',
       icon: RotateCcw,
       color: 'text-blue-500 bg-blue-500/10 hover:bg-blue-500/20',
       action: () => ({ daily_count: 0 }),
@@ -197,16 +197,16 @@ export function UserEditModal({ open, onClose, user, onUpdate }: UserEditModalPr
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="h-5 w-5" />
-              Editar Usuario
+              Editar Usuário
             </DialogTitle>
             <DialogDescription>
-              {user.name || 'Usuario'} - {user.whatsapp_number}
+              {user.name || 'Usuário'} - {user.whatsapp_number}
             </DialogDescription>
           </DialogHeader>
 
           {/* Quick Actions */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Acoes Rapidas</Label>
+            <Label className="text-sm font-medium">Ações Rápidas</Label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {quickActions.map((action) => {
                 const Icon = action.icon
@@ -314,7 +314,7 @@ export function UserEditModal({ open, onClose, user, onUpdate }: UserEditModalPr
 
               {/* Bonus Credits */}
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="bonus">Bonus Hoje</Label>
+                <Label htmlFor="bonus">Bônus Hoje</Label>
                 <Input
                   id="bonus"
                   type="number"
@@ -341,7 +341,7 @@ export function UserEditModal({ open, onClose, user, onUpdate }: UserEditModalPr
             {success && (
               <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-500">
                 <CheckCircle2 className="h-4 w-4" />
-                Alteracoes salvas com sucesso!
+                Alterações salvas com sucesso!
               </div>
             )}
 
@@ -356,7 +356,7 @@ export function UserEditModal({ open, onClose, user, onUpdate }: UserEditModalPr
                     Salvando...
                   </>
                 ) : (
-                  'Salvar Alteracoes'
+                  'Salvar Alterações'
                 )}
               </Button>
             </DialogFooter>
@@ -368,11 +368,11 @@ export function UserEditModal({ open, onClose, user, onUpdate }: UserEditModalPr
       <Dialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirmar Acao</DialogTitle>
+            <DialogTitle>Confirmar Ação</DialogTitle>
             <DialogDescription>
               {confirmAction && (
                 <>
-                  Voce esta prestes a executar: <strong>{confirmAction.label}</strong>
+                  Você está prestes a executar: <strong>{confirmAction.label}</strong>
                   <br />
                   {confirmAction.description}
                 </>

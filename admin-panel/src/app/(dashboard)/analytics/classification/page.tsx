@@ -118,10 +118,10 @@ export default function ClassificationAnalyticsPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Sparkles className="h-6 w-6" />
-            Analytics de Classificacao
+            Analytics de Classificação
           </h1>
           <p className="text-muted-foreground">
-            Top emocoes e celebridades identificadas nos stickers
+            Top emoções e celebridades identificadas nos stickers
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -131,10 +131,10 @@ export default function ClassificationAnalyticsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7">Ultimos 7 dias</SelectItem>
-              <SelectItem value="30">Ultimos 30 dias</SelectItem>
-              <SelectItem value="90">Ultimos 90 dias</SelectItem>
-              <SelectItem value="0">Todo o periodo</SelectItem>
+              <SelectItem value="7">Últimos 7 dias</SelectItem>
+              <SelectItem value="30">Últimos 30 dias</SelectItem>
+              <SelectItem value="90">Últimos 90 dias</SelectItem>
+              <SelectItem value="0">Todo o período</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" size="icon" onClick={fetchData} disabled={loading}>
@@ -196,7 +196,7 @@ export default function ClassificationAnalyticsPage() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Com Emocoes</p>
+                    <p className="text-sm text-muted-foreground">Com Emoções</p>
                     <p className="text-3xl font-bold">{data.stats.withEmotions.toLocaleString()}</p>
                     <Badge variant="secondary" className="mt-1">
                       {data.stats.emotionRate}% do total
@@ -226,10 +226,10 @@ export default function ClassificationAnalyticsPage() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Emocoes Unicas</p>
+                    <p className="text-sm text-muted-foreground">Emoções Únicas</p>
                     <p className="text-3xl font-bold">{data.topEmotions.length}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      identificadas no periodo
+                      identificadas no período
                     </p>
                   </div>
                   <Users className="h-8 w-8 text-muted-foreground/50" />
@@ -245,10 +245,10 @@ export default function ClassificationAnalyticsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Brain className="h-5 w-5" />
-                  Top 10 Emocoes
+                  Top 10 Emoções
                 </CardTitle>
                 <CardDescription>
-                  Emocoes mais identificadas nos stickers
+                  Emoções mais identificadas nos stickers
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -261,7 +261,7 @@ export default function ClassificationAnalyticsPage() {
                   />
                 ) : (
                   <div className="flex h-[350px] items-center justify-center text-muted-foreground">
-                    Nenhuma emocao classificada no periodo
+                    Nenhuma emoção classificada no período
                   </div>
                 )}
               </CardContent>
@@ -288,7 +288,7 @@ export default function ClassificationAnalyticsPage() {
                   />
                 ) : (
                   <div className="flex h-[350px] items-center justify-center text-muted-foreground">
-                    Nenhuma celebridade identificada no periodo
+                    Nenhuma celebridade identificada no período
                   </div>
                 )}
               </CardContent>
@@ -300,8 +300,8 @@ export default function ClassificationAnalyticsPage() {
             {/* Emotions Table */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Todas as Emocoes</CardTitle>
-                <CardDescription>Ranking completo de emocoes</CardDescription>
+                <CardTitle className="text-base">Todas as Emoções</CardTitle>
+                <CardDescription>Ranking completo de emoções</CardDescription>
               </CardHeader>
               <CardContent>
                 {data.topEmotions.length > 0 ? (
@@ -332,7 +332,7 @@ export default function ClassificationAnalyticsPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground text-sm">Nenhuma emocao encontrada</p>
+                  <p className="text-muted-foreground text-sm">Nenhuma emoção encontrada</p>
                 )}
               </CardContent>
             </Card>

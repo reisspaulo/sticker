@@ -223,7 +223,7 @@ export function ConnectionStatusCard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <WifiOff className="h-4 w-4 text-red-500" />
-            Status das Conexoes WhatsApp
+            Status das Conexões WhatsApp
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -231,7 +231,7 @@ export function ConnectionStatusCard() {
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 text-red-500" />
               <div>
-                <p className="text-sm font-medium">Erro ao verificar conexoes</p>
+                <p className="text-sm font-medium">Erro ao verificar conexões</p>
                 <p className="text-xs text-muted-foreground">{error}</p>
               </div>
             </div>
@@ -266,12 +266,12 @@ export function ConnectionStatusCard() {
               ) : (
                 <WifiOff className="h-4 w-4 text-red-500 transition-colors duration-300" />
               )}
-              Status das Conexoes WhatsApp
+              Status das Conexões WhatsApp
             </CardTitle>
             <CardDescription className="flex items-center gap-1.5">
               <Clock className="h-3 w-3" />
               <span>
-                Ultima verificacao: {status?.timestamp ? formatTimeAgo(status.timestamp) : '-'}
+                Última verificação: {status?.timestamp ? formatTimeAgo(status.timestamp) : '-'}
               </span>
             </CardDescription>
           </div>
@@ -307,7 +307,7 @@ export function ConnectionStatusCard() {
 
           <ConnectionItem
             name="Avisa API"
-            description="Botoes interativos para numeros BR"
+            description="Botões interativos para números BR"
             icon={MessageSquare}
             connected={avisa?.connected ?? false}
             state={avisa?.details?.loggedIn ? 'logged_in' : undefined}
@@ -328,17 +328,17 @@ export function ConnectionStatusCard() {
             </div>
             <div className="space-y-1 min-w-0">
               <p className="text-sm font-medium text-red-500">
-                Conexao perdida
+                Conexão perdida
               </p>
               <p className="text-xs text-muted-foreground">
                 {!evolution?.connected && (
                   <span className="block">
-                    Evolution API offline - O bot nao consegue enviar ou receber mensagens.
+                    Evolution API offline - O bot não consegue enviar ou receber mensagens.
                   </span>
                 )}
                 {!avisa?.connected && (
                   <span className="block">
-                    Avisa API offline - Botoes interativos indisponiveis.
+                    Avisa API offline - Botões interativos indisponíveis.
                   </span>
                 )}
               </p>

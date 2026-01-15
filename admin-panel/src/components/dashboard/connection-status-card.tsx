@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,10 +12,11 @@ import {
   MessageSquare,
   Clock,
   AlertTriangle,
-  CheckCircle2,
   Circle,
+  QrCode,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { QRCodeModal } from './qr-code-modal'
 
 interface ConnectionDetails {
   state?: string
@@ -75,9 +75,10 @@ interface ConnectionItemProps {
   connected: boolean
   state?: string
   error?: string
+  onReconnect?: () => void
 }
 
-function ConnectionItem({ name, description, icon: Icon, connected, state, error }: ConnectionItemProps) {
+function ConnectionItem({ name, description, icon: Icon, connected, state, error, onReconnect }: ConnectionItemProps) {
   return (
     <div
       className={cn(
@@ -122,10 +123,21 @@ function ConnectionItem({ name, description, icon: Icon, connected, state, error
             {connected ? 'Online' : 'Offline'}
           </span>
         </div>
-        {state && (
+        {state && connected && (
           <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
             {state}
           </span>
+        )}
+        {!connected && onReconnect && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onReconnect}
+            className="h-7 px-2.5 text-xs mt-1 border-red-500/30 hover:bg-red-500/10 hover:text-red-500"
+          >
+            <QrCode className="h-3 w-3 mr-1.5" />
+            Reconectar
+          </Button>
         )}
       </div>
     </div>
@@ -137,6 +149,8 @@ export function ConnectionStatusCard() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [qrModalOpen, setQrModalOpen] = useState(false)
+  const [selectedApi, setSelectedApi] = useState<'evolution' | 'avisa'>('evolution')
 
   const fetchStatus = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -167,6 +181,20 @@ export function ConnectionStatusCard() {
 
   const handleRefresh = () => {
     fetchStatus(true)
+  }
+
+  const handleOpenQrModal = (api: 'evolution' | 'avisa') => {
+    setSelectedApi(api)
+    setQrModalOpen(true)
+  }
+
+  const handleQrModalClose = () => {
+    setQrModalOpen(false)
+  }
+
+  const handleConnected = () => {
+    // Refresh status after successful connection
+    setTimeout(() => fetchStatus(true), 1000)
   }
 
   if (loading) {
@@ -274,6 +302,7 @@ export function ConnectionStatusCard() {
             connected={evolution?.connected ?? false}
             state={evolution?.details?.state}
             error={evolution?.error}
+            onReconnect={() => handleOpenQrModal('evolution')}
           />
 
           <ConnectionItem
@@ -283,6 +312,7 @@ export function ConnectionStatusCard() {
             connected={avisa?.connected ?? false}
             state={avisa?.details?.loggedIn ? 'logged_in' : undefined}
             error={avisa?.error}
+            onReconnect={() => handleOpenQrModal('avisa')}
           />
         </div>
 
@@ -313,12 +343,19 @@ export function ConnectionStatusCard() {
                 )}
               </p>
               <p className="text-xs text-muted-foreground pt-1">
-                Acesse Configuracoes para reconectar via QR Code.
+                Clique em &quot;Reconectar&quot; para escanear o QR Code.
               </p>
             </div>
           </div>
         )}
       </CardContent>
+
+      <QRCodeModal
+        open={qrModalOpen}
+        onClose={handleQrModalClose}
+        api={selectedApi}
+        onConnected={handleConnected}
+      />
     </Card>
   )
 }

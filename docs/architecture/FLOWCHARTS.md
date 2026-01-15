@@ -1795,12 +1795,14 @@ flowchart TD
 
 ### Steps da Campanha
 
-| Step | Delay | Mensagem |
-|------|-------|----------|
-| day_0 | +4 horas | "Sabia que você pode baixar vídeos do Twitter/X..." + botões |
-| day_7 | +7 dias | "Lembrete rápido: dá pra baixar vídeos..." + botões |
-| day_15 | +15 dias | "Já experimentou baixar vídeos do Twitter/X?" + botões |
-| day_30 | +30 dias | "Última dica: você pode baixar vídeos..." + botões |
+| Step | Delay | Título (Avisa API) | Mensagem |
+|------|-------|-------------------|----------|
+| day_0 | +4 horas | 🎬 Dica: Vídeos do Twitter | "Sabia que você pode baixar vídeos do Twitter/X..." + botões |
+| day_7 | +7 dias | 📱 Lembrete: Twitter/X | "Lembrete rápido: dá pra baixar vídeos..." + botões |
+| day_15 | +15 dias | 🎥 Já testou? | "Já experimentou baixar vídeos do Twitter/X?" + botões |
+| day_30 | +30 dias | ✨ Última dica! | "Última dica: você pode baixar vídeos..." + botões |
+
+> **Importante:** O campo `title` é obrigatório para a Avisa API. Mensagens com título vazio causam erro 422.
 
 ### Botões das Mensagens
 
@@ -2188,7 +2190,7 @@ Usuário atinge limite diário → `getLimitReachedMessage()`
 
 ---
 
-**Última atualização:** 13/01/2026 - Fix RPC get_instant_campaign_message, removido botão dismiss, adicionado log converted na campanha
+**Última atualização:** 15/01/2026 - Adicionado títulos obrigatórios da Avisa API na seção Twitter Discovery V2 (fix bug 422)
 
 
 

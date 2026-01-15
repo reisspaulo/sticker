@@ -2087,10 +2087,12 @@ Usuário cria N figurinhas (nth_sticker) → `enrollInCleanupFeatureV2`
 
 ### Steps da Campanha
 
-| Step | Delay | Mensagem |
-|------|-------|----------|
-| day_0 | +4 horas | Apresentação das features de edição |
-| day_7 | +168 horas (7 dias) | Lembrete |
+| Step | Delay | Título (Avisa API) | Mensagem |
+|------|-------|-------------------|----------|
+| day_0 | +4 horas | ✨ Dica: Editar Figurinhas | Apresentação das features de edição |
+| day_7 | +168 horas (7 dias) | 🎨 Lembrete: Edição | Lembrete |
+
+> **Importante:** O campo `title` é obrigatório para a Avisa API. Mensagens com título vazio causam erro 422.
 
 ### Botões
 
@@ -2190,7 +2192,7 @@ Usuário atinge limite diário → `getLimitReachedMessage()`
 
 ---
 
-**Última atualização:** 15/01/2026 - Adicionado títulos obrigatórios da Avisa API na seção Twitter Discovery V2 (fix bug 422)
+**Última atualização:** 15/01/2026 - Adicionado títulos obrigatórios da Avisa API nas campanhas Twitter Discovery V2 e Cleanup Feature V2 (fix bug 422)
 
 
 

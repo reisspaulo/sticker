@@ -74,6 +74,7 @@ const navigation: NavItem[] = [
     icon: BarChart3,
     children: [
       { title: 'Métricas', href: '/analytics' },
+      { title: 'Classificação', href: '/analytics/classification' },
       { title: 'Avançado', href: '/analytics/advanced' },
       { title: 'Funil', href: '/analytics/funnel' },
       { title: 'Botões', href: '/analytics/buttons' },

@@ -381,3 +381,101 @@ ${context.additionalInfo ? `\n📋 *Info adicional:*\n${JSON.stringify(context.a
   // Send to all configured channels
   await Promise.allSettled([sendWhatsAppAlert(message), sendDiscordAlert(message)]);
 }
+
+/**
+ * Send critical alert about WhatsApp API disconnection
+ * This is critical because the bot stops working when disconnected
+ */
+export async function alertWhatsAppDisconnected(
+  api: 'evolution' | 'avisa',
+  details?: { lastConnected?: Date; error?: string }
+): Promise<void> {
+  const alertKey = `whatsapp_disconnected_${api}`;
+
+  // Check debounce (don't spam alerts)
+  const now = new Date();
+  const counter = errorCounters.get(alertKey);
+
+  if (counter?.lastAlert) {
+    const minutesSinceLastAlert = (now.getTime() - counter.lastAlert.getTime()) / 1000 / 60;
+    if (minutesSinceLastAlert < 30) {
+      // 30 min debounce for disconnection alerts
+      logger.debug({
+        msg: '[ALERT] WhatsApp disconnection alert debounced',
+        api,
+        minutesSinceLastAlert,
+      });
+      return;
+    }
+  }
+
+  // Update counter
+  if (counter) {
+    counter.count++;
+    counter.lastAlert = now;
+  } else {
+    errorCounters.set(alertKey, {
+      count: 1,
+      firstError: now,
+      lastAlert: now,
+    });
+  }
+
+  const apiName = api === 'evolution' ? 'Evolution API' : 'Avisa API';
+  const impact =
+    api === 'evolution'
+      ? 'Bot PAROU completamente! Não recebe nem envia mensagens.'
+      : 'Botões interativos não funcionam. Mensagens de texto ainda funcionam via Evolution.';
+
+  const message = `🔴 *ALERTA CRÍTICO - WHATSAPP DESCONECTADO*
+
+📡 *API:* ${apiName}
+⚠️ *Status:* DESCONECTADO
+
+💥 *IMPACTO:* ${impact}
+
+${details?.lastConnected ? `⏰ *Última conexão:* ${details.lastConnected.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : ''}
+${details?.error ? `🐛 *Erro:* ${details.error}` : ''}
+
+⏰ *Detectado em:* ${now.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+
+🔧 *AÇÃO NECESSÁRIA:*
+1. Acesse https://admin-stickers.ytem.com.br
+2. Vá em Configurações > Conexões
+3. Clique em "Reconectar" e escaneie o QR Code
+
+⚡ *Ou via terminal:*
+curl -s https://wa.ytem.com.br/instance/connect/meu-zap -H "apikey: ..." | jq '.base64'`;
+
+  logger.error({
+    msg: '[ALERT] 🔴 WhatsApp disconnection alert triggered',
+    api,
+    details,
+  });
+
+  // Send to all configured channels
+  await Promise.allSettled([sendWhatsAppAlert(message), sendDiscordAlert(message)]);
+}
+
+/**
+ * Send notification when WhatsApp reconnects
+ */
+export async function alertWhatsAppReconnected(api: 'evolution' | 'avisa'): Promise<void> {
+  const apiName = api === 'evolution' ? 'Evolution API' : 'Avisa API';
+
+  const message = `✅ *WHATSAPP RECONECTADO*
+
+📡 *API:* ${apiName}
+⚠️ *Status:* CONECTADO
+
+⏰ *Reconectado em:* ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+
+Bot voltou ao normal! 🎉`;
+
+  logger.info({
+    msg: '[ALERT] ✅ WhatsApp reconnection notification sent',
+    api,
+  });
+
+  await Promise.allSettled([sendWhatsAppAlert(message), sendDiscordAlert(message)]);
+}

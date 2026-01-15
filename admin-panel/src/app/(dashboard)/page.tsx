@@ -8,6 +8,7 @@ import { AreaChart } from '@/components/charts/area-chart'
 import { PieChart } from '@/components/charts/pie-chart'
 import { BarChart } from '@/components/charts/bar-chart'
 import { ActivityHeatmap } from '@/components/charts/activity-heatmap'
+import { ConnectionStatusCard } from '@/components/dashboard/connection-status-card'
 import {
   Users,
   Image,
@@ -572,6 +573,9 @@ export default function DashboardPage() {
           loading={loading}
         />
       </div>
+
+      {/* WhatsApp Connection Status */}
+      <ConnectionStatusCard />
 
       {/* Workers Status */}
       <Card>

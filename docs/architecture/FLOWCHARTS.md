@@ -1884,11 +1884,11 @@ Usuário seleciona plano Premium/Ultra → `enrollInPaymentIntentReminderV2`
 
 ### Steps da Campanha
 
-| Step | Delay | Mensagem |
-|------|-------|----------|
-| wave_1 | +30 min | Lembrete inicial com opções PIX/Cartão |
-| wave_2 | +6 horas | Lembrete de benefícios |
-| wave_3 | +48 horas | Última chance |
+| Step | Delay | Descrição |
+|------|-------|-----------|
+| wave_1 | +1 hora | Lembrete inicial com opções PIX/Cartão |
+| wave_2 | +6 horas | Reforço de valor/urgência |
+| wave_3 | +42 horas (~2 dias) | Última chance, FOMO |
 
 ### Variantes A/B (25% cada)
 
@@ -1897,7 +1897,148 @@ Usuário seleciona plano Premium/Ultra → `enrollInPaymentIntentReminderV2`
 | `control` | Mensagem padrão neutra |
 | `benefit` | Foca em benefícios perdidos |
 | `urgency` | Foco em urgência/expiração |
-| `social_proof` | "47 pessoas fizeram upgrade hoje" |
+| `social_proof` | Prova social com números |
+
+---
+
+### Mensagens Exatas por Wave e Variante
+
+#### WAVE 1 (1 hora após intenção)
+
+**Variante `control`:**
+```
+Título: Seu plano {plan_name} está reservado ⏰
+
+Body:
+Escolha a forma de pagamento:
+
+PIX: Ativação em 5min
+Cartão: Pagamento instantâneo
+Boleto: Até 3 dias úteis
+
+Botões: [🔑 PIX] [💳 Cartão] [Mais tarde]
+```
+
+**Variante `benefit`:**
+```
+Título: Com {plan_name} você teria {benefit_today} 🎨
+
+Body: Finalize em 2 minutos com PIX ou cartão.
+
+Botões: [PIX Rápido] [Cartão] [Mais tarde]
+```
+
+**Variante `urgency`:**
+```
+Título: Plano {plan_name} reservado por mais 6 horas ⏱️
+
+Body: Finalize com PIX e comece agora.
+
+Botões: [Finalizar PIX] [Outras formas] [Lembrar depois]
+```
+
+**Variante `social_proof`:**
+```
+Título: 47 pessoas fizeram upgrade hoje
+
+Body: Complete seu {plan_name} agora:
+
+Botões: [Pagar com PIX] [Cartão] [Ver depois]
+```
+
+---
+
+#### WAVE 2 (6 horas após intenção)
+
+**Variante `control`:**
+```
+Título: Seu plano {plan_name} expira em breve
+
+Body: Finalize agora e comece a criar.
+
+Botões: [PIX] [Cartão] [Cancelar]
+```
+
+**Variante `benefit`:**
+```
+Título: {benefit_week} essa semana
+
+Body:
+Usuários {plan_name} criaram em média {benefit_week}.
+
+Você ainda pode fazer upgrade:
+
+Botões: [Quero {plan_name}] [Pagar cartão] [Não agora]
+```
+
+**Variante `urgency`:**
+```
+Título: Sua reserva expira em 42 horas
+
+Body:
+{plan_benefit}
+
+Finalize agora:
+
+Botões: [Finalizar agora] [Ver formas] [Deixar expirar]
+```
+
+**Variante `social_proof`:**
+```
+Título: {plan_name} é o plano mais escolhido
+
+Body: Complete em 2 minutos:
+
+Botões: [PIX] [Cartão] [Outro dia]
+```
+
+---
+
+#### WAVE 3 (42 horas após intenção) - Última chance
+
+**Variante `control`:**
+```
+Título: Última chance - {plan_name}
+
+Body:
+Sua reserva expira hoje.
+
+{plan_benefit}
+
+Botões: [Finalizar] [Ver planos] [Deixar expirar]
+```
+
+**Variante `benefit`:**
+```
+Título: Perder {benefit_today}?
+
+Body:
+É isso que você deixa de criar com {plan_name}.
+
+Última chance:
+
+Botões: [Finalizar agora] [Ver outros planos] [Deixar passar]
+```
+
+**Variante `urgency`:**
+```
+Título: Expira hoje - {plan_name}
+
+Body: Última chance para garantir seu plano.
+
+Botões: [Quero agora] [Ver outros] [Cancelar]
+```
+
+**Variante `social_proof`:**
+```
+Título: Última oportunidade
+
+Body: Junte-se aos usuários que criaram {total_week} figurinhas essa semana.
+
+Botões: [Finalizar] [Ver planos] [Não quero]
+```
+
+---
 
 ### Botões
 
@@ -1913,7 +2054,7 @@ Usuário seleciona plano Premium/Ultra → `enrollInPaymentIntentReminderV2`
 | Placeholder | Exemplo |
 |-------------|---------|
 | `{plan_name}` | "Premium" ou "Ultra" |
-| `{plan_benefit}` | "20 figurinhas/dia" |
+| `{plan_benefit}` | "+16 figurinhas extras hoje" |
 | `{benefit_today}` | "+16 figurinhas extras hoje" |
 | `{benefit_week}` | "84 figurinhas" |
 | `{total_week}` | "1.247" |

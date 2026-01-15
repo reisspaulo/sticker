@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { resetDailyCountersJob } from './resetDailyCounters';
 import { sendPendingStickersJob } from './sendPendingStickers';
 import { sendScheduledRemindersJob } from './sendScheduledReminders';
+import { checkWhatsAppConnectionsJob } from './checkWhatsAppConnections';
 // REMOVIDO: processSequenceSteps - migrado para campaigns system (process-campaigns job no worker.ts)
 import { supabase } from '../config/supabase';
 import logger from '../config/logger';
@@ -75,12 +76,33 @@ export function initializeScheduledJobs(): void {
   // REMOVIDO: process-sequence-steps - migrado para campaigns system
   // O job process-campaigns roda no worker.ts com BullMQ (60s interval)
 
+  // Check WhatsApp connections every 5 minutes
+  // Cron pattern: '*/5 * * * *' = Every 5 minutes
+  const checkConnectionsTask = cron.schedule(
+    '*/5 * * * *',
+    async () => {
+      logger.debug({ msg: 'Running scheduled job: check-whatsapp-connections' });
+      try {
+        await checkWhatsAppConnectionsJob();
+      } catch (error) {
+        logger.error({
+          msg: 'Scheduled job failed: check-whatsapp-connections',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    },
+    {
+      timezone: 'America/Sao_Paulo', // Brazil timezone
+    }
+  );
+
   logger.info({
     msg: 'Scheduled jobs initialized',
     jobs: [
       { name: 'reset-daily-counters', schedule: '0 0 * * *', time: 'Midnight' },
       { name: 'send-pending-stickers', schedule: '0 8 * * *', time: '8:00 AM' },
       { name: 'send-scheduled-reminders', schedule: '*/5 * * * *', time: 'Every 5 min' },
+      { name: 'check-whatsapp-connections', schedule: '*/5 * * * *', time: 'Every 5 min' },
       // process-campaigns agora roda via BullMQ no worker.ts (60s interval)
     ],
     timezone: 'America/Sao_Paulo',
@@ -92,6 +114,7 @@ export function initializeScheduledJobs(): void {
     resetCountersTask.stop();
     sendPendingTask.stop();
     sendRemindersTask.stop();
+    checkConnectionsTask.stop();
     logger.info({ msg: 'Scheduled jobs stopped' });
   };
 

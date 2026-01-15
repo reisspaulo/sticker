@@ -6,7 +6,10 @@ import webhookRoutes from './routes/webhook';
 import healthRoutes from './routes/health';
 import statsRoutes from './routes/stats';
 import stripeWebhookRoutes from './routes/stripeWebhook';
+import linksRoutes from './routes/links';
+import redirectRoutes from './routes/redirect';
 import { initializeScheduledJobs, checkPendingStickersRecovery } from './jobs';
+import { initGeoService } from './services/geoService';
 
 // Load environment variables
 config();
@@ -42,6 +45,8 @@ fastify.register(webhookRoutes, { prefix: '/webhook' });
 fastify.register(healthRoutes);
 fastify.register(statsRoutes, { prefix: '/stats' });
 fastify.register(stripeWebhookRoutes, { prefix: '/stripe' });
+fastify.register(linksRoutes, { prefix: '/links' });
+fastify.register(redirectRoutes, { prefix: '/l' });
 
 // Start server
 const start = async () => {
@@ -49,12 +54,18 @@ const start = async () => {
     const port = parseInt(process.env.PORT || '3000', 10);
     const host = process.env.HOST || '0.0.0.0';
 
+    // Initialize geo service for URL tracking
+    await initGeoService();
+    logger.info('🌍 Geo service initialized');
+
     await fastify.listen({ port, host });
 
     logger.info(`🚀 Server listening on http://${host}:${port}`);
     logger.info(`📝 Webhook endpoint: http://${host}:${port}/webhook`);
     logger.info(`💚 Health check: http://${host}:${port}/health`);
     logger.info(`📊 Stats endpoint: http://${host}:${port}/stats`);
+    logger.info(`🔗 Links API: http://${host}:${port}/links`);
+    logger.info(`↗️  Redirect endpoint: http://${host}:${port}/l/:code`);
 
     // Initialize scheduled jobs
     initializeScheduledJobs();

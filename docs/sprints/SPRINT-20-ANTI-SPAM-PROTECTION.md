@@ -859,7 +859,229 @@ ORDER BY hour;
 
 ---
 
-## 9. Referências
+## 9. Phase 1: Emergency Webhook Anti-Spam Protections 🚨
+
+**Data de Implementação:** 2026-01-16 19:33 UTC
+**Status:** ✅ Implementado
+**Prioridade:** 🚨 CRÍTICA (Complemento ao Sprint 20)
+
+### 9.1 Contexto
+
+Após análise profunda documentada em [CRITICAL-WEBHOOK-BURST-ANALYSIS.md](./CRITICAL-WEBHOOK-BURST-ANALYSIS.md), identificamos que **webhooks não tinham NENHUMA proteção anti-spam**, diferente das campanhas que agora têm 7 camadas.
+
+#### Cenários de Risco Descobertos:
+1. **100 novos usuários simultâneos** → 100 welcome messages instantâneas
+2. **50 pagamentos PIX confirmados** → 50 confirmações instantâneas
+3. **Dual API (Evolution + Avisa)** → Dobra volume para brasileiros
+4. **Sem rate limiting** → Burst de 600 msgs/min possível
+5. **Sem queueing** → Todos os sends diretos/síncronos
+
+**Comparação:**
+```
+Campanhas: ✅ 7 layers (3s delays, backoff, auto-pause, health checks)
+Webhooks:  ❌ 0 layers (sends instantâneos, sem proteção)
+```
+
+### 9.2 Implementação Phase 1
+
+#### 5 Camadas de Proteção Implementadas:
+
+**1. Webhook Rate Limiting (10 req/sec por usuário)**
+```typescript
+// src/routes/webhook.ts
+await fastify.register(rateLimitPlugin.default, {
+  max: 10,
+  timeWindow: '1 second',
+  keyGenerator: (request) => body.data?.key?.remoteJid || request.ip
+});
+```
+
+**2. Welcome Message Queue (delays randomizados 0-2s)**
+```typescript
+// src/config/queue.ts
+export const welcomeMessagesQueue = new Queue('welcome-messages', {
+  ...queueOptions,
+  defaultJobOptions: { attempts: 2, backoff: { type: 'exponential', delay: 3000 } }
+});
+
+// src/routes/webhook.ts (antes: instant send)
+await welcomeMessagesQueue.add('send-welcome', {
+  userNumber, userName, userLimit, type: 'new_user'
+}, {
+  delay: Math.floor(Math.random() * 2000) // 0-2s randomized
+});
+```
+
+**3. Global Message Rate Limiter (60 msgs/min máximo)**
+```typescript
+// src/utils/messageRateLimiter.ts
+class MessageRateLimiter {
+  private messagesPerMinute = 60;
+  private delayBetweenMessages = 1000; // 1s delay
+
+  async send(sendFn: () => Promise<void>): Promise<void> {
+    // Queues if rate limit reached, processes with 1s delay
+  }
+}
+
+// Wrapped ALL sends:
+// - Evolution API: sendText(), sendSticker(), sendVideo()
+// - Avisa API: sendButtons(), sendPixButton(), sendList()
+```
+
+**4. Message Volume Monitoring**
+```typescript
+// src/routes/health.ts
+fastify.get('/health/rate-limiter', async () => {
+  const stats = messageRateLimiter.getStats();
+  return {
+    queueSize,           // Messages waiting
+    messagesInLastMinute, // Current rate
+    utilizationPercent,  // % of 60 msgs/min used
+    alerts: [...]        // Warnings if queue > 50 or > 100
+  };
+});
+```
+
+**5. Welcome Message Worker (low concurrency)**
+```typescript
+// src/worker.ts
+const welcomeMessagesWorker = new Worker<WelcomeMessageJobData>(
+  'welcome-messages',
+  async (job) => {
+    await messageRateLimiter.send(async () => {
+      await sendText(userNumber, welcomeMessage);
+    });
+  },
+  { concurrency: 2 } // Low to prevent bursts
+);
+```
+
+### 9.3 Arquivos Modificados
+
+**Backend Core:**
+- ✅ `src/config/queue.ts` - welcomeMessagesQueue
+- ✅ `src/routes/webhook.ts` - Rate limiting + queued messages
+- ✅ `src/routes/health.ts` - Monitoring endpoint
+- ✅ `src/worker.ts` - welcomeMessagesWorker
+- ✅ `src/utils/messageRateLimiter.ts` - **NOVO** Global rate limiter
+- ✅ `src/types/evolution.ts` - WelcomeMessageJobData interface
+- ✅ `src/types/fastify.d.ts` - **NOVO** Type augmentation
+
+**API Services (wrapped com rate limiter):**
+- ✅ `src/services/evolutionApi.ts` - All sends wrapped
+- ✅ `src/services/avisaApi.ts` - All sends wrapped
+
+**Documentation:**
+- ✅ `docs/architecture/FLOWCHARTS.md` - Documented welcome-messages queue
+
+**Dependencies:**
+- ✅ `package.json` - Added `@fastify/rate-limit@9.1.0`
+
+### 9.4 Impacto Esperado
+
+#### Redução de Ban Risk:
+- **80% reduction** em burst scenarios
+- Welcome messages: 100 simultâneas → spread over 2 minutes
+- Payment confirmations: 50 simultâneas → spread over 1 minute
+- Global protection: **Max 60 msgs/min** (antes: ilimitado)
+
+#### Antes vs Depois (Burst Scenario):
+
+| Cenário | ANTES | DEPOIS | Redução |
+|---------|-------|--------|---------|
+| 100 new users | 100 msgs in 10s | 100 msgs in 2min | **91%** |
+| 50 PIX payments | 50 msgs in 5s | 50 msgs in 1min | **91%** |
+| Campaign + webhook | 300 msgs/min | 60 msgs/min | **80%** |
+| Peak burst | 600 msgs/min | 60 msgs/min | **90%** |
+
+### 9.5 Monitoramento
+
+**Endpoint de Monitoramento:**
+```bash
+curl https://sua-vps.com/health/rate-limiter
+```
+
+**Response:**
+```json
+{
+  "timestamp": "2026-01-16T19:33:00Z",
+  "status": "healthy",
+  "rateLimiter": {
+    "queueSize": 5,
+    "messagesInLastMinute": 42,
+    "processing": true,
+    "avgWaitTime": "3s",
+    "limit": 60,
+    "utilizationPercent": 70
+  },
+  "alerts": [
+    {
+      "severity": "info",
+      "message": "Rate limiter processing normally"
+    }
+  ]
+}
+```
+
+**Níveis de Alerta:**
+- 🟢 **healthy**: queueSize < 10
+- 🟡 **degraded**: queueSize 10-50
+- 🟠 **warning**: queueSize 50-100
+- 🔴 **critical**: queueSize > 100 (possível burst attack)
+
+### 9.6 Commits Relevantes (Phase 1)
+
+- `3f53299` - feat: implement Phase 1 emergency webhook anti-spam protections
+- `85d3d5f` - fix: update package-lock.json for @fastify/rate-limit dependency
+- `7d06f93` - style: run prettier to fix formatting
+- `515fe2f` - fix: use dynamic import for @fastify/rate-limit to satisfy eslint
+- `538fac4` - docs: add welcome-messages queue to FLOWCHARTS.md
+- `07bce76` - fix: resolve TypeScript error in stripeWebhook.ts with module augmentation
+
+### 9.7 Próximos Passos (Phase 2 & 3)
+
+Conforme planejado em [CRITICAL-WEBHOOK-BURST-ANALYSIS.md](./CRITICAL-WEBHOOK-BURST-ANALYSIS.md):
+
+**Phase 2: Robustness (Next Week)**
+- [ ] Circuit breaker para Evolution API
+- [ ] Batch dual API calls (Evolution + Avisa)
+- [ ] Graceful degradation (safe mode) durante high volume
+- [ ] Dashboard para message volume monitoring
+
+**Phase 3: Optimization (Next Month)**
+- [ ] Avaliar migração para WhatsApp Business API oficial
+- [ ] Priority queues (critical vs normal messages)
+- [ ] A/B test optimal rate limits
+- [ ] Auto-scaling workers baseado em volume
+
+### 9.8 Investigação Técnica Adicional
+
+Durante a implementação, foi necessário resolver um erro de TypeScript não relacionado no `stripeWebhook.ts`:
+
+**Problema:** `rawBody does not exist in type FastifyContextConfig`
+
+**Solução:** Module Augmentation em `src/types/fastify.d.ts`
+```typescript
+declare module 'fastify' {
+  interface FastifyContextConfig {
+    rawBody?: boolean;
+  }
+  interface FastifyRequest {
+    rawBody?: Buffer;
+  }
+}
+```
+
+**Descobertas sobre stripeWebhook:**
+- ✅ NÃO usa MCP Supabase diretamente
+- ✅ Usa `subscriptionService` e `userService` (que usam Supabase)
+- ✅ Parser customizado em `server.ts` preserva rawBody para signature verification
+- ✅ Integração com Stripe funcionando corretamente
+
+---
+
+## 10. Referências
 
 ### 9.1 Documentos Relacionados
 - [QUICK-CHANGES-GUIDE.md](../operations/QUICK-CHANGES-GUIDE.md) - Como acessar VPS e verificar logs

@@ -453,6 +453,7 @@ flowchart LR
         Q6[🚧 activate-pix-subscription<br/>concurrency: 2<br/>DEPRECATED: agora é instantâneo]
         Q7[✅ scheduled-jobs<br/>concurrency: 1]
         Q8[✅ process-campaigns<br/>Scheduler 60s<br/>Campanhas unificadas]
+        Q9[✅ welcome-messages<br/>concurrency: 2<br/>ANTI-SPAM: delays 0-2s]
     end
 
     subgraph saida["📤 SAÍDA"]

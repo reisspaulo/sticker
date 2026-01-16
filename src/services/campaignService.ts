@@ -14,7 +14,7 @@ import { rpc, rpcAll } from '../rpc';
 import logger from '../config/logger';
 import { sendText } from './evolutionApi';
 import { sendButtons, type ButtonData } from './avisaApi';
-import type { CampaignPendingMessage, CampaignAnalytics } from '../rpc/types';
+import type { CampaignPendingMessage, CampaignAnalytics, CampaignHealthResult } from '../rpc/types';
 
 // ============================================
 // TYPES
@@ -309,13 +309,20 @@ export async function sendCampaignMessage(
  * Busca e processa mensagens pendentes de campanha
  * Usado pelo worker para processar campanhas agendadas
  *
- * @param limit - Número máximo de mensagens a processar (default: 50)
- * @param rateLimitMs - Delay entre envios em ms (default: 200)
+ * ANTI-SPAM PROTECTION (16/01/2026):
+ * - Rate limit aumentado para 3s entre mensagens
+ * - Batch size reduzido para 15
+ * - Backoff exponencial implementado no banco (5min, 15min, 1h, 4h)
+ * - Limite de 5 retentativas antes de marcar como failed_permanent
+ * - Cooling-off de 24h para usuários novos
+ *
+ * @param limit - Número máximo de mensagens a processar (default: 15)
+ * @param rateLimitMs - Delay entre envios em ms (default: 3000)
  * @returns Estatísticas do processamento
  */
 export async function processPendingCampaignMessages(
-  limit: number = 50,
-  rateLimitMs: number = 200
+  limit: number = 15,
+  rateLimitMs: number = 3000
 ): Promise<{ sent: number; failed: number; total: number }> {
   const stats = { sent: 0, failed: 0, total: 0 };
 
@@ -462,6 +469,37 @@ export async function revertStuckProcessing(
       error: error instanceof Error ? error.message : 'Unknown error',
     });
     return 0;
+  }
+}
+
+/**
+ * Verifica saúde das campanhas e pausa automaticamente as com >50% de falha
+ * ANTI-SPAM: Implementado em 16/01/2026 após ban do WhatsApp
+ *
+ * @returns Array de campanhas que foram pausadas
+ */
+export async function checkCampaignHealthAndAutoPause(): Promise<CampaignHealthResult[]> {
+  try {
+    const results = await rpcAll('check_campaign_health_and_auto_pause', {});
+
+    if (results && results.length > 0) {
+      for (const result of results) {
+        logger.warn({
+          msg: '[CAMPAIGN] Campaign auto-paused due to high failure rate',
+          campaignName: result.campaign_name,
+          failureRate: result.failure_rate,
+          reason: result.reason,
+        });
+      }
+    }
+
+    return results || [];
+  } catch (error) {
+    logger.error({
+      msg: '[CAMPAIGN] Error checking campaign health',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return [];
   }
 }
 

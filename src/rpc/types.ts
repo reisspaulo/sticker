@@ -258,6 +258,21 @@ export interface InstantCampaignMessageResult {
 }
 
 // ============================================
+// CAMPAIGN HEALTH MONITORING (Anti-Spam)
+// ============================================
+
+/**
+ * Resultado de check_campaign_health_and_auto_pause
+ * Retorna campanhas que foram pausadas por alta taxa de falha
+ */
+export interface CampaignHealthResult {
+  campaign_name: string;
+  was_paused: boolean;
+  failure_rate: number;
+  reason: string;
+}
+
+// ============================================
 // GENERIC TYPES
 // ============================================
 

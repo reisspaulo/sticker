@@ -26,6 +26,7 @@ import type {
   CampaignPendingMessage,
   CampaignAnalytics,
   InstantCampaignMessageResult,
+  CampaignHealthResult,
 } from './types.js';
 
 // ============================================
@@ -434,6 +435,21 @@ export const RPC_REGISTRY = {
       p_metadata?: Record<string, unknown>;
     },
     returns: {} as string | null,
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // CAMPAIGN HEALTH MONITORING (Anti-Spam Protection)
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Verifica saúde das campanhas e pausa automaticamente as com >50% de falha
+   * ANTI-SPAM: Implementado em 16/01/2026 após ban do WhatsApp
+   * @returns Array de campanhas que foram pausadas
+   */
+  check_campaign_health_and_auto_pause: {
+    type: 'table' as const,
+    params: {} as Record<string, never>,
+    returns: {} as CampaignHealthResult,
   },
 } as const;
 

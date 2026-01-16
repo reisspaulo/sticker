@@ -1137,6 +1137,7 @@ const scheduledJobsWorker = new Worker<ScheduledJob>(
             processPendingCampaignMessages,
             checkCancelConditions,
             revertStuckProcessing,
+            checkCampaignHealthAndAutoPause,
           } = await import('./services/campaignService');
 
           // 1. Revert stuck campaigns (recovery from crashes)
@@ -1157,9 +1158,21 @@ const scheduledJobsWorker = new Worker<ScheduledJob>(
             });
           }
 
-          // 3. Process pending messages (conservative rate limiting to avoid WhatsApp ban)
-          // batch: 20 msgs max, delay: 1000ms between each = ~20 msgs/min
-          const result = await processPendingCampaignMessages(20, 1000);
+          // 2.5. ANTI-SPAM: Auto-pause campaigns with >50% failure rate
+          const autoPaused = await checkCampaignHealthAndAutoPause();
+          if (autoPaused.length > 0) {
+            logger.warn({
+              msg: '[CAMPAIGN-JOB] Auto-paused campaigns due to high failure rate',
+              campaigns: autoPaused,
+            });
+          }
+
+          // 3. Process pending messages (ANTI-SPAM: conservative rate limiting)
+          // batch: 15 msgs max, delay: 3000ms between each = ~5 msgs/min
+          // + backoff exponencial no banco (5min, 15min, 1h, 4h após falhas)
+          // + cooling-off de 24h para usuários novos
+          // + limite de 5 retentativas antes de failed_permanent
+          const result = await processPendingCampaignMessages(15, 3000);
 
           logger.info({
             msg: '[SCHEDULED-JOB] process-campaigns completed',

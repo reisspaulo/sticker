@@ -41,6 +41,7 @@ export type {
   PendingReminderResult,
   ExperimentMetricsResult,
   TwitterDownloadForCleanup,
+  CampaignHealthResult,
   RpcCallOptions,
 } from './types.js';
 

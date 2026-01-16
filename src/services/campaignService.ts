@@ -28,7 +28,7 @@ export type CampaignName =
   | 'twitter_discovery_v2'
   | 'cleanup_feature_v2'
   | 'limit_upsell'
-  | 'limit_reached_v2'  // Instant campaign for limit reached
+  | 'limit_reached_v2' // Instant campaign for limit reached
   | 'welcome_drip'
   | 'reengagement_30d'
   | 'payment_intent_reminder_v2';
@@ -185,11 +185,10 @@ export async function handleCampaignButtonClick(
  * @param message - Mensagem pendente da campanha
  * @returns true se enviou com sucesso
  */
-export async function sendCampaignMessage(
-  message: CampaignPendingMessage
-): Promise<boolean> {
+export async function sendCampaignMessage(message: CampaignPendingMessage): Promise<boolean> {
   try {
-    const { user_number, user_name, content_type, title, body, footer, buttons, metadata } = message;
+    const { user_number, user_name, content_type, title, body, footer, buttons, metadata } =
+      message;
 
     // Validar que body existe (pode ser NULL se mensagem não foi configurada)
     if (!body) {
@@ -446,9 +445,7 @@ export async function checkCancelConditions(): Promise<number> {
  * @param olderThanMinutes - Considerar travado após X minutos (default: 10)
  * @returns Número de campanhas revertidas
  */
-export async function revertStuckProcessing(
-  olderThanMinutes: number = 10
-): Promise<number> {
+export async function revertStuckProcessing(olderThanMinutes: number = 10): Promise<number> {
   try {
     const reverted = await rpc('revert_stuck_campaign_processing', {
       p_older_than_minutes: olderThanMinutes,

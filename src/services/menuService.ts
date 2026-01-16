@@ -88,13 +88,7 @@ export async function sendLimitReachedMenu(
     bonusCreditsUsed?: number;
   }
 ): Promise<void> {
-  const {
-    userId,
-    currentPlan,
-    dailyCount,
-    dailyLimit,
-    isTwitter = false,
-  } = options;
+  const { userId, currentPlan, dailyCount, dailyLimit, isTwitter = false } = options;
 
   const feature = isTwitter ? 'vídeos do Twitter' : 'figurinhas';
 

@@ -53,7 +53,11 @@ export async function processSequenceStepsJob(): Promise<{
     }
 
     // Step 2: Get pending steps (returnFirst: false to get array)
-    const pendingSteps = await rpc('get_pending_sequence_steps', { p_limit: 50 }, { returnFirst: false });
+    const pendingSteps = await rpc(
+      'get_pending_sequence_steps',
+      { p_limit: 50 },
+      { returnFirst: false }
+    );
 
     if (!pendingSteps || pendingSteps.length === 0) {
       logger.debug({

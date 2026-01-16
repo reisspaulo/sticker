@@ -183,11 +183,13 @@ export async function cancelSequenceByUserNumber(
     // Buscar user_sequence_id ativo do usuário
     const { data, error } = await supabase
       .from('user_sequences')
-      .select(`
+      .select(
+        `
         id,
         users!inner(whatsapp_number),
         sequences!inner(name)
-      `)
+      `
+      )
       .eq('users.whatsapp_number', userNumber)
       .eq('sequences.name', sequenceName)
       .in('status', ['pending', 'active'])
@@ -319,10 +321,7 @@ Manda um link pra testar! 🚀`;
  * @param userNumber - WhatsApp number
  * @param userName - User's name
  */
-export async function handleSeqTwitterDismiss(
-  userNumber: string,
-  userName: string
-): Promise<void> {
+export async function handleSeqTwitterDismiss(userNumber: string, userName: string): Promise<void> {
   try {
     // Processa clique atomicamente - retorna FALSE se já foi processado
     const shouldSend = await handleSequenceButtonClick(

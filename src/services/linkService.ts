@@ -178,9 +178,7 @@ export async function listLinks(options: {
     }
 
     // Apply sorting and pagination
-    query = query
-      .order(sort, { ascending: order === 'asc' })
-      .range(offset, offset + limit - 1);
+    query = query.order(sort, { ascending: order === 'asc' }).range(offset, offset + limit - 1);
 
     const { data: links, error, count } = await query;
 
@@ -368,8 +366,7 @@ export async function getLinkStats(id: string, days: number = 30): Promise<LinkS
     });
 
     // Get top 5 countries + "other"
-    const sortedCountries = Object.entries(countryCounts)
-      .sort((a, b) => b[1] - a[1]);
+    const sortedCountries = Object.entries(countryCounts).sort((a, b) => b[1] - a[1]);
 
     const countries: Record<string, number> = {};
     let otherCount = 0;

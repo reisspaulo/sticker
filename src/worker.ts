@@ -1641,9 +1641,8 @@ const welcomeMessagesWorker = new Worker<WelcomeMessageJobData>(
 
     try {
       // Import functions
-      const { getWelcomeMessageForNewUser, getSubscriptionActivatedMessage } = await import(
-        './services/menuService'
-      );
+      const { getWelcomeMessageForNewUser, getSubscriptionActivatedMessage } =
+        await import('./services/menuService');
 
       // Wrap in rate limiter for global protection
       await messageRateLimiter.send(async () => {

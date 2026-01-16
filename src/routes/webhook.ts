@@ -542,11 +542,17 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
           // Buscar plano do contexto da conversa
           const context = await getConversationContext(userNumber);
-          const selectedPlan = (context?.metadata?.selected_plan as 'premium' | 'ultra') || 'premium';
+          const selectedPlan =
+            (context?.metadata?.selected_plan as 'premium' | 'ultra') || 'premium';
 
           if (interactive.id === 'btn_pir_pix') {
             // Criar PIX e enviar instruções
-            const payment = await createPendingPixPayment(userNumber, userName, user.id, selectedPlan);
+            const payment = await createPendingPixPayment(
+              userNumber,
+              userName,
+              user.id,
+              selectedPlan
+            );
             await sendPixPaymentWithButton(userNumber, payment.pixKey, selectedPlan);
             await clearConversationContext(userNumber);
             fastify.log.info({ msg: 'PIR: PIX payment created', userNumber, plan: selectedPlan });
@@ -787,8 +793,10 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           await enrollInPaymentIntentReminderV2(user.id, {
             plan: selectedPlan,
             plan_name: selectedPlan === 'premium' ? 'Premium' : 'Ultra',
-            plan_benefit: selectedPlan === 'premium' ? '20 figurinhas/dia' : 'Figurinhas ILIMITADAS',
-            benefit_today: selectedPlan === 'premium' ? '+16 figurinhas extras hoje' : 'figurinhas ILIMITADAS',
+            plan_benefit:
+              selectedPlan === 'premium' ? '20 figurinhas/dia' : 'Figurinhas ILIMITADAS',
+            benefit_today:
+              selectedPlan === 'premium' ? '+16 figurinhas extras hoje' : 'figurinhas ILIMITADAS',
             benefit_week: selectedPlan === 'premium' ? '84 figurinhas' : 'ilimitadas',
             source: 'limit_menu_button',
           });
@@ -1058,8 +1066,10 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
           await enrollInPaymentIntentReminderV2(user.id, {
             plan: selectedPlan,
             plan_name: selectedPlan === 'premium' ? 'Premium' : 'Ultra',
-            plan_benefit: selectedPlan === 'premium' ? '20 figurinhas/dia' : 'Figurinhas ILIMITADAS',
-            benefit_today: selectedPlan === 'premium' ? '+16 figurinhas extras hoje' : 'figurinhas ILIMITADAS',
+            plan_benefit:
+              selectedPlan === 'premium' ? '20 figurinhas/dia' : 'Figurinhas ILIMITADAS',
+            benefit_today:
+              selectedPlan === 'premium' ? '+16 figurinhas extras hoje' : 'figurinhas ILIMITADAS',
             benefit_week: selectedPlan === 'premium' ? '84 figurinhas' : 'ilimitadas',
             source: 'plan_button_direct',
           });
@@ -1415,7 +1425,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         });
 
         // Enroll in payment intent reminder campaign
-        const { enrollInPaymentIntentReminderV2: enrollPIR1 } = await import('../services/campaignService');
+        const { enrollInPaymentIntentReminderV2: enrollPIR1 } =
+          await import('../services/campaignService');
         await enrollPIR1(user.id, {
           plan: 'premium',
           plan_name: 'Premium',
@@ -1450,7 +1461,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         });
 
         // Enroll in payment intent reminder campaign
-        const { enrollInPaymentIntentReminderV2: enrollPIR2 } = await import('../services/campaignService');
+        const { enrollInPaymentIntentReminderV2: enrollPIR2 } =
+          await import('../services/campaignService');
         await enrollPIR2(user.id, {
           plan: 'ultra',
           plan_name: 'Ultra',

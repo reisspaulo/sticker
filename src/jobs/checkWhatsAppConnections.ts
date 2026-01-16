@@ -1,9 +1,6 @@
 import axios from 'axios';
 import logger from '../config/logger';
-import {
-  alertWhatsAppDisconnected,
-  alertWhatsAppReconnected,
-} from '../services/alertService';
+import { alertWhatsAppDisconnected, alertWhatsAppReconnected } from '../services/alertService';
 
 // Track previous connection state to detect changes
 let previousEvolutionState: boolean | null = null;

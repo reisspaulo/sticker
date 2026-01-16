@@ -47,10 +47,7 @@ export default async function linksRoutes(fastify: FastifyInstance) {
   // GET /links - List all links
   fastify.get(
     '/',
-    async (
-      request: FastifyRequest<{ Querystring: ListLinksQuery }>,
-      reply: FastifyReply
-    ) => {
+    async (request: FastifyRequest<{ Querystring: ListLinksQuery }>, reply: FastifyReply) => {
       try {
         const { page, limit, search, campaign_id, sort, order } = request.query;
 

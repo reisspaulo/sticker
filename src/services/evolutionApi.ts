@@ -55,13 +55,10 @@ export async function sendSticker(userNumber: string, stickerUrl: string): Promi
     let response: any;
     await messageRateLimiter.send(async () => {
       // Send sticker using Evolution API's dedicated sticker endpoint
-      response = await api.post<SendMediaResponse>(
-        `/message/sendSticker/${evolutionInstance}`,
-        {
-          number: sanitizedNumber,
-          sticker: stickerUrl,
-        }
-      );
+      response = await api.post<SendMediaResponse>(`/message/sendSticker/${evolutionInstance}`, {
+        number: sanitizedNumber,
+        sticker: stickerUrl,
+      });
     });
 
     logger.info({

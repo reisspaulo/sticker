@@ -6,6 +6,7 @@ import {
   downloadTwitterVideoQueue,
   convertTwitterStickerQueue,
   cleanupStickerQueue,
+  welcomeMessagesQueue,
 } from '../config/queue';
 import { extractInteractiveResponse } from '../utils/interactiveMessageDetector';
 import {
@@ -17,7 +18,6 @@ import {
 import { getUserOrCreate } from '../services/userService';
 import { getTwitterDownloadCount } from '../services/twitterLimits';
 import { getUserLimits } from '../services/subscriptionService';
-import { sendWelcomeMessage } from '../services/messageService';
 import { sendText, sendVideo } from '../services/evolutionApi';
 import {
   logWebhookReceived,
@@ -44,13 +44,11 @@ import {
 import {
   getPaymentLinkMessage,
   getSubscriptionActiveMessage,
-  getSubscriptionActivatedMessage,
   getHelpMessage,
   logMenuInteraction,
   sendPlansListMenu,
   sendPaymentMethodList,
   sendPixPaymentWithButton,
-  getWelcomeMessageForNewUser,
 } from '../services/menuService';
 import { getUserPlan, hasActiveSubscription } from '../services/subscriptionService';
 import { uploadTwitterVideo } from '../services/twitterStorage';
@@ -66,6 +64,32 @@ import {
 import type { PlanType } from '../types/subscription';
 
 export default async function webhookRoutes(fastify: FastifyInstance) {
+  // ANTI-SPAM: Rate limiting for webhook endpoint
+  // Limit: 10 requests per second per user
+  await fastify.register(require('@fastify/rate-limit'), {
+    max: 10,
+    timeWindow: '1 second',
+    keyGenerator: (request: FastifyRequest) => {
+      const body = request.body as WebhookPayload;
+      // Use user's WhatsApp number as key, fallback to IP
+      return body.data?.key?.remoteJid || request.ip;
+    },
+    errorResponseBuilder: (_request: FastifyRequest, context: any) => {
+      fastify.log.warn({
+        msg: '🚨 [RATE LIMIT] Webhook rate limit exceeded',
+        key: context.key,
+        max: context.max,
+        after: context.after,
+      });
+      return {
+        statusCode: 429,
+        error: 'Too Many Requests',
+        message: `Rate limit exceeded: ${context.max} requests per ${context.after}`,
+        retryAfter: context.after,
+      };
+    },
+  });
+
   // GET route for testing (no auth required)
   fastify.get('/', async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.status(200).send({
@@ -280,8 +304,20 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
             const result = await activatePixSubscription(userNumber);
 
             if (result.success) {
-              // Send success message
-              await sendText(userNumber, getSubscriptionActivatedMessage(pending.plan));
+              // Queue success message with randomized delay - ANTI-SPAM
+              await welcomeMessagesQueue.add(
+                'send-payment-confirmation',
+                {
+                  userNumber,
+                  userName: pending.userName,
+                  userLimit: 0, // Not used for payment confirmations
+                  type: 'payment_confirmation',
+                  planType: pending.plan,
+                },
+                {
+                  delay: Math.floor(Math.random() * 2000), // 0-2s randomized delay
+                }
+              );
 
               // Log for funnel analysis
               const planPrices = { premium: 5, ultra: 9.9, free: 0 } as const;
@@ -294,7 +330,7 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
               });
 
               fastify.log.info({
-                msg: 'PIX payment confirmed and activated INSTANTLY',
+                msg: '[ANTI-SPAM] PIX payment confirmed, confirmation message queued',
                 userNumber,
                 plan: pending.plan,
               });
@@ -1718,17 +1754,31 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         // No pending video selection - handle based on user status
         // Strategy: Convert every touchpoint into conversion opportunity
 
-        // 1. NEW USER (never used bot) → Welcome message
+        // 1. NEW USER (never used bot) → Welcome message (ANTI-SPAM: queued)
         if (user.onboarding_step === 0) {
           const userLimit = user.daily_limit ?? 4;
-          await sendText(userNumber, getWelcomeMessageForNewUser(userName, userLimit));
+
+          // Queue welcome message with randomized delay (0-2s)
+          await welcomeMessagesQueue.add(
+            'send-welcome',
+            {
+              userNumber,
+              userName,
+              userLimit,
+              type: 'new_user',
+            },
+            {
+              delay: Math.floor(Math.random() * 2000), // 0-2s randomized delay
+            }
+          );
+
           fastify.log.info({
-            msg: 'Sent welcome message to new user (text input)',
+            msg: '[ANTI-SPAM] Welcome message queued for new user (text input)',
             userNumber,
             userName,
           });
           return reply.status(200).send({
-            status: 'welcome_sent',
+            status: 'welcome_queued',
             trigger: 'text_input',
           });
         }
@@ -1866,8 +1916,26 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
 
         // Only send welcome if we successfully updated (prevents duplicates)
         if (updated) {
-          await sendWelcomeMessage(userNumber, userName);
-          fastify.log.info({ userNumber, userName }, 'Welcome message sent to new user');
+          const userLimit = user.daily_limit ?? 4;
+
+          // Queue welcome message with randomized delay (0-2s) - ANTI-SPAM
+          await welcomeMessagesQueue.add(
+            'send-welcome',
+            {
+              userNumber,
+              userName,
+              userLimit,
+              type: 'new_user',
+            },
+            {
+              delay: Math.floor(Math.random() * 2000), // 0-2s randomized delay
+            }
+          );
+
+          fastify.log.info(
+            { userNumber, userName },
+            '[ANTI-SPAM] Welcome message queued for new user'
+          );
         } else {
           fastify.log.info(
             { userNumber, userName },

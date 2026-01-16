@@ -120,3 +120,12 @@ export interface TwitterVideoJobData {
   userId?: string;
   messageId?: string;
 }
+
+// Welcome Message Job Data (ANTI-SPAM: queued with delays)
+export interface WelcomeMessageJobData {
+  userNumber: string;
+  userName: string;
+  userLimit: number;
+  type: 'new_user' | 'payment_confirmation';
+  planType?: string; // For payment confirmations
+}

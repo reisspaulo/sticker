@@ -1622,6 +1622,90 @@ editButtonsWorker.on('failed', (job, err) => {
 });
 
 // ============================================
+// WELCOME MESSAGES WORKER (ANTI-SPAM: Queued with delays)
+// ============================================
+import { WelcomeMessageJobData } from './types/evolution';
+import { messageRateLimiter } from './utils/messageRateLimiter';
+
+const welcomeMessagesWorker = new Worker<WelcomeMessageJobData>(
+  'welcome-messages',
+  async (job) => {
+    const { userNumber, userName, userLimit, type, planType } = job.data;
+
+    logger.info({
+      msg: '[WELCOME-WORKER] Processing welcome message job',
+      jobId: job.id,
+      userNumber,
+      type,
+    });
+
+    try {
+      // Import functions
+      const { getWelcomeMessageForNewUser, getSubscriptionActivatedMessage } = await import(
+        './services/menuService'
+      );
+
+      // Wrap in rate limiter for global protection
+      await messageRateLimiter.send(async () => {
+        if (type === 'new_user') {
+          // Send welcome message for new user
+          await sendText(userNumber, getWelcomeMessageForNewUser(userName, userLimit));
+          logger.info({
+            msg: '[WELCOME-WORKER] Sent welcome message to new user',
+            jobId: job.id,
+            userNumber,
+            userName,
+          });
+        } else if (type === 'payment_confirmation' && planType) {
+          // Send payment confirmation message
+          await sendText(userNumber, getSubscriptionActivatedMessage(planType as any));
+          logger.info({
+            msg: '[WELCOME-WORKER] Sent payment confirmation message',
+            jobId: job.id,
+            userNumber,
+            planType,
+          });
+        }
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      logger.error({
+        msg: '[WELCOME-WORKER] Failed to send welcome message',
+        jobId: job.id,
+        userNumber,
+        type,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      throw error;
+    }
+  },
+  {
+    connection: redisConnection,
+    concurrency: 2, // Low concurrency to prevent bursts
+  }
+);
+
+welcomeMessagesWorker.on('completed', (job) => {
+  logger.info({
+    msg: '[WELCOME-WORKER] Welcome message job completed',
+    queue: 'welcome-messages',
+    jobId: job.id,
+  });
+});
+
+welcomeMessagesWorker.on('failed', (job, err) => {
+  logger.error({
+    msg: '[WELCOME-WORKER] Welcome message job failed',
+    queue: 'welcome-messages',
+    jobId: job?.id,
+    error: err.message,
+  });
+});
+
+// ============================================
 // CAMPAIGN MESSAGE SCHEDULER
 // Runs every 60 seconds to process pending campaign messages
 // ============================================

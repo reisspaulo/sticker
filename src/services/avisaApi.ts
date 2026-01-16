@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import logger from '../config/logger';
 import { logMenuSent, logPixButtonSent } from './usageLogs';
 import { sendText } from './evolutionApi';
+import { messageRateLimiter } from '../utils/messageRateLimiter';
 
 // ============================================
 // INTERNATIONAL NUMBER DETECTION
@@ -176,12 +177,16 @@ export async function sendButtons(request: SendButtonsRequest): Promise<AvisaApi
       buttonCount: request.buttons.length,
     });
 
-    const response = await api.post<AvisaApiResponse>('/actions/buttons', {
-      number: sanitizedNumber,
-      title: request.title,
-      desc: request.desc,
-      footer: request.footer,
-      buttons: request.buttons,
+    // ANTI-SPAM: Wrap in global rate limiter
+    let response: any;
+    await messageRateLimiter.send(async () => {
+      response = await api.post<AvisaApiResponse>('/actions/buttons', {
+        number: sanitizedNumber,
+        title: request.title,
+        desc: request.desc,
+        footer: request.footer,
+        buttons: request.buttons,
+      });
     });
 
     logger.info({
@@ -300,9 +305,13 @@ export async function sendPixButton(request: SendPixButtonRequest): Promise<Avis
       pixLength: request.pix.length,
     });
 
-    const response = await api.post<AvisaApiResponse>('/buttons/pix', {
-      number: sanitizedNumber,
-      pix: request.pix,
+    // ANTI-SPAM: Wrap in global rate limiter
+    let response: any;
+    await messageRateLimiter.send(async () => {
+      response = await api.post<AvisaApiResponse>('/buttons/pix', {
+        number: sanitizedNumber,
+        pix: request.pix,
+      });
     });
 
     logger.info({
@@ -450,12 +459,16 @@ export async function sendList(request: SendListRequest): Promise<AvisaApiRespon
       itemCount: request.list.length,
     });
 
-    const response = await api.post<AvisaApiResponse>('/actions/sendList', {
-      number: sanitizedNumber,
-      buttontext: request.buttontext,
-      desc: request.desc,
-      toptext: request.toptext,
-      list: request.list,
+    // ANTI-SPAM: Wrap in global rate limiter
+    let response: any;
+    await messageRateLimiter.send(async () => {
+      response = await api.post<AvisaApiResponse>('/actions/sendList', {
+        number: sanitizedNumber,
+        buttontext: request.buttontext,
+        desc: request.desc,
+        toptext: request.toptext,
+        list: request.list,
+      });
     });
 
     logger.info({

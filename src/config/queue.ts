@@ -65,6 +65,19 @@ export const cleanupStickerQueue = new Queue('cleanup-sticker', queueOptions);
 // Edit Buttons Queue (debounced sending of edit buttons after sticker creation)
 export const editButtonsQueue = new Queue('edit-buttons', queueOptions);
 
+// Welcome Messages Queue (ANTI-SPAM: queued with randomized delays to prevent burst)
+export const welcomeMessagesQueue = new Queue('welcome-messages', {
+  ...queueOptions,
+  defaultJobOptions: {
+    ...queueOptions.defaultJobOptions,
+    attempts: 2, // Lower retry count for welcome messages
+    backoff: {
+      type: 'exponential',
+      delay: 3000, // 3s, 9s between retries
+    },
+  },
+});
+
 export default {
   processStickerQueue,
   scheduledJobsQueue,
@@ -73,4 +86,5 @@ export default {
   convertTwitterStickerQueue,
   cleanupStickerQueue,
   editButtonsQueue,
+  welcomeMessagesQueue,
 };

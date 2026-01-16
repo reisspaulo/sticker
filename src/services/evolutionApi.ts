@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import logger from '../config/logger';
 import { logStickerSent, logMessageSent } from './usageLogs';
+import { messageRateLimiter } from '../utils/messageRateLimiter';
 
 // Evolution API configuration
 const evolutionApiUrl = process.env.EVOLUTION_API_URL;
@@ -50,14 +51,18 @@ export async function sendSticker(userNumber: string, stickerUrl: string): Promi
       stickerUrl,
     });
 
-    // Send sticker using Evolution API's dedicated sticker endpoint
-    const response = await api.post<SendMediaResponse>(
-      `/message/sendSticker/${evolutionInstance}`,
-      {
-        number: sanitizedNumber,
-        sticker: stickerUrl,
-      }
-    );
+    // ANTI-SPAM: Wrap in global rate limiter
+    let response: any;
+    await messageRateLimiter.send(async () => {
+      // Send sticker using Evolution API's dedicated sticker endpoint
+      response = await api.post<SendMediaResponse>(
+        `/message/sendSticker/${evolutionInstance}`,
+        {
+          number: sanitizedNumber,
+          sticker: stickerUrl,
+        }
+      );
+    });
 
     logger.info({
       msg: 'Sticker sent successfully',
@@ -122,9 +127,13 @@ export async function sendText(userNumber: string, text: string): Promise<void> 
       remoteJid,
     });
 
-    const response = await api.post(`/message/sendText/${evolutionInstance}`, {
-      number: sanitizedNumber,
-      text,
+    // ANTI-SPAM: Wrap in global rate limiter
+    let response: any;
+    await messageRateLimiter.send(async () => {
+      response = await api.post(`/message/sendText/${evolutionInstance}`, {
+        number: sanitizedNumber,
+        text,
+      });
     });
 
     logger.info({
@@ -267,12 +276,16 @@ export async function sendVideo(
       hasCaption: !!caption,
     });
 
-    // Send video using Evolution API's sendMedia endpoint
-    const response = await api.post<SendMediaResponse>(`/message/sendMedia/${evolutionInstance}`, {
-      number: sanitizedNumber,
-      mediatype: 'video',
-      media: videoUrl,
-      ...(caption && { caption }),
+    // ANTI-SPAM: Wrap in global rate limiter
+    let response: any;
+    await messageRateLimiter.send(async () => {
+      // Send video using Evolution API's sendMedia endpoint
+      response = await api.post<SendMediaResponse>(`/message/sendMedia/${evolutionInstance}`, {
+        number: sanitizedNumber,
+        mediatype: 'video',
+        media: videoUrl,
+        ...(caption && { caption }),
+      });
     });
 
     logger.info({

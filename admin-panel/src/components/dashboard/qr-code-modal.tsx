@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -42,11 +42,17 @@ export function QRCodeModal({ open, onClose, api, onConnected }: QRCodeModalProp
   const [error, setError] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
   const [checkingConnection, setCheckingConnection] = useState(false)
+  const [secondsUntilNextCheck, setSecondsUntilNextCheck] = useState(10)
+  const startTimeRef = useRef<number>(Date.now())
 
   const apiName = api === 'evolution' ? 'Evolution API' : 'Avisa API'
   const apiDescription = api === 'evolution'
     ? 'Principal - Envio e recebimento de mensagens'
     : 'Botoes interativos para numeros BR'
+
+  // Constants
+  const POLL_INTERVAL = 10000 // 10 seconds
+  const MAX_POLL_DURATION = 3 * 60 * 1000 // 3 minutes
 
   const fetchQRCode = useCallback(async () => {
     setLoading(true)
@@ -113,16 +119,43 @@ export function QRCodeModal({ open, onClose, api, onConnected }: QRCodeModalProp
   useEffect(() => {
     if (open && !connected) {
       fetchQRCode()
+      startTimeRef.current = Date.now()
     }
   }, [open, connected, fetchQRCode])
 
-  // Poll for connection status every 3 seconds while waiting for scan
+  // Poll for connection status every 10 seconds while waiting for scan (with 3min timeout)
   useEffect(() => {
     if (!open || connected || loading) return
 
-    const interval = setInterval(checkConnection, 3000)
-    return () => clearInterval(interval)
-  }, [open, connected, loading, checkConnection])
+    // Reset countdown
+    setSecondsUntilNextCheck(10)
+
+    // Countdown timer for visual feedback
+    const countdownInterval = setInterval(() => {
+      setSecondsUntilNextCheck((prev) => (prev > 0 ? prev - 1 : 10))
+    }, 1000)
+
+    // Connection check interval
+    const checkInterval = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current
+
+      // Check if timeout reached (3 minutes)
+      if (elapsed > MAX_POLL_DURATION) {
+        clearInterval(checkInterval)
+        clearInterval(countdownInterval)
+        setError('Tempo esgotado. O QR Code expirou. Clique em "Tentar novamente" para gerar um novo.')
+        return
+      }
+
+      checkConnection()
+      setSecondsUntilNextCheck(10) // Reset countdown after check
+    }, POLL_INTERVAL)
+
+    return () => {
+      clearInterval(checkInterval)
+      clearInterval(countdownInterval)
+    }
+  }, [open, connected, loading, checkConnection, MAX_POLL_DURATION, POLL_INTERVAL])
 
   // Reset state when modal closes
   useEffect(() => {
@@ -131,6 +164,8 @@ export function QRCodeModal({ open, onClose, api, onConnected }: QRCodeModalProp
       setPairingCode(null)
       setError(null)
       setConnected(false)
+      setSecondsUntilNextCheck(10)
+      startTimeRef.current = Date.now()
     }
   }, [open])
 
@@ -216,7 +251,7 @@ export function QRCodeModal({ open, onClose, api, onConnected }: QRCodeModalProp
                 </div>
               )}
 
-              <div className="mt-6 space-y-2 text-center">
+              <div className="mt-6 space-y-3 text-center">
                 <div className="flex items-center justify-center gap-2 text-sm">
                   {checkingConnection ? (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -229,6 +264,18 @@ export function QRCodeModal({ open, onClose, api, onConnected }: QRCodeModalProp
                   <span className="text-muted-foreground">
                     Aguardando conexao...
                   </span>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <span>Verificando em {secondsUntilNextCheck}s</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={checkConnection}
+                    disabled={checkingConnection}
+                    className="h-6 px-2 text-xs"
+                  >
+                    Verificar agora
+                  </Button>
                 </div>
               </div>
 

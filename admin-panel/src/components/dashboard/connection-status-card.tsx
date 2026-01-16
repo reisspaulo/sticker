@@ -174,9 +174,26 @@ export function ConnectionStatusCard() {
   useEffect(() => {
     fetchStatus()
 
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => fetchStatus(), 30000)
-    return () => clearInterval(interval)
+    // Auto-refresh every 30 seconds (only when page is visible)
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchStatus()
+      }
+    }, 30000)
+
+    // Refresh immediately when user returns to tab
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchStatus()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [fetchStatus])
 
   const handleRefresh = () => {

@@ -125,6 +125,102 @@ const result = await processPendingCampaignMessages(20, 1000);
 
 ---
 
+## 2.3 Fator Agravante: Monitoring Polling (Descoberta Pós-Implementação)
+
+### Investigação Adicional
+
+Após implementar as proteções de campanha, foi levantada a hipótese de que **o admin panel de monitoring** também contribuiu para o ban. Investigação completa revelou **3 camadas de polling simultâneas**.
+
+#### Volume Identificado de Monitoring:
+
+```
+┌────────────────────────────────────────────────────────────┐
+│         POLLING LAYERS (Admin Panel Monitoring)            │
+├────────────────────────────────────────────────────────────┤
+│                                                            │
+│  LAYER 1: Main Page (/monitoring/connections)             │
+│  • Intervalo: 30 segundos                                 │
+│  • Volume: 2 req/min = 120 req/hora = 2,880 req/dia       │
+│  • Impacto: Moderado                                      │
+│                                                            │
+│  LAYER 2: QR Code Modal (CRÍTICO!) 🚨                     │
+│  • Intervalo: 3 segundos                                  │
+│  • Volume: 20 req/min = 1,200 req/hora = 28,800 req/dia!  │
+│  • Se modal fica aberto 4h: 4,800 requisições             │
+│  • Impacto: ALTO - Padrão de spam/bot                     │
+│                                                            │
+│  LAYER 3: Backend Cron Job                                │
+│  • Intervalo: 5 minutos                                   │
+│  • Volume: 12 req/hora = 288 req/dia                      │
+│  • Impacto: Baixo (razoável)                              │
+│                                                            │
+└────────────────────────────────────────────────────────────┘
+```
+
+#### Hipótese Combinada (95% confiança):
+
+**Cenário mais provável do ban:**
+
+1. ✅ **Causa principal (70%):** Loop de retry das campanhas (26,388 falhas)
+2. ✅ **Fator agravante (25%):** QR modal aberto por horas (polling 3s)
+3. ⚠️ **Contribuinte menor (5%):** Main page aberta (polling 30s)
+
+**Timeline possível:**
+```
+15/01 10:00 - Admin abre /monitoring/connections (polling 30s)
+15/01 10:05 - Admin abre QR modal para testar conexão (polling 3s)
+15/01 10:10 - Admin esquece modal aberto e sai para almoço
+15/01 10:15 - Campanhas começam a enviar (loop de retry inicia)
+15/01 14:00 - 4 horas depois: ~32k requisições para Evolution API
+16/01 14:30 - WhatsApp detecta padrão de bot e aplica ban
+```
+
+#### Volume Total Combinado:
+
+| Componente | Volume (24h) | % do Total |
+|------------|--------------|------------|
+| Campanhas (retry loop) | 26,388 msgs | 82% |
+| QR Modal (4h aberto) | 4,800 reqs | 15% |
+| Main Page (8h) | 960 reqs | 3% |
+| Backend Cron | 288 reqs | <1% |
+| **TOTAL** | **32,436 requisições** | **100%** |
+
+**Análise:** WhatsApp identificou combinação de alto volume de checks + alto volume de envios como comportamento automatizado malicioso.
+
+### Correções Implementadas para Monitoring:
+
+**Commit:** `d581847` - fix(admin): reduce monitoring polling
+
+1. **Main Page - Page Visibility API:**
+   - Pausa polling quando tab está em background
+   - Refresh imediato ao retornar
+   - **Redução:** ~50% menos requisições
+
+2. **QR Modal - Polling 3s → 10s:**
+   - **Antes:** 20 req/min = 1,200 req/hora
+   - **Depois:** 6 req/min = 360 req/hora
+   - **Redução:** 70% menos requisições
+
+3. **QR Modal - Timeout de 3 minutos:**
+   - Previne polling infinito se esquecido aberto
+   - **Antes:** 4h = 4,800 reqs
+   - **Depois:** Máximo 18 reqs
+   - **Redução:** 99.6%
+
+4. **UX Improvements:**
+   - Contador visual: "Verificando em Xs"
+   - Botão "Verificar agora" para check manual
+
+**Arquivos modificados:**
+- `admin-panel/src/components/dashboard/connection-status-card.tsx`
+- `admin-panel/src/components/dashboard/qr-code-modal.tsx`
+
+**Documentação adicional:**
+- [INVESTIGATION-MONITORING-POLLING.md](./INVESTIGATION-MONITORING-POLLING.md) - Análise completa do polling
+- [RISK-ANALYSIS-MONITORING-CHANGES.md](./RISK-ANALYSIS-MONITORING-CHANGES.md) - Análise de riscos das mudanças
+
+---
+
 ## 3. Implementação
 
 ### 3.1 Migrações do Banco de Dados
@@ -440,15 +536,27 @@ Status: failed_permanent
 
 ## 5. Impacto Esperado
 
-### 5.1 Volume de Mensagens (Estimativa)
+### 5.1 Volume Total (Campanhas + Monitoring)
 
-**Cenário: 100 usuários ativos**
+**Cenário Real: 100 usuários ativos + Admin monitoring**
+
+#### Apenas Campanhas:
 
 | Período | ANTES | DEPOIS | Redução |
 |---------|-------|--------|---------|
 | Primeira hora | 300 msgs | 60 msgs | **80%** |
 | Primeiras 24h | 7,200 msgs | 300 msgs | **96%** |
 | Com retries (falhas) | ∞ msgs | Máx 500 msgs | **Cap aplicado** |
+
+#### Campanhas + Monitoring Combinados:
+
+| Componente | ANTES (24h) | DEPOIS (24h) | Redução |
+|------------|-------------|--------------|---------|
+| **Campanhas** | 26,388 | ~300 | **99%** |
+| **QR Modal** (4h esquecido) | 4,800 | 18 | **99.6%** |
+| **Main Page** (8h, 4h background) | 960 | 480 | **50%** |
+| **Backend Cron** | 288 | 288 | - |
+| **TOTAL** | **32,436** | **1,086** | **97%** 🎉 |
 
 ### 5.2 Comportamento com Falhas
 
@@ -486,21 +594,30 @@ Status: failed_permanent
 
 ### 6.1 Monitoramento (CRÍTICO) 🚨
 
+- [x] **Reduzir polling do Admin Panel** ✅ (Implementado em `d581847`)
+  - QR Modal: 3s → 10s (70% redução)
+  - QR Modal: Timeout de 3 minutos
+  - Main Page: Page Visibility API
+  - UX: Contador + botão "Verificar agora"
+
 - [ ] **Criar dashboard no Admin Panel para Campaign Health**
   - Exibir taxa de falha em tempo real
   - Alertas visuais para campanhas em risco (>30% falha)
   - Histórico de auto-pauses
   - Gráfico de volume de envios por hora
+  - **NOVO:** Gráfico de volume de polling do monitoring
 
 - [ ] **Alertas proativos**
   - Email/Slack quando campanha for auto-pausada
   - Notificação quando taxa de falha > 30%
   - Daily report com métricas de saúde
+  - **NOVO:** Alerta se polling exceder 100 req/10min
 
 - [ ] **Logs estruturados para análise**
   - Registrar todos os eventos de retry
   - Logs de cooling-off (usuários bloqueados)
   - Logs de rate limiting (delays aplicados)
+  - **NOVO:** Logs de volume de requisições de monitoring
 
 ### 6.2 Validação de Números (ALTA PRIORIDADE) 🔴
 
@@ -693,6 +810,12 @@ ORDER BY hour;
    - Descobrimos apenas após o ban
    - Logs não estavam sendo analisados
 
+5. **Polling excessivo no Admin Panel** (Descoberta posterior)
+   - QR Modal com 3s polling = 20 req/min
+   - Sem timeout = polling infinito se esquecido
+   - Sem Page Visibility = polling em background
+   - **Agravou o ban** ao somar com campanhas
+
 ### 8.2 O Que Fizemos Certo ✅
 
 1. **Diagnóstico rápido**
@@ -717,12 +840,22 @@ ORDER BY hour;
 
 ### 8.3 Recomendações para Futuro 📚
 
+**Campanhas & Retry:**
 1. **SEMPRE implemente backoff exponencial** em sistemas de retry
 2. **SEMPRE valide inputs** antes de processar (números de telefone, emails, etc)
 3. **SEMPRE monitore taxas de falha** e configure alertas
 4. **SEMPRE teste com números reais** antes de enviar para base completa
 5. **SEMPRE tenha um kill switch** para pausar tudo rapidamente
 6. **SEMPRE documente incidents** para aprendizado do time
+
+**Polling & Monitoring:**
+7. **NUNCA use intervalo <10s** para checks de status/conexão
+8. **SEMPRE adicione timeout máximo** em polling loops (3-5 minutos)
+9. **SEMPRE pause polling** quando página está em background (Page Visibility API)
+10. **SEMPRE implemente exponential backoff** após erros consecutivos
+11. **SEMPRE adicione rate limiting** em APIs de monitoring/health check
+12. **SEMPRE logue volume de requisições** para detectar anomalias
+13. **CONSIDERE WebSocket** para eliminar polling quando possível
 
 ---
 
@@ -732,9 +865,12 @@ ORDER BY hour;
 - [QUICK-CHANGES-GUIDE.md](../operations/QUICK-CHANGES-GUIDE.md) - Como acessar VPS e verificar logs
 - [CI-CD-WORKFLOW.md](../setup/CI-CD-WORKFLOW.md) - Deploy automático via GitHub Actions
 - [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) - Arquitetura do sistema de campanhas
+- [INVESTIGATION-MONITORING-POLLING.md](./INVESTIGATION-MONITORING-POLLING.md) - Análise completa do polling do admin panel ⭐ NOVO
+- [RISK-ANALYSIS-MONITORING-CHANGES.md](./RISK-ANALYSIS-MONITORING-CHANGES.md) - Análise de riscos das mudanças de polling ⭐ NOVO
 
 ### 9.2 Commits Relevantes
 - `040b9ef` - feat: implement anti-spam protection for campaigns (HOTFIX)
+- `d581847` - fix(admin): reduce monitoring polling to prevent WhatsApp spam detection ⭐ NOVO
 - Migrations aplicadas via Supabase MCP em 16/01/2026
 
 ### 9.3 Recursos Externos

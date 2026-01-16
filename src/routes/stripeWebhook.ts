@@ -25,9 +25,14 @@ export default async function stripeWebhookRoutes(fastify: FastifyInstance) {
         }
 
         // Get raw body
-        const rawBody = (request as any).rawBody;
+        const rawBody = request.rawBody;
 
-        // Verify webhook signature
+        if (!rawBody) {
+          logger.error('Missing raw body for Stripe webhook');
+          return reply.code(400).send({ error: 'Missing body' });
+        }
+
+        // Verify webhook signature (rawBody is guaranteed to be Buffer here)
         const event = verifyWebhookSignature(rawBody, signature);
 
         logger.info({

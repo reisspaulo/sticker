@@ -18,6 +18,8 @@ import {
   LogOut,
   MessageSquare,
   Radio,
+  Megaphone,
+  Link2,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -66,6 +68,27 @@ const navigation: NavItem[] = [
       { title: 'Mensagens', href: '/bot/messages' },
       { title: 'Botões', href: '/bot/buttons' },
       { title: 'Fluxos', href: '/bot/flows' },
+    ],
+  },
+  {
+    title: 'Campanhas',
+    href: '/campaigns',
+    icon: Megaphone,
+    children: [
+      { title: 'Todas', href: '/campaigns' },
+      { title: 'Nova', href: '/campaigns/new' },
+      { title: 'Stickers', href: '/campaigns/stickers' },
+      { title: 'Opt-outs', href: '/campaigns/optouts' },
+      { title: 'Supressão', href: '/campaigns/suppression' },
+    ],
+  },
+  {
+    title: 'Links',
+    href: '/links',
+    icon: Link2,
+    children: [
+      { title: 'Todos', href: '/links' },
+      { title: 'Novo', href: '/links/new' },
     ],
   },
   {

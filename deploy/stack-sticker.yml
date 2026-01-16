@@ -28,6 +28,12 @@ services:
     networks:
       - traefik-public  # SSL routing via Traefik
       - ytem-backend    # Access to Redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     deploy:
       replicas: 2  # ← 2 réplicas para zero downtime
       placement:
@@ -47,12 +53,6 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 3
-      healthcheck:
-        test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-        interval: 10s
-        timeout: 5s
-        retries: 3
-        start_period: 40s
       resources:
         limits:
           cpus: '0.5'

@@ -9,8 +9,8 @@ import type {
   LinkStats,
 } from '../types/links';
 
-// Base URL for short links
-const SHORT_URL_BASE = process.env.SHORT_URL_BASE || 'https://fig.ytem.com.br';
+// Base URL for short links (includes /l prefix for redirect route)
+const SHORT_URL_BASE = process.env.SHORT_URL_BASE || 'https://fig.ytem.com.br/l';
 
 /**
  * Create a new tracked link

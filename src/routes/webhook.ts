@@ -66,7 +66,8 @@ import type { PlanType } from '../types/subscription';
 export default async function webhookRoutes(fastify: FastifyInstance) {
   // ANTI-SPAM: Rate limiting for webhook endpoint
   // Limit: 10 requests per second per user
-  await fastify.register(require('@fastify/rate-limit'), {
+  const rateLimitPlugin = await import('@fastify/rate-limit');
+  await fastify.register(rateLimitPlugin.default, {
     max: 10,
     timeWindow: '1 second',
     keyGenerator: (request: FastifyRequest) => {

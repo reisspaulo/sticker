@@ -39,7 +39,7 @@ async function checkEvolutionConnection(): Promise<ConnectionResult> {
   const lastChecked = new Date().toISOString()
 
   try {
-    const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080'
+    const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'https://wa.ytem.com.br'
     const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY
     const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || 'meu-zap'
 
@@ -130,7 +130,8 @@ async function checkAvisaConnection(): Promise<ConnectionResult> {
     }
 
     const data: AvisaStatusResponse = await response.json()
-    const isConnected = data?.data?.data?.Connected === true
+    // Avisa API must be both Connected AND LoggedIn to be truly connected
+    const isConnected = data?.data?.data?.Connected === true && data?.data?.data?.LoggedIn === true
 
     return {
       connected: isConnected,

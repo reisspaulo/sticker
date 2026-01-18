@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 interface AvisaQRResponse {
   status?: boolean
   data?: {
+    qrcode?: string
     data?: {
       QRCode?: string
     }
@@ -36,14 +37,15 @@ export async function GET() {
       )
     }
 
-    // First check if already connected
+    // First check if already connected AND logged in
     const statusResponse = await fetch(`${AVISA_API_URL}/instance/status`, {
       headers: { Authorization: `Bearer ${AVISA_API_TOKEN}` },
     })
 
     if (statusResponse.ok) {
       const statusData: AvisaStatusResponse = await statusResponse.json()
-      if (statusData?.data?.data?.Connected === true) {
+      // Must be both Connected AND LoggedIn to be truly connected
+      if (statusData?.data?.data?.Connected === true && statusData?.data?.data?.LoggedIn === true) {
         return NextResponse.json({
           alreadyConnected: true,
           message: 'Avisa API is already connected',
@@ -72,8 +74,10 @@ export async function GET() {
 
     const data: AvisaQRResponse = await response.json()
 
-    // Avisa API returns QR code in different formats
-    const qrCode = data?.data?.data?.QRCode || null
+    // Avisa API returns QR code in different formats:
+    // - New format: data.qrcode (lowercase)
+    // - Old format: data.data.QRCode (nested with uppercase)
+    const qrCode = data?.data?.qrcode || data?.data?.data?.QRCode || null
 
     if (!qrCode) {
       return NextResponse.json(

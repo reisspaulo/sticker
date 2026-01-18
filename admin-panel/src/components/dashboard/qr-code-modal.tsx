@@ -232,22 +232,45 @@ export function QRCodeModal({ open, onClose, api, onConnected }: QRCodeModalProp
           )}
 
           {/* QR Code Display */}
-          {qrCode && !loading && !connected && !error && (
+          {(qrCode || pairingCode) && !loading && !connected && !error && (
             <>
-              <div className="relative rounded-lg border bg-white p-4">
-                <img
-                  src={qrCode}
-                  alt="QR Code para conexao"
-                  className="h-64 w-64"
-                />
-              </div>
+              {qrCode && (
+                <div className="relative rounded-lg border bg-white p-4">
+                  <img
+                    src={qrCode}
+                    alt="QR Code para conexao"
+                    className="h-64 w-64"
+                    onError={(e) => {
+                      console.error('Failed to load QR code image')
+                      e.currentTarget.style.display = 'none'
+                      setError('Falha ao carregar imagem do QR Code. Use o codigo de pareamento abaixo.')
+                    }}
+                  />
+                </div>
+              )}
 
               {pairingCode && (
-                <div className="mt-4 text-center">
-                  <p className="text-xs text-muted-foreground">Codigo de pareamento:</p>
-                  <p className="font-mono text-lg font-bold tracking-widest">
+                <div className={cn("text-center", qrCode ? "mt-4" : "mt-0")}>
+                  <p className="text-xs text-muted-foreground">
+                    {qrCode ? 'Codigo de pareamento:' : 'Use este codigo para conectar:'}
+                  </p>
+                  <p className="font-mono text-lg font-bold tracking-widest break-all">
                     {pairingCode}
                   </p>
+                  {!qrCode && (
+                    <div className="mt-4 rounded-lg bg-muted/50 p-4 text-sm">
+                      <div className="flex items-start gap-3">
+                        <Smartphone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div className="space-y-1.5 text-muted-foreground text-left">
+                          <p>1. Abra o WhatsApp no celular</p>
+                          <p>2. Toque em <span className="font-medium text-foreground">Menu</span> ou <span className="font-medium text-foreground">Configuracoes</span></p>
+                          <p>3. Toque em <span className="font-medium text-foreground">Aparelhos conectados</span></p>
+                          <p>4. Toque em <span className="font-medium text-foreground">Conectar usando numero de telefone</span></p>
+                          <p>5. Digite o codigo acima</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -279,18 +302,20 @@ export function QRCodeModal({ open, onClose, api, onConnected }: QRCodeModalProp
                 </div>
               </div>
 
-              <div className="mt-6 rounded-lg bg-muted/50 p-4 text-sm">
-                <div className="flex items-start gap-3">
-                  <Smartphone className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="space-y-1.5 text-muted-foreground">
-                    <p>1. Abra o WhatsApp no celular</p>
-                    <p>2. Toque em <span className="font-medium text-foreground">Menu</span> ou <span className="font-medium text-foreground">Configuracoes</span></p>
-                    <p>3. Toque em <span className="font-medium text-foreground">Aparelhos conectados</span></p>
-                    <p>4. Toque em <span className="font-medium text-foreground">Conectar um aparelho</span></p>
-                    <p>5. Aponte a camera para este QR Code</p>
+              {qrCode && (
+                <div className="mt-6 rounded-lg bg-muted/50 p-4 text-sm">
+                  <div className="flex items-start gap-3">
+                    <Smartphone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div className="space-y-1.5 text-muted-foreground">
+                      <p>1. Abra o WhatsApp no celular</p>
+                      <p>2. Toque em <span className="font-medium text-foreground">Menu</span> ou <span className="font-medium text-foreground">Configuracoes</span></p>
+                      <p>3. Toque em <span className="font-medium text-foreground">Aparelhos conectados</span></p>
+                      <p>4. Toque em <span className="font-medium text-foreground">Conectar um aparelho</span></p>
+                      <p>5. Aponte a camera para este QR Code</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <Button
                 onClick={fetchQRCode}

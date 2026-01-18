@@ -24,7 +24,7 @@ export interface MenuOptions {
  * Versão curta focada em ação imediata (Time to Value)
  */
 export function getWelcomeMenu(userName: string): string {
-  return `🎉 Olá ${userName}, bem-vindo ao *StickerBot*!
+  return `🎉 Olá ${userName}, bem-vindo ao *StickerZap*!
 
 Envie uma imagem, vídeo ou GIF agora mesmo que eu transformo em figurinha! 🎨`;
 }
@@ -151,7 +151,7 @@ export async function sendLimitReachedMenu(
       number: userNumber,
       title: messageTitle,
       desc: messageDesc,
-      footer: 'StickerBot',
+      footer: 'StickerZap',
       buttons,
     });
 
@@ -376,7 +376,7 @@ Para ver os planos disponíveis, digite *planos*.`;
  * Help message
  */
 export function getHelpMessage(): string {
-  return `❓ *AJUDA - StickerBot*
+  return `❓ *AJUDA - StickerZap*
 
 🎨 *COMO USAR:*
 1. Envie uma imagem ou GIF
@@ -656,7 +656,7 @@ export async function sendStickerEditButtons(userNumber: string): Promise<void> 
  */
 export function getWelcomeMessageForNewUser(userName: string, userDailyLimit: number = 4): string {
   const firstName = userName.split(' ')[0];
-  return `👋 Olá, ${firstName}! Eu sou o *StickerBot*!
+  return `👋 Olá, ${firstName}! Eu sou o *StickerZap*!
 
 📸 Me envie uma *imagem* ou *GIF* e eu transformo em figurinha instantaneamente!
 

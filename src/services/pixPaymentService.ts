@@ -32,9 +32,9 @@ export function generatePixPayment(plan: PlanType): {
   };
 
   const descriptions = {
-    premium: 'StickerBot Premium - Mensal',
-    ultra: 'StickerBot Ultra - Mensal',
-    free: 'StickerBot Free',
+    premium: 'StickerZap Premium - Mensal',
+    ultra: 'StickerZap Ultra - Mensal',
+    free: 'StickerZap Free',
   };
 
   return {

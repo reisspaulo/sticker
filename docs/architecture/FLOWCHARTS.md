@@ -1,4 +1,4 @@
-# 🗺️ StickerBot - Fluxos Visuais
+# 🗺️ StickerZap - Fluxos Visuais
 
 Diagramas interativos do funcionamento do bot.
 

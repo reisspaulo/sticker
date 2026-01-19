@@ -15,10 +15,19 @@
 - ❌ Log `sticker_created` não é criado
 - ❌ Jobs ficam "active" por 30-45 minutos (travados)
 
-### Causa Raiz
+### ⚠️ CAUSA RAIZ IDENTIFICADA (2026-01-19)
+**Global Message Rate Limiter sem timeout causando deadlock:**
+
+1. **Arquivo**: `src/utils/messageRateLimiter.ts` (linha 105)
+2. **Problema**: `await item.fn()` SEM timeout protection
+3. **Impacto**: Se axios call hangs, toda a fila de mensagens trava
+4. **Resultado**: TODOS os jobs ficam presos esperando o rate limiter
+5. **Solução**: Adicionado `Promise.race()` com timeout de 90 segundos
+
+### Outras Causas Secundárias
 1. **Jobs sem timeout**: Workers podem travar indefinidamente
-2. **Redis eviction policy errada**: `allkeys-lru` deletando jobs
-3. **Error handling fraco**: Erros de insert apenas logados, não lançados
+2. **Redis eviction policy errada**: `allkeys-lru` deletando jobs (CORRIGIDO)
+3. **Error handling fraco**: Erros de insert apenas logados, não lançados (CORRIGIDO)
 4. **Falta de monitoramento**: Jobs travados não são detectados
 
 ---
@@ -39,6 +48,28 @@ docker service update --force sticker_worker
 docker exec <redis-container> redis-cli -a ytem_redis_secure_2024 CONFIG SET maxmemory-policy noeviction
 ```
 **Status**: ✅ Executado (2026-01-19 02:46 UTC)
+
+### 3. Rate Limiter Timeout Protection Adicionado ⭐ CRÍTICO
+```typescript
+// Arquivo: src/utils/messageRateLimiter.ts (linha 104-114)
+// ANTES: await item.fn(); // Sem timeout - pode travar para sempre!
+
+// DEPOIS:
+const timeoutMs = 90000; // 90 segundos (3x timeout do axios)
+const timeoutPromise = new Promise<never>((_, reject) => {
+  setTimeout(() => {
+    reject(new Error(`Message send timeout after ${timeoutMs / 1000}s`));
+  }, timeoutMs);
+});
+
+await Promise.race([item.fn(), timeoutPromise]);
+```
+**Status**: ✅ Implementado (2026-01-19)
+**Impacto**:
+- Se axios call travar, após 90s o timeout rejeita a promise
+- Queue continua processando próximas mensagens
+- Job é marcado como "failed" e BullMQ retenta automaticamente
+- PREVINE deadlock da fila inteira de mensagens
 
 **⚠️ IMPORTANTE**: Tornar permanente editando `docker-compose.yml`:
 ```yaml

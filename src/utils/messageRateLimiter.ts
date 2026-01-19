@@ -101,8 +101,18 @@ class MessageRateLimiter {
       if (!item) break;
 
       try {
-        // Execute the send function
-        await item.fn();
+        // Execute the send function WITH TIMEOUT PROTECTION
+        // Timeout set to 90 seconds (3x the Evolution API timeout of 30s)
+        // This prevents the entire queue from hanging if one message gets stuck
+        const timeoutMs = 90000;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`Message send timeout after ${timeoutMs / 1000}s`));
+          }, timeoutMs);
+        });
+
+        await Promise.race([item.fn(), timeoutPromise]);
+
         this.messageCount++;
         item.resolve();
 

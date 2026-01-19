@@ -45,7 +45,9 @@ export const featureFlags = loadFeatureFlags();
  */
 export function logFeatureFlags(): void {
   console.log('🚩 Feature Flags:');
-  console.log(`  USE_ZAPI: ${featureFlags.USE_ZAPI ? '✅ ENABLED' : '❌ DISABLED'} (WhatsApp API provider)`);
+  console.log(
+    `  USE_ZAPI: ${featureFlags.USE_ZAPI ? '✅ ENABLED' : '❌ DISABLED'} (WhatsApp API provider)`
+  );
   console.log(
     `  ZAPI_WEBHOOK_ENABLED: ${featureFlags.ZAPI_WEBHOOK_ENABLED ? '✅ ENABLED' : '❌ DISABLED'} (Z-API webhook)`
   );

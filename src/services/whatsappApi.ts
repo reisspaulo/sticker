@@ -200,11 +200,14 @@ export async function sendList(request: SendListRequest): Promise<void> {
       message: request.desc || request.message || '',
       title: request.toptext || request.title || '',
       buttonLabel: request.buttontext || request.buttonLabel || '',
-      options: request.list?.map((item) => ({
-        id: item.RowId,
-        title: item.title,
-        description: item.desc,
-      })) || request.options || [],
+      options:
+        request.list?.map((item) => ({
+          id: item.RowId,
+          title: item.title,
+          description: item.desc,
+        })) ||
+        request.options ||
+        [],
     };
 
     return zapiApi.sendList(zapiRequest);
@@ -218,11 +221,14 @@ export async function sendList(request: SendListRequest): Promise<void> {
       buttontext: request.buttontext || request.buttonLabel || '',
       desc: request.desc || request.message || '',
       toptext: request.toptext || request.title || '',
-      list: request.list || (request.options?.map((opt) => ({
-        RowId: opt.id,
-        title: opt.title,
-        desc: opt.description || '',
-      })) || []),
+      list:
+        request.list ||
+        request.options?.map((opt) => ({
+          RowId: opt.id,
+          title: opt.title,
+          desc: opt.description || '',
+        })) ||
+        [],
     };
 
     await avisaApi.sendList(avisaRequest);

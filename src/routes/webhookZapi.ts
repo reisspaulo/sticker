@@ -241,12 +241,11 @@ export default async function webhookZapiRoutes(fastify: FastifyInstance) {
       // Valid format: 5511999999999 (country code 55 + DDD + number)
       // Length: 12-13 digits (13 with 9th digit for mobile)
       const phoneDigits = phone.replace(/\D/g, ''); // Remove non-digits
-      const isValidBrazilianNumber = (
+      const isValidBrazilianNumber =
         phoneDigits.startsWith('55') &&
         phoneDigits.length >= 12 &&
         phoneDigits.length <= 13 &&
-        /^\d+$/.test(phoneDigits) // Only digits
-      );
+        /^\d+$/.test(phoneDigits); // Only digits
 
       if (!isValidBrazilianNumber) {
         logger.warn({

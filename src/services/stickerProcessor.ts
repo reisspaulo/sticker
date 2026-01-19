@@ -19,7 +19,9 @@ export async function processStaticSticker(messageKeyOrUrl: MessageKey | string)
     const isDirectUrl = typeof messageKeyOrUrl === 'string';
 
     logger.info({
-      msg: isDirectUrl ? 'Downloading image from direct URL (Z-API)' : 'Downloading image via Evolution API',
+      msg: isDirectUrl
+        ? 'Downloading image from direct URL (Z-API)'
+        : 'Downloading image via Evolution API',
       source: isDirectUrl ? 'zapi_url' : 'evolution_messagekey',
     });
 

@@ -51,7 +51,10 @@ class MessageRateLimiter {
    * @param sendFn - Async function that sends the message
    * @param priority - Message priority (HIGH for stickers, NORMAL for others)
    */
-  async send(sendFn: () => Promise<void>, priority: MessagePriority = MessagePriority.NORMAL): Promise<void> {
+  async send(
+    sendFn: () => Promise<void>,
+    priority: MessagePriority = MessagePriority.NORMAL
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const item = {
         fn: sendFn,

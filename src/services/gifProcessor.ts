@@ -36,10 +36,13 @@ async function downloadFile(messageKeyOrUrl: MessageKey | string): Promise<strin
   try {
     const isDirectUrl = typeof messageKeyOrUrl === 'string';
 
-    logger.info({
-      source: isDirectUrl ? 'zapi_url' : 'evolution_messagekey',
-      tempPath,
-    }, 'Downloading GIF file');
+    logger.info(
+      {
+        source: isDirectUrl ? 'zapi_url' : 'evolution_messagekey',
+        tempPath,
+      },
+      'Downloading GIF file'
+    );
 
     // Download media (supports both Evolution messageKey and Z-API direct URL)
     const buffer = await downloadMedia(messageKeyOrUrl);
@@ -51,10 +54,13 @@ async function downloadFile(messageKeyOrUrl: MessageKey | string): Promise<strin
 
     return tempPath;
   } catch (error) {
-    logger.error({
-      error,
-      source: typeof messageKeyOrUrl === 'string' ? 'url' : 'messagekey',
-    }, 'Failed to download file');
+    logger.error(
+      {
+        error,
+        source: typeof messageKeyOrUrl === 'string' ? 'url' : 'messagekey',
+      },
+      'Failed to download file'
+    );
     throw new Error(
       `Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`
     );

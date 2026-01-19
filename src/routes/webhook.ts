@@ -1741,29 +1741,54 @@ export async function processWebhookRequest(
         if (user.onboarding_step === 0) {
           const userLimit = user.daily_limit ?? 4;
 
-          // Queue welcome message with randomized delay (0-2s)
-          await welcomeMessagesQueue.add(
-            'send-welcome',
-            {
+          // Atomically update onboarding_step to prevent duplicate welcomes
+          const { data: updated } = await supabase
+            .from('users')
+            .update({
+              onboarding_step: 1,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', user.id)
+            .eq('onboarding_step', 0) // Only update if still 0 (prevents race condition)
+            .select()
+            .single();
+
+          // Only queue welcome if we successfully updated (prevents duplicates)
+          if (updated) {
+            // Queue welcome message with randomized delay (0-2s)
+            await welcomeMessagesQueue.add(
+              'send-welcome',
+              {
+                userNumber,
+                userName,
+                userLimit,
+                type: 'new_user',
+              },
+              {
+                delay: Math.floor(Math.random() * 2000), // 0-2s randomized delay
+              }
+            );
+
+            fastify.log.info({
+              msg: '[ANTI-SPAM] Welcome message queued for new user (text input)',
               userNumber,
               userName,
-              userLimit,
-              type: 'new_user',
-            },
-            {
-              delay: Math.floor(Math.random() * 2000), // 0-2s randomized delay
-            }
-          );
-
-          fastify.log.info({
-            msg: '[ANTI-SPAM] Welcome message queued for new user (text input)',
-            userNumber,
-            userName,
-          });
-          return reply.status(200).send({
-            status: 'welcome_queued',
-            trigger: 'text_input',
-          });
+            });
+            return reply.status(200).send({
+              status: 'welcome_queued',
+              trigger: 'text_input',
+            });
+          } else {
+            fastify.log.info({
+              msg: 'Welcome message skipped (already queued by another request)',
+              userNumber,
+              userName,
+            });
+            return reply.status(200).send({
+              status: 'welcome_already_queued',
+              trigger: 'text_input',
+            });
+          }
         }
 
         // 2. EXISTING USER WHO HIT LIMIT → Upgrade menu (only once per day)

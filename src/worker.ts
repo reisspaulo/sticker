@@ -1658,7 +1658,7 @@ import { messageRateLimiter } from './utils/messageRateLimiter';
 const welcomeMessagesWorker = new Worker<WelcomeMessageJobData>(
   'welcome-messages',
   async (job) => {
-    const { userNumber, userName, userLimit, type, planType } = job.data;
+    const { userNumber, userName, type, planType } = job.data;
 
     logger.info({
       msg: '[WELCOME-WORKER] Processing welcome message job',
@@ -1669,14 +1669,14 @@ const welcomeMessagesWorker = new Worker<WelcomeMessageJobData>(
 
     try {
       // Import functions
-      const { getWelcomeMessageForNewUser, getSubscriptionActivatedMessage } =
+      const { getWelcomeMenu, getSubscriptionActivatedMessage } =
         await import('./services/menuService');
 
       // Wrap in rate limiter for global protection
       await messageRateLimiter.send(async () => {
         if (type === 'new_user') {
-          // Send welcome message for new user
-          await sendText(userNumber, getWelcomeMessageForNewUser(userName, userLimit));
+          // Send welcome message for new user (short version)
+          await sendText(userNumber, getWelcomeMenu(userName));
           logger.info({
             msg: '[WELCOME-WORKER] Sent welcome message to new user',
             jobId: job.id,

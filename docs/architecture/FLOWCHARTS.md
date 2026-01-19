@@ -1324,6 +1324,7 @@ flowchart TD
 ## 20. Text Message Strategy - Conversão Silenciosa
 
 **Status**: ✅ ATIVO
+**Última atualização**: 19/01/2026 - Adicionada atomicidade no fluxo de texto + mensagem curta
 
 ```mermaid
 flowchart TD
@@ -1346,13 +1347,28 @@ flowchart TD
     style WELCOME fill:#e8f5e9
 ```
 
-**Lógica (webhook.ts:1021-1229):**
+**Lógica (webhook.ts:1741-1792):**
 ```typescript
 // Texto não é comando conhecido
 if (!isCommand) {
   if (user.onboarding_step === 0) {
     // Novo usuário → Welcome (engajamento)
-    await sendWelcomeMessage(userNumber, user.name);
+    // ✅ Atualização ATÔMICA do onboarding_step para prevenir duplicatas
+    const { data: updated } = await supabase
+      .from('users')
+      .update({ onboarding_step: 1 })
+      .eq('id', user.id)
+      .eq('onboarding_step', 0); // Só atualiza se ainda for 0
+
+    if (updated) {
+      // Enfileira welcome message (ANTI-SPAM: randomized delay)
+      await welcomeMessagesQueue.add('send-welcome', {
+        userNumber,
+        userName,
+        userLimit: user.daily_limit ?? 4,
+        type: 'new_user',
+      });
+    }
   } else if (user.daily_count >= user.daily_limit) {
     // Limite atingido → Upgrade menu (conversão)
     await sendLimitReachedMenu(userNumber, user);
@@ -1369,6 +1385,12 @@ if (!isCommand) {
 2. ✅ Engajar novos usuários
 3. ✅ Converter usuários no limite
 4. ✅ Experiência limpa
+5. ✅ Prevenir loop de mensagens duplicadas (atomicidade)
+
+**Proteções Anti-Loop:**
+- ✅ Atualização atômica do `onboarding_step` (previne race conditions)
+- ✅ Welcome message enfileirada (ANTI-SPAM: delay 0-2s)
+- ✅ Mensagem curta e objetiva (`getWelcomeMenu`)
 
 ---
 
@@ -1651,7 +1673,7 @@ As seguintes funções foram atualizadas para receber o parâmetro `userDailyLim
 | `menuService.ts` | `sendPlansListMenu(userNumber, userDailyLimit)` | Plano gratuito: {limit} figurinhas/dia |
 | `menuService.ts` | `getPlansOverviewMenu(userDailyLimit)` | 🆓 Gratuito - {limit}/dia |
 | `menuService.ts` | `getPlanDetailsMenu(plan, userDailyLimit)` | Comparação free vs premium |
-| `menuService.ts` | `getWelcomeMessageForNewUser(userName, userDailyLimit)` | Seu plano: {limit} figurinhas/dia |
+| `menuService.ts` | `getWelcomeMenu(userName)` | Mensagem curta de boas-vindas (sem limite) |
 | `onboardingService.ts` | `checkTwitterFeaturePresentation(userNumber, userName, currentStep, stickerCount)` | Trigger após N figurinhas |
 | `onboardingService.ts` | `sendTwitterFeaturePresentation(userNumber, userName, stickerCount)` | 🎉 Você já criou {count} figurinhas! |
 | `onboardingService.ts` | `handleTwitterLearnMore(userNumber, userName, userDailyLimit)` | ✨ Seu plano gratuito: {limit} vídeos/dia |
@@ -1661,7 +1683,9 @@ As seguintes funções foram atualizadas para receber o parâmetro `userDailyLim
 ```typescript
 // Todos os callsites passam user.daily_limit ?? 4
 await sendPlansListMenu(userNumber, user.daily_limit ?? 4);
-const welcomeMsg = getWelcomeMessageForNewUser(user.name, user.daily_limit ?? 4);
+
+// Welcome message usa versão curta (sem limite dinâmico)
+const welcomeMsg = getWelcomeMenu(user.name);
 await handleTwitterLearnMore(userNumber, user.name, user.daily_limit ?? 4);
 ```
 

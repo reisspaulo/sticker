@@ -71,9 +71,8 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
     max: 10,
     timeWindow: '1 second',
     keyGenerator: (request: FastifyRequest) => {
-      const body = request.body as WebhookPayload;
-      // Use user's WhatsApp number as key, fallback to IP
-      return body.data?.key?.remoteJid || request.ip;
+      // Use IP for rate limiting (body not parsed yet at this stage)
+      return request.ip;
     },
     errorResponseBuilder: (_request: FastifyRequest, context: any) => {
       fastify.log.warn({

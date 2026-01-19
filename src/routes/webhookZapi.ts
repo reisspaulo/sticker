@@ -221,6 +221,46 @@ export default async function webhookZapiRoutes(fastify: FastifyInstance) {
         });
       }
 
+      // ANTI-SPAM: Validate phone number to prevent processing invalid IDs
+      const phone = zapiBody.phone;
+
+      // Ignore group messages (contains @g.us or @lid)
+      if (phone.includes('@g.us') || phone.includes('@lid')) {
+        logger.info({
+          msg: '[Z-API] ❌ Ignoring group or broadcast list message',
+          phone,
+          messageId: zapiBody.messageId,
+        });
+        return reply.status(200).send({
+          status: 'ignored',
+          reason: 'group or broadcast list not supported',
+        });
+      }
+
+      // Validate Brazilian phone number format
+      // Valid format: 5511999999999 (country code 55 + DDD + number)
+      // Length: 12-13 digits (13 with 9th digit for mobile)
+      const phoneDigits = phone.replace(/\D/g, ''); // Remove non-digits
+      const isValidBrazilianNumber = (
+        phoneDigits.startsWith('55') &&
+        phoneDigits.length >= 12 &&
+        phoneDigits.length <= 13 &&
+        /^\d+$/.test(phoneDigits) // Only digits
+      );
+
+      if (!isValidBrazilianNumber) {
+        logger.warn({
+          msg: '[Z-API] ❌ Invalid phone number format',
+          phone,
+          phoneDigits,
+          messageId: zapiBody.messageId,
+        });
+        return reply.status(200).send({
+          status: 'ignored',
+          reason: 'invalid phone number format',
+        });
+      }
+
       // Transform Z-API payload to Evolution API format
       const evolutionPayload = transformZAPIPayload(zapiBody);
 

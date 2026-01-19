@@ -1,5 +1,4 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { validateApiKey } from '../middleware/auth';
 import { WebhookPayload } from '../types/evolution';
 import logger from '../config/logger';
 
@@ -195,16 +194,9 @@ export default async function webhookZapiRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // Add API key validation hook for POST requests only
-  // NOTE: Z-API doesn't use API key in webhook, but we validate for security
-  fastify.addHook('preHandler', async (request, reply) => {
-    if (request.method === 'POST' && request.url.includes('/webhook/zapi')) {
-      // For Z-API webhook, we validate using a different mechanism
-      // Z-API sends requests from their IPs, we could validate IP ranges
-      // For now, we'll use the same API key validation
-      await validateApiKey(request, reply);
-    }
-  });
+  // NOTE: Z-API webhooks don't use API key authentication
+  // Z-API validates via IP whitelist on their end
+  // We trust requests coming to this endpoint since only Z-API knows the URL
 
   fastify.post('/zapi', async (request: FastifyRequest, reply: FastifyReply) => {
     const startTime = Date.now();

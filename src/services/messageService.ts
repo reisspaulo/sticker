@@ -1,4 +1,4 @@
-import { sendText } from './evolutionApi';
+import { sendText } from './whatsappApi';
 import logger from '../config/logger';
 
 /**

@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import { sendSticker } from '../services/evolutionApi';
+import { sendSticker } from '../services/whatsappApi';
 import { logJobStart, logJobComplete, logJobFailed } from '../services/jobLogger';
 import logger from '../config/logger';
 

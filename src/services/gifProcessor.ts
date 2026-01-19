@@ -5,7 +5,7 @@ import { unlinkSync, existsSync, promises as fsPromises, writeFileSync } from 'f
 import { join } from 'path';
 import { tmpdir } from 'os';
 import logger from '../config/logger';
-import { downloadMedia } from './evolutionApi';
+import { downloadMedia } from './whatsappApi';
 import { MessageKey } from '../types/evolution';
 
 // Set ffmpeg and ffprobe paths
@@ -25,16 +25,24 @@ interface ProcessAnimatedStickerResult {
 }
 
 /**
- * Downloads media via Evolution API and saves to temporary file
+ * Downloads media and saves to temporary file
+ * Supports both Evolution API (messageKey) and Z-API (direct URL)
+ *
+ * @param messageKeyOrUrl - MessageKey (Evolution API) or direct URL string (Z-API)
  */
-async function downloadFile(messageKey: MessageKey): Promise<string> {
+async function downloadFile(messageKeyOrUrl: MessageKey | string): Promise<string> {
   const tempPath = join(tmpdir(), `input-${Date.now()}.mp4`);
 
   try {
-    logger.info({ messageId: messageKey.id, tempPath }, 'Downloading GIF file via Evolution API');
+    const isDirectUrl = typeof messageKeyOrUrl === 'string';
 
-    // Download media using Evolution API (handles WhatsApp encryption)
-    const buffer = await downloadMedia(messageKey);
+    logger.info({
+      source: isDirectUrl ? 'zapi_url' : 'evolution_messagekey',
+      tempPath,
+    }, 'Downloading GIF file');
+
+    // Download media (supports both Evolution messageKey and Z-API direct URL)
+    const buffer = await downloadMedia(messageKeyOrUrl);
 
     // Write buffer to temporary file
     writeFileSync(tempPath, buffer);
@@ -43,7 +51,10 @@ async function downloadFile(messageKey: MessageKey): Promise<string> {
 
     return tempPath;
   } catch (error) {
-    logger.error({ error, messageId: messageKey.id }, 'Failed to download file');
+    logger.error({
+      error,
+      source: typeof messageKeyOrUrl === 'string' ? 'url' : 'messagekey',
+    }, 'Failed to download file');
     throw new Error(
       `Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
@@ -261,18 +272,29 @@ export async function processAnimatedStickerFromBuffer(
  * @param messageKey Message key for downloading from Evolution API
  * @returns Buffer of the processed WebP sticker
  */
+/**
+ * Process animated sticker (GIF/video) from WhatsApp message
+ * Supports both Evolution API (messageKey) and Z-API (direct URL)
+ *
+ * @param messageKeyOrUrl - MessageKey (Evolution API) or direct URL string (Z-API)
+ */
 export async function processAnimatedSticker(
-  messageKey: MessageKey
+  messageKeyOrUrl: MessageKey | string
 ): Promise<ProcessAnimatedStickerResult> {
   const startTime = Date.now();
   let inputPath: string | null = null;
   let outputPath: string | null = null;
 
   try {
-    logger.info({ messageId: messageKey.id }, 'Processing animated sticker');
+    const isDirectUrl = typeof messageKeyOrUrl === 'string';
 
-    // Download file
-    inputPath = await downloadFile(messageKey);
+    logger.info({
+      source: isDirectUrl ? 'zapi_url' : 'evolution_messagekey',
+      msg: 'Processing animated sticker',
+    });
+
+    // Download file (supports both Evolution messageKey and Z-API direct URL)
+    inputPath = await downloadFile(messageKeyOrUrl);
 
     // Get metadata
     const metadata = await getVideoMetadata(inputPath);
@@ -318,7 +340,7 @@ export async function processAnimatedSticker(
     logger.error(
       {
         error: error instanceof Error ? error.message : 'Unknown error',
-        messageId: messageKey.id,
+        source: typeof messageKeyOrUrl === 'string' ? 'url' : 'messagekey',
         processingTime,
       },
       'Failed to process animated sticker'

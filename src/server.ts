@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import { config } from 'dotenv';
 import logger from './config/logger';
 import webhookRoutes from './routes/webhook';
+import webhookZapiRoutes from './routes/webhookZapi';
 import healthRoutes from './routes/health';
 import statsRoutes from './routes/stats';
 import stripeWebhookRoutes from './routes/stripeWebhook';
@@ -10,6 +11,7 @@ import linksRoutes from './routes/links';
 import redirectRoutes from './routes/redirect';
 import { initializeScheduledJobs, checkPendingStickersRecovery } from './jobs';
 import { initGeoService } from './services/geoService';
+import { featureFlags, logFeatureFlags } from './config/features';
 
 // Load environment variables
 config();
@@ -42,6 +44,13 @@ fastify.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, bo
 
 // Register routes
 fastify.register(webhookRoutes, { prefix: '/webhook' });
+
+// Register Z-API webhook if enabled
+if (featureFlags.ZAPI_WEBHOOK_ENABLED) {
+  fastify.register(webhookZapiRoutes, { prefix: '/webhook' });
+  logger.info('✅ Z-API webhook endpoint registered at /webhook/zapi');
+}
+
 fastify.register(healthRoutes);
 fastify.register(statsRoutes, { prefix: '/stats' });
 fastify.register(stripeWebhookRoutes, { prefix: '/stripe' });
@@ -62,10 +71,18 @@ const start = async () => {
 
     logger.info(`🚀 Server listening on http://${host}:${port}`);
     logger.info(`📝 Webhook endpoint: http://${host}:${port}/webhook`);
+
+    if (featureFlags.ZAPI_WEBHOOK_ENABLED) {
+      logger.info(`📝 Z-API Webhook endpoint: http://${host}:${port}/webhook/zapi`);
+    }
+
     logger.info(`💚 Health check: http://${host}:${port}/health`);
     logger.info(`📊 Stats endpoint: http://${host}:${port}/stats`);
     logger.info(`🔗 Links API: http://${host}:${port}/links`);
     logger.info(`↗️  Redirect endpoint: http://${host}:${port}/l/:code`);
+
+    // Log feature flags
+    logFeatureFlags();
 
     // Initialize scheduled jobs
     initializeScheduledJobs();

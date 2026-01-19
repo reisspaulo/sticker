@@ -1,6 +1,6 @@
 import { PlanType, PLAN_LIMITS } from '../types/subscription';
 import logger from '../config/logger';
-import { sendList, sendButtons } from './avisaApi';
+import { sendList, sendButtons } from './whatsappApi';
 import { getLimitReachedMessage, logCampaignInstantEvent } from './campaignService';
 import { logLimitMenuSent } from './usageLogs';
 
@@ -557,9 +557,9 @@ export async function sendPixPaymentWithButton(
   const price = plan === 'premium' ? 'R$ 5,00' : 'R$ 9,90';
 
   try {
-    // Import sendText from evolutionApi
-    const { sendText } = await import('./evolutionApi');
-    const { sendPixButton } = await import('./avisaApi');
+    // Import sendText from whatsappApi
+    const { sendText } = await import('./whatsappApi');
+    const { sendPixButton } = await import('./whatsappApi');
 
     // Message 1: Instructions
     await sendText(
@@ -573,7 +573,8 @@ export async function sendPixPaymentWithButton(
     // Message 2: PIX key via Avisa API (easy to copy)
     await sendPixButton({
       number: userNumber,
-      pix: pixKey,
+      pixKey: pixKey,
+      type: 'EVP',
     });
 
     // Small delay

@@ -5,7 +5,7 @@
 
 import { rpc } from '../rpc';
 import logger from '../config/logger';
-import { sendText } from './evolutionApi';
+import { sendText } from './whatsappApi';
 import { supabase } from '../config/supabase';
 
 /**

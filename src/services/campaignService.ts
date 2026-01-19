@@ -12,8 +12,8 @@
 
 import { rpc, rpcAll } from '../rpc';
 import logger from '../config/logger';
-import { sendText } from './evolutionApi';
-import { sendButtons, type ButtonData } from './avisaApi';
+import { sendText } from './whatsappApi';
+import { sendButtons, type ButtonData } from './whatsappApi';
 import type { CampaignPendingMessage, CampaignAnalytics, CampaignHealthResult } from '../rpc/types';
 
 // ============================================

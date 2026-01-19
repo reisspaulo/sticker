@@ -18,7 +18,7 @@ import {
 import { getUserOrCreate } from '../services/userService';
 import { getTwitterDownloadCount } from '../services/twitterLimits';
 import { getUserLimits } from '../services/subscriptionService';
-import { sendText, sendVideo } from '../services/evolutionApi';
+import { sendText, sendVideo } from '../services/whatsappApi';
 import {
   logWebhookReceived,
   logMessageReceived,
@@ -63,51 +63,22 @@ import {
 } from '../services/pixPaymentService';
 import type { PlanType } from '../types/subscription';
 
-export default async function webhookRoutes(fastify: FastifyInstance) {
-  // ANTI-SPAM: Rate limiting for webhook endpoint
-  // Limit: 10 requests per second per user
-  const rateLimitPlugin = await import('@fastify/rate-limit');
-  await fastify.register(rateLimitPlugin.default, {
-    max: 10,
-    timeWindow: '1 second',
-    keyGenerator: (request: FastifyRequest) => {
-      // Use IP for rate limiting (body not parsed yet at this stage)
-      return request.ip;
-    },
-    errorResponseBuilder: (_request: FastifyRequest, context: any) => {
-      fastify.log.warn({
-        msg: '🚨 [RATE LIMIT] Webhook rate limit exceeded',
-        key: context.key,
-        max: context.max,
-        after: context.after,
-      });
-      return {
-        statusCode: 429,
-        error: 'Too Many Requests',
-        message: `Rate limit exceeded: ${context.max} requests per ${context.after}`,
-        retryAfter: context.after,
-      };
-    },
-  });
-
-  // GET route for testing (no auth required)
-  fastify.get('/', async (_request: FastifyRequest, reply: FastifyReply) => {
-    return reply.status(200).send({
-      status: 'online',
-      message: 'Webhook endpoint is active',
-      timestamp: new Date().toISOString(),
-      note: 'This endpoint accepts POST requests from Evolution API',
-    });
-  });
-
-  // Add API key validation hook for POST requests only
-  fastify.addHook('preHandler', async (request, reply) => {
-    if (request.method === 'POST') {
-      await validateApiKey(request, reply);
-    }
-  });
-
-  fastify.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+/**
+ * Process Webhook Request
+ * 
+ * Extracted business logic from POST / handler.
+ * This function contains ALL the webhook processing logic and can be called
+ * by both Evolution API webhook and Z-API webhook.
+ * 
+ * @param request - Fastify request object
+ * @param reply - Fastify reply object
+ * @param fastify - Fastify instance (for logger)
+ */
+export async function processWebhookRequest(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  fastify: FastifyInstance
+) {
     const startTime = Date.now();
 
     try {
@@ -2411,5 +2382,55 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
         error: error instanceof Error ? error.message : 'Internal server error',
       });
     }
+
+}
+
+export default async function webhookRoutes(fastify: FastifyInstance) {
+  // ANTI-SPAM: Rate limiting for webhook endpoint
+  // Limit: 10 requests per second per user
+  const rateLimitPlugin = await import('@fastify/rate-limit');
+  await fastify.register(rateLimitPlugin.default, {
+    max: 10,
+    timeWindow: '1 second',
+    keyGenerator: (request: FastifyRequest) => {
+      // Use IP for rate limiting (body not parsed yet at this stage)
+      return request.ip;
+    },
+    errorResponseBuilder: (_request: FastifyRequest, context: any) => {
+      fastify.log.warn({
+        msg: '🚨 [RATE LIMIT] Webhook rate limit exceeded',
+        key: context.key,
+        max: context.max,
+        after: context.after,
+      });
+      return {
+        statusCode: 429,
+        error: 'Too Many Requests',
+        message: `Rate limit exceeded: ${context.max} requests per ${context.after}`,
+        retryAfter: context.after,
+      };
+    },
+  });
+
+  // GET route for testing (no auth required)
+  fastify.get('/', async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(200).send({
+      status: 'online',
+      message: 'Webhook endpoint is active',
+      timestamp: new Date().toISOString(),
+      note: 'This endpoint accepts POST requests from Evolution API',
+    });
+  });
+
+  // Add API key validation hook for POST requests only
+  fastify.addHook('preHandler', async (request, reply) => {
+    if (request.method === 'POST') {
+      await validateApiKey(request, reply);
+    }
+  });
+
+  fastify.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+    // Delegate to extracted handler function
+    return processWebhookRequest(request, reply, fastify);
   });
 }

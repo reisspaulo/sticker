@@ -1,23 +1,30 @@
 import sharp from 'sharp';
 import logger from '../config/logger';
-import { downloadMedia } from './evolutionApi';
+import { downloadMedia } from './whatsappApi';
 import { MessageKey } from '../types/evolution';
 
 /**
  * Process a static image into a WebP sticker format
- * - Download image via Evolution API (handles WhatsApp encryption)
+ * - Download image (via Evolution API messageKey OR Z-API direct URL)
  * - Resize to 512x512 (maintaining aspect ratio with transparent padding)
  * - Convert to WebP with 90% quality
  * - Ensure final size < 500KB
+ *
+ * @param messageKeyOrUrl - MessageKey (Evolution API) or direct URL string (Z-API)
  */
-export async function processStaticSticker(messageKey: MessageKey): Promise<Buffer> {
+export async function processStaticSticker(messageKeyOrUrl: MessageKey | string): Promise<Buffer> {
   const startTime = Date.now();
 
   try {
-    logger.info({ msg: 'Downloading image via Evolution API', messageId: messageKey.id });
+    const isDirectUrl = typeof messageKeyOrUrl === 'string';
 
-    // Download image using Evolution API (handles WhatsApp encryption)
-    const imageBuffer = await downloadMedia(messageKey);
+    logger.info({
+      msg: isDirectUrl ? 'Downloading image from direct URL (Z-API)' : 'Downloading image via Evolution API',
+      source: isDirectUrl ? 'zapi_url' : 'evolution_messagekey',
+    });
+
+    // Download image (supports both Evolution messageKey and Z-API direct URL)
+    const imageBuffer = await downloadMedia(messageKeyOrUrl);
 
     logger.info({
       msg: 'Image downloaded',
@@ -126,7 +133,7 @@ export async function processStaticSticker(messageKey: MessageKey): Promise<Buff
     logger.error({
       msg: 'Error processing sticker',
       error: error instanceof Error ? error.message : 'Unknown error',
-      messageId: messageKey.id,
+      source: typeof messageKeyOrUrl === 'string' ? 'url' : 'messagekey',
       processingTimeMs: processingTime,
     });
     throw error;

@@ -7,7 +7,7 @@ import logger from './config/logger';
 import { processStaticSticker } from './services/stickerProcessor';
 import { processAnimatedSticker, processAnimatedStickerFromBuffer } from './services/gifProcessor';
 import { uploadSticker } from './services/supabaseStorage';
-import { sendSticker, sendVideo, sendText } from './services/evolutionApi';
+import { sendSticker, sendVideo, sendText } from './services/whatsappApi';
 import { supabase } from './config/supabase';
 import { ProcessStickerJobData, EditButtonsJobData } from './types/evolution';
 import { TwitterDownloadJobData } from './types/twitter';
@@ -50,8 +50,13 @@ const redisConnection = {
 const processStickerWorker = new Worker<ProcessStickerJobData>(
   'process-sticker',
   async (job: Job<ProcessStickerJobData>) => {
-    const { userNumber, userName, messageType, messageKey, status = 'enviado' } = job.data;
+    const { userNumber, userName, messageType, messageKey, fileUrl, status = 'enviado' } = job.data;
     const startTime = Date.now();
+
+    // Determine which source to use for media download
+    // Z-API provides direct URL, Evolution API uses messageKey
+    const mediaSource = fileUrl || messageKey;
+    const sourceType = typeof mediaSource === 'string' ? 'direct_url' : 'messagekey';
 
     logger.info({
       msg: 'Processing sticker job',
@@ -60,6 +65,7 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
       userName,
       messageType,
       status,
+      mediaSourceType: sourceType,
     });
 
     // Log processing started
@@ -76,8 +82,12 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
 
       // Step 1: Download and process based on type
       if (messageType === 'gif') {
-        logger.info({ msg: 'Step 1: Processing animated GIF', jobId: job.id });
-        const result = await processAnimatedSticker(messageKey);
+        logger.info({
+          msg: 'Step 1: Processing animated GIF',
+          jobId: job.id,
+          sourceType,
+        });
+        const result = await processAnimatedSticker(mediaSource);
         processedBuffer = result.buffer;
         tipo = 'animado';
 
@@ -88,18 +98,24 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
             duration: result.duration,
             width: result.width,
             height: result.height,
+            sourceType,
           },
           'Animated sticker processed successfully'
         );
       } else {
-        logger.info({ msg: 'Step 1: Processing static image', jobId: job.id });
-        processedBuffer = await processStaticSticker(messageKey);
+        logger.info({
+          msg: 'Step 1: Processing static image',
+          jobId: job.id,
+          sourceType,
+        });
+        processedBuffer = await processStaticSticker(mediaSource);
         tipo = 'estatico';
 
         logger.info(
           {
             jobId: job.id,
             fileSize: processedBuffer.length,
+            sourceType,
           },
           'Static sticker processed successfully'
         );

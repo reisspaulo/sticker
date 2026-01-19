@@ -14,18 +14,24 @@ A Z-API e uma API de integracao com WhatsApp brasileira que oferece:
 
 ## Dados da Instancia
 
-```
-Instance ID: 3ECBB8EF0D54F1DC47CCEA71E5C779FD
-Token: C510A0F9C0E015918EF628F0
-Base URL: https://api.z-api.io/instances/{INSTANCE_ID}/token/{TOKEN}/
+**⚠️ CREDENCIAIS NO DOPPLER - NÃO COMMITAR AQUI!**
+
+As credenciais da Z-API estão armazenadas no Doppler (projeto `sticker`), assim como as credenciais da Evolution API e Avisa API.
+
+**Variaveis de ambiente necessarias (já no Doppler):**
+```bash
+Z_API_INSTANCE=<ver_doppler>
+Z_API_TOKEN=<ver_doppler>
+Z_API_CLIENT_TOKEN=<ver_doppler>
 ```
 
-**Variaveis de ambiente necessarias:**
-```bash
-Z_API_INSTANCE=3ECBB8EF0D54F1DC47CCEA71E5C779FD
-Z_API_TOKEN=C510A0F9C0E015918EF628F0
-Z_API_CLIENT_TOKEN=<obter_no_painel_z-api>
-```
+**Como obter as credenciais:**
+1. Acesse: https://admin.z-api.io/
+2. Página da instância "sticker"
+3. `Instance ID` e `Token` estão visíveis na tela principal
+4. Para o `Client Token`: Menu lateral > "Configurações" ou "API Keys"
+
+**⚠️ NUNCA commitar credenciais no git!** Sempre usar Doppler.
 
 ---
 

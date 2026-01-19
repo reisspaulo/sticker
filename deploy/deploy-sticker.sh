@@ -71,7 +71,17 @@ AVISA_API_URL=$(doppler secrets get AVISA_API_URL --plain --project sticker --co
 AVISA_API_TOKEN=$(doppler secrets get AVISA_API_TOKEN --plain --project sticker --config "$CONFIG")
 LOG_LEVEL=$(doppler secrets get LOG_LEVEL --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "info")
 
-echo "✅ Secrets loaded (15 variables)"
+# Z-API credentials
+Z_API_INSTANCE=$(doppler secrets get Z_API_INSTANCE --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "")
+Z_API_TOKEN=$(doppler secrets get Z_API_TOKEN --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "")
+Z_API_CLIENT_TOKEN=$(doppler secrets get Z_API_CLIENT_TOKEN --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "")
+Z_API_BASE_URL=$(doppler secrets get Z_API_BASE_URL --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "https://api.z-api.io")
+
+# Z-API feature flags
+USE_ZAPI=$(doppler secrets get USE_ZAPI --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "false")
+ZAPI_WEBHOOK_ENABLED=$(doppler secrets get ZAPI_WEBHOOK_ENABLED --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "false")
+
+echo "✅ Secrets loaded (21 variables)"
 echo ""
 
 echo "2️⃣  Generating stack file with secrets..."
@@ -111,6 +121,12 @@ services:
       - STRIPE_STICKER_ULTRA_PRODUCT_ID=${STRIPE_STICKER_ULTRA_PRODUCT_ID}
       - AVISA_API_URL=${AVISA_API_URL}
       - AVISA_API_TOKEN=${AVISA_API_TOKEN}
+      - Z_API_INSTANCE=${Z_API_INSTANCE}
+      - Z_API_TOKEN=${Z_API_TOKEN}
+      - Z_API_CLIENT_TOKEN=${Z_API_CLIENT_TOKEN}
+      - Z_API_BASE_URL=${Z_API_BASE_URL}
+      - USE_ZAPI=${USE_ZAPI}
+      - ZAPI_WEBHOOK_ENABLED=${ZAPI_WEBHOOK_ENABLED}
     networks:
       - traefik-public
       - ytem-backend
@@ -167,6 +183,12 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - AVISA_API_URL=${AVISA_API_URL}
       - AVISA_API_TOKEN=${AVISA_API_TOKEN}
+      - Z_API_INSTANCE=${Z_API_INSTANCE}
+      - Z_API_TOKEN=${Z_API_TOKEN}
+      - Z_API_CLIENT_TOKEN=${Z_API_CLIENT_TOKEN}
+      - Z_API_BASE_URL=${Z_API_BASE_URL}
+      - USE_ZAPI=${USE_ZAPI}
+      - ZAPI_WEBHOOK_ENABLED=${ZAPI_WEBHOOK_ENABLED}
     networks:
       - traefik-public
       - ytem-backend

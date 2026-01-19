@@ -1,8 +1,8 @@
 import { Job } from 'bullmq';
 import logger from '../config/logger';
 import { activatePixSubscription, ActivationResult } from '../services/pixPaymentService';
-import { sendText } from '../services/evolutionApi';
-import { sendButtons } from '../services/avisaApi';
+import { sendText } from '../services/whatsappApi';
+import { sendButtons } from '../services/whatsappApi';
 import { getSubscriptionActivatedMessage } from '../services/menuService';
 import { logPaymentConfirmed } from '../services/usageLogs';
 import { PlanType } from '../types/subscription';

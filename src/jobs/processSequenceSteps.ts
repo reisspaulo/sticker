@@ -1,7 +1,7 @@
 import { supabase } from '../config/supabase';
 import { rpc } from '../rpc';
-import { sendText } from '../services/evolutionApi';
-import { sendButtons } from '../services/avisaApi';
+import { sendText } from '../services/whatsappApi';
+import { sendButtons } from '../services/whatsappApi';
 import { logJobStart, logJobComplete, logJobFailed } from '../services/jobLogger';
 import logger from '../config/logger';
 

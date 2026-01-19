@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
-import { sendText } from '../services/evolutionApi';
-import { sendList } from '../services/avisaApi';
+import { sendText } from '../services/whatsappApi';
+import { sendList } from '../services/whatsappApi';
 import { logExperimentEvent } from '../services/experimentService';
 import { logJobStart, logJobComplete, logJobFailed } from '../services/jobLogger';
 import logger from '../config/logger';

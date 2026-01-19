@@ -7,7 +7,7 @@ import {
 } from './subscriptionService';
 import { PlanType } from '../types/subscription';
 import { getUserByNumber } from './userService';
-import { sendText } from './evolutionApi';
+import { sendText } from './whatsappApi';
 import { getSubscriptionActivatedMessage } from './menuService';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY!;

@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
-import { sendText } from './evolutionApi';
-import { sendButtons } from './avisaApi';
+import { sendText } from './whatsappApi';
+import { sendButtons } from './whatsappApi';
 import logger from '../config/logger';
 import { rpc } from '../rpc/index.js';
 

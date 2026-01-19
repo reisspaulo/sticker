@@ -1568,6 +1568,96 @@ $$;
 - [ ] Notificação quando winner é declarado
 - [ ] Dashboard de evolução do teste
 
+#### ✅ STATUS DA IMPLEMENTAÇÃO - FASE 6 (Atualizado 2026-01-16)
+
+**6.1 Visual Workflow Builder - ✅ CONCLUÍDO**
+- ✅ Canvas drag-and-drop com React Flow implementado
+- ✅ Tipos de nó: trigger, delay, message, condition, action, end
+- ✅ Preview do fluxo em modo leitura
+- ✅ ConditionNode melhorado com editor amigável
+- ⚪ Tabelas workflow_nodes/edges (pendente - em planejamento)
+- ⚪ Conversão completa workflow → campaign_steps (pendente)
+
+**6.2 Audience Builder com Segmentação Visual - ✅ CONCLUÍDO**
+- ✅ Builder visual de filtros estilo HubSpot/Mailchimp
+- ✅ 9 campos de segmentação disponíveis:
+  - Plano (Free/Basic/Premium/Ultra)
+  - Status da Assinatura (Ativa/Cancelada/Atrasada)
+  - Figurinhas Criadas (número)
+  - Dias Desde Cadastro (número)
+  - Dias Inativo (número)
+  - Usou Twitter (Sim/Não)
+  - Usou Cleanup (Sim/Não)
+  - País (Brasil/EUA/Portugal/Espanha)
+  - Grupo A/B (Controle/Bonus)
+- ✅ Operadores em português ("é igual a", "maior que", etc.)
+- ✅ Preview em tempo real com debounce (500ms):
+  - Contagem total de usuários
+  - Percentual da base
+  - Barra de progresso visual
+  - Breakdown por plano
+  - Tabela com amostra de 5 usuários
+- ✅ Múltiplas condições com lógica AND
+- ✅ Integração no wizard de criação (Step 3)
+- ✅ Integração no editor visual de workflow (ConditionNode)
+- ✅ API de preview performática (`/api/campaigns/preview-audience`)
+- ✅ Conversão automática para `target_filter`
+
+**Arquivos Criados/Modificados:**
+```
+✅ /src/components/campaigns/audience-builder.tsx (NOVO - 330 linhas)
+   - Component principal do builder visual
+   - 9 campos de filtro com operadores
+   - Preview em tempo real
+   - Helper: conditionsToTargetFilter()
+
+✅ /src/app/api/campaigns/preview-audience/route.ts (ATUALIZADO)
+   - Suporte para FilterCondition[] format
+   - Operadores: eq, neq, gt, gte, lt, lte
+   - Retorna: total, totalBase, byPlan, sampleUsers
+   - Fallback quando RPC não existe
+
+✅ /src/app/(dashboard)/campaigns/new/page.tsx (ATUALIZADO)
+   - Step 3: integração do AudienceBuilder
+   - Fix: SelectItem empty values (_none placeholder)
+   - Conversão para target_filter ao salvar
+
+✅ /src/app/(dashboard)/campaigns/[id]/workflow/page.tsx (ATUALIZADO)
+   - ConditionNode com editor amigável
+   - Interface "Se o usuário..."
+   - Preview visual da condição configurada
+   - Inputs condicionais por tipo de campo
+
+✅ /tests/audience-builder.spec.ts (NOVO - Playwright E2E)
+   - Testes de fluxo completo
+   - Login helper com proper waits
+   - Verificação de preview em tempo real
+
+✅ playwright.config.ts (NOVO)
+   - Configuração de testes E2E
+   - Workers sequenciais para evitar conflitos
+
+✅ AUDIENCE-BUILDER-DEMO.md (NOVO)
+   - Documentação técnica completa
+   - Exemplos de uso
+   - Guia de teste
+
+✅ DEMONSTRACAO-VISUAL.md (NOVO)
+   - Demonstração visual com ASCII art
+   - Walkthrough passo a passo
+   - Cenários de uso reais
+```
+
+**Bugs Corrigidos:**
+- ✅ Erro de SelectItem com value vazio (usando placeholder `_none`)
+- ✅ Timing issues no login do Playwright (waitForFunction)
+- ✅ Preview não atualizando (debounce implementado)
+
+**Próximos Passos (Fase 6 Pendente):**
+- ⚪ 6.3 Attribution Tracking (receita por campanha)
+- ⚪ 6.4 Cohort Analysis (retention curves)
+- ⚪ 6.5 Auto-winner A/B (significância estatística)
+
 ---
 
 ## 10. Regras de Segurança e Boas Práticas
@@ -1901,5 +1991,5 @@ Novo card no dashboard principal:
 
 ---
 
-**Última atualização:** 2026-01-15
+**Última atualização:** 2026-01-16 (Fase 6.1 e 6.2 concluídas - Audience Builder implementado)
 **Autor:** Claude + Paulo

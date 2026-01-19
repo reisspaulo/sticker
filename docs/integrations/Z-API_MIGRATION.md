@@ -47,7 +47,7 @@ Z_API_CLIENT_TOKEN=<obter_no_painel_z-api>
 |--------|-----------|-------|
 | Botoes interativos | `POST /actions/buttons` | `POST /send-button-actions` |
 | Listas interativas | `POST /actions/sendList` | `POST /send-option-list` |
-| Botao PIX | `POST /buttons/pix` | Nao disponivel (usar botao URL) |
+| Botao PIX | `POST /buttons/pix` | `POST /send-button-pix` |
 
 ---
 
@@ -156,7 +156,48 @@ POST https://api.z-api.io/instances/{INSTANCE}/token/{TOKEN}/send-button-actions
 
 **IMPORTANTE:** Nao misturar os 3 tipos de botao simultaneamente (causa erro no WhatsApp Web).
 
-### 5. Lista Interativa
+### 5. Botao PIX
+
+```
+POST https://api.z-api.io/instances/{INSTANCE}/token/{TOKEN}/send-button-pix
+```
+
+**Headers:**
+```json
+{
+  "Client-Token": "SEU_CLIENT_TOKEN",
+  "Content-Type": "application/json"
+}
+```
+
+**Body:**
+```json
+{
+  "phone": "5511999999999",
+  "pixKey": "00020126580014br.gov.bcb.pix...",
+  "type": "EVP",
+  "merchantName": "Pagar Premium"
+}
+```
+
+**Parametros:**
+- `phone`: Numero do destinatario (apenas digitos com DDI)
+- `pixKey`: Codigo PIX Copia e Cola completo
+- `type`: Tipo da chave PIX (opcoes: CPF, CNPJ, PHONE, EMAIL, EVP)
+- `merchantName`: Titulo do botao (opcional, padrao: "Pix")
+
+**Resposta (200):**
+```json
+{
+  "zaapId": "id-interno-z-api",
+  "messageId": "id-whatsapp",
+  "id": "id-whatsapp"
+}
+```
+
+**IMPORTANTE:** Botao PIX so funciona com chaves validas e depende de fatores especificos do WhatsApp.
+
+### 6. Lista Interativa
 
 ```
 POST https://api.z-api.io/instances/{INSTANCE}/token/{TOKEN}/send-option-list
@@ -282,7 +323,7 @@ PUT https://api.z-api.io/instances/{INSTANCE}/token/{TOKEN}/update-every-webhook
 |--------------|--------------|----------|
 | `sendButtons(request)` | `sendButtonActions(request)` | Formato de botoes diferente |
 | `sendList(request)` | `sendOptionList(request)` | Estrutura diferente |
-| `sendPixButton(request)` | N/A | Usar botao URL como alternativa |
+| `sendPixButton(request)` | `sendPixButton(request)` | Parametros diferentes: `number`→`phone`, `pix`→`pixKey`, adicionar `type` |
 
 ---
 
@@ -441,10 +482,27 @@ Z-API:     URL direta no webhook (imageUrl, videoUrl, documentUrl, etc)
 ## Observacoes Finais
 
 ### Botao PIX
-A Z-API nao tem endpoint especifico para botao PIX como a Avisa API. Alternativas:
-1. Usar botao URL apontando para pagina de pagamento
-2. Enviar codigo PIX como texto + botao de copiar
-3. Manter Avisa API apenas para PIX (hibrido)
+✅ A Z-API TEM endpoint de botao PIX!
+
+Endpoint: POST /send-button-pix
+
+Parametros:
+- phone: numero do destinatario (apenas digitos com DDI)
+- pixKey: codigo PIX Copia e Cola completo
+- type: tipo da chave (CPF, CNPJ, PHONE, EMAIL, EVP)
+- merchantName: titulo do botao (opcional, default: "Pix")
+
+Exemplo:
+```json
+{
+  "phone": "5511999999999",
+  "pixKey": "00020126...",
+  "type": "EVP",
+  "merchantName": "Pagar Premium"
+}
+```
+
+Documentacao: https://developer.z-api.io/message/send-button-pix
 
 ### Limitacao de Botoes
 Nao misturar tipos CALL + URL + REPLY no mesmo envio. Usar:

@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import logger from '../config/logger';
 import { logStickerSent, logMessageSent, logMenuSent, logPixButtonSent } from './usageLogs';
-import { messageRateLimiter } from '../utils/messageRateLimiter';
+import { messageRateLimiter, MessagePriority } from '../utils/messageRateLimiter';
 
 /**
  * Z-API WhatsApp Integration
@@ -94,7 +94,7 @@ export async function sendSticker(userNumber: string, stickerUrl: string): Promi
     stickerUrl: stickerUrl.substring(0, 100),
   });
 
-  // Use rate limiter to prevent WhatsApp bans
+  // Use rate limiter with HIGH priority (user is actively waiting for sticker)
   await messageRateLimiter.send(async () => {
     try {
       const response = await api.post<ZAPIResponse>('/send-sticker', {
@@ -135,7 +135,7 @@ export async function sendSticker(userNumber: string, stickerUrl: string): Promi
 
       throw error;
     }
-  });
+  }, MessagePriority.HIGH); // HIGH priority: user is actively waiting for sticker
 }
 
 /**

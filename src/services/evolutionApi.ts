@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import logger from '../config/logger';
 import { logStickerSent, logMessageSent } from './usageLogs';
-import { messageRateLimiter } from '../utils/messageRateLimiter';
+import { messageRateLimiter, MessagePriority } from '../utils/messageRateLimiter';
 
 // Evolution API configuration
 const evolutionApiUrl = process.env.EVOLUTION_API_URL;
@@ -51,7 +51,7 @@ export async function sendSticker(userNumber: string, stickerUrl: string): Promi
       stickerUrl,
     });
 
-    // ANTI-SPAM: Wrap in global rate limiter
+    // ANTI-SPAM: Wrap in global rate limiter with HIGH priority (user is actively waiting)
     let response: any;
     await messageRateLimiter.send(async () => {
       // Send sticker using Evolution API's dedicated sticker endpoint
@@ -59,7 +59,7 @@ export async function sendSticker(userNumber: string, stickerUrl: string): Promi
         number: sanitizedNumber,
         sticker: stickerUrl,
       });
-    });
+    }, MessagePriority.HIGH);
 
     logger.info({
       msg: 'Sticker sent successfully',

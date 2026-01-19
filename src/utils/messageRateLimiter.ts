@@ -1,6 +1,14 @@
 import logger from '../config/logger';
 
 /**
+ * Priority levels for message sending
+ */
+export enum MessagePriority {
+  HIGH = 'high', // Stickers - user is actively waiting
+  NORMAL = 'normal', // Welcome messages, notifications, etc.
+}
+
+/**
  * Global Message Rate Limiter
  *
  * Ensures message sending rate never exceeds safe limits to prevent WhatsApp bans.
@@ -8,9 +16,16 @@ import logger from '../config/logger';
  * Limits:
  * - 60 messages per minute (1 msg/second average)
  * - Queues messages when rate limit is reached
+ * - HIGH priority messages (stickers) are processed before NORMAL priority
  * - Provides volume monitoring and alerts
  *
  * Usage:
+ *   // High priority (stickers)
+ *   await messageRateLimiter.send(async () => {
+ *     await sendSticker(number, url);
+ *   }, MessagePriority.HIGH);
+ *
+ *   // Normal priority (welcome messages)
  *   await messageRateLimiter.send(async () => {
  *     await sendText(number, message);
  *   });
@@ -21,6 +36,7 @@ class MessageRateLimiter {
     resolve: () => void;
     reject: (error: Error) => void;
     enqueuedAt: number;
+    priority: MessagePriority;
   }> = [];
   private processing = false;
   private messageCount = 0;
@@ -33,15 +49,47 @@ class MessageRateLimiter {
   /**
    * Send a message with rate limiting
    * @param sendFn - Async function that sends the message
+   * @param priority - Message priority (HIGH for stickers, NORMAL for others)
    */
-  async send(sendFn: () => Promise<void>): Promise<void> {
+  async send(sendFn: () => Promise<void>, priority: MessagePriority = MessagePriority.NORMAL): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.queue.push({
+      const item = {
         fn: sendFn,
         resolve,
         reject,
         enqueuedAt: Date.now(),
-      });
+        priority,
+      };
+
+      // HIGH priority goes to the front of the queue (after other HIGH priority items)
+      // NORMAL priority goes to the back of the queue
+      if (priority === MessagePriority.HIGH) {
+        // Find the last HIGH priority item (iterate backwards for efficiency)
+        let lastHighIndex = -1;
+        for (let i = this.queue.length - 1; i >= 0; i--) {
+          if (this.queue[i].priority === MessagePriority.HIGH) {
+            lastHighIndex = i;
+            break;
+          }
+        }
+
+        if (lastHighIndex === -1) {
+          // No HIGH priority items, add to front
+          this.queue.unshift(item);
+        } else {
+          // Add after the last HIGH priority item
+          this.queue.splice(lastHighIndex + 1, 0, item);
+        }
+
+        logger.debug({
+          msg: '[RATE LIMITER] HIGH priority message added',
+          queueSize: this.queue.length,
+          highPriorityCount: this.queue.filter((q) => q.priority === MessagePriority.HIGH).length,
+        });
+      } else {
+        // NORMAL priority goes to the end
+        this.queue.push(item);
+      }
 
       // Start processing if not already running
       if (!this.processing) {

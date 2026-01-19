@@ -46,6 +46,7 @@ const redisConnection = {
 };
 
 // Process Sticker Worker
+// CRITICAL: Added lockDuration to prevent stuck jobs (120s = 2 minutes)
 const processStickerWorker = new Worker<ProcessStickerJobData>(
   'process-sticker',
   async (job: Job<ProcessStickerJobData>) => {
@@ -135,11 +136,20 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
 
       if (stickerError) {
         logger.error({
-          msg: 'Error saving sticker metadata',
+          msg: 'CRITICAL: Failed to save sticker to database',
           error: stickerError.message,
+          code: stickerError.code,
+          details: stickerError.details,
           userNumber,
+          storagePath: path,
         });
-        // Don't throw - sticker was already processed
+
+        // CRITICAL FIX: Throw error to trigger retry
+        // If we can't save to DB, the sticker is lost - better to retry
+        // BullMQ will retry with exponential backoff (3 attempts total)
+        throw new Error(
+          `Failed to save sticker to database: ${stickerError.message} (code: ${stickerError.code})`
+        );
       }
 
       // Set first_sticker_at if this is the user's first sticker
@@ -275,6 +285,8 @@ const processStickerWorker = new Worker<ProcessStickerJobData>(
   {
     connection: redisConnection,
     concurrency: 5, // Process 5 jobs simultaneously
+    lockDuration: 120000, // 2 minutes - job lock expires if worker crashes/hangs
+    lockRenewTime: 30000, // Renew lock every 30s while job is processing
   }
 );
 

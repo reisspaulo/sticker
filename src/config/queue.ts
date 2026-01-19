@@ -31,7 +31,19 @@ const queueOptions: QueueOptions = {
 };
 
 // Process Sticker Queue (for image/GIF processing)
-export const processStickerQueue = new Queue('process-sticker', queueOptions);
+// CRITICAL: Increased attempts for better reliability
+// Note: timeout is configured in worker.ts, not here
+export const processStickerQueue = new Queue('process-sticker', {
+  ...queueOptions,
+  defaultJobOptions: {
+    ...queueOptions.defaultJobOptions,
+    attempts: 3, // Increased from 2 to 3 for better reliability
+    backoff: {
+      type: 'exponential',
+      delay: 5000, // 5s, 25s, 125s between retries
+    },
+  },
+});
 
 // Scheduled Jobs Queue (for daily reset and send pending)
 export const scheduledJobsQueue = new Queue('scheduled-jobs', queueOptions);

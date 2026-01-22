@@ -1,143 +1,146 @@
-# 🎨 Sticker Bot - WhatsApp Sticker Generator
+# Sticker Bot
 
-> Bot de WhatsApp para criação de figurinhas a partir de imagens, vídeos e links do Twitter/TikTok
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 
-**Produção:** https://your-domain.com
+> Bot de WhatsApp para criacao de figurinhas a partir de imagens, videos e links do Twitter/TikTok
+
+## Aviso Importante
+
+Este projeto usa APIs **nao oficiais** do WhatsApp (Evolution API, Z-API).
+
+O uso dessas APIs pode resultar em:
+- Ban permanente do numero
+- Violacao dos Termos de Servico do WhatsApp
+- Problemas legais em algumas jurisdicoes
+
+**Use por sua conta e risco. Este projeto e para fins educacionais.**
+
+Para uso comercial, considere a [WhatsApp Business API oficial](https://business.whatsapp.com/products/business-platform).
 
 ---
 
-## 🚀 Quick Start
+## Features
 
-### Para Desenvolvedores
+- Converter imagens em stickers WebP
+- Converter GIFs e videos em stickers animados
+- Download de videos do Twitter/X
+- Download de videos do TikTok
+- Sistema de limites diarios por usuario
+- Planos de assinatura (Stripe + PIX)
+- Painel administrativo (Next.js)
+- Filas de processamento assincrono (BullMQ)
+- Rate limiting inteligente
+
+---
+
+## Quick Start
+
+### Requisitos
+
+- Node.js 20+
+- Redis
+- Supabase (ou PostgreSQL)
+- FFmpeg
+- Evolution API ou Z-API
+
+### Instalacao
 
 ```bash
-# 1. Clonar e instalar
-git clone https://github.com/your-username/sticker.git
+# 1. Clonar repositorio
+git clone https://github.com/YOUR_USERNAME/sticker.git
 cd sticker
+
+# 2. Instalar dependencias
 npm install
 
-# 2. Configurar ambiente
+# 3. Configurar ambiente
 cp .env.example .env
 # Editar .env com suas credenciais
 
-# 3. Rodar localmente
+# 4. Rodar localmente
 npm run dev
 ```
 
-### Para Deploy
+### Com Docker
 
 ```bash
-# Deploy automático via CI/CD
-git add .
-git commit -m "feat: nova funcionalidade"
-git push origin main
-# Pronto! Deploy automático em ~2-3 minutos
+# Subir ambiente completo
+docker-compose up -d
+
+# Ver logs
+docker-compose logs -f backend
 ```
 
 ---
 
-## 📚 Documentação
+## Configuracao
 
-### Guias Principais
+### Variaveis de Ambiente
 
-| Documento | Descrição |
-|-----------|-----------|
-| [Guia de Operações](docs/operations/QUICK-CHANGES-GUIDE.md) | **Como acessar VPS, ver logs, troubleshooting** |
-| [CI/CD Workflow](docs/setup/CI-CD-WORKFLOW.md) | **Como fazer deploy (git push → produção)** |
-| [Regras de Negócio](docs/business/BUSINESS_RULES.md) | Todas as regras do bot |
+```env
+# Server
+NODE_ENV=development
+PORT=3000
 
-### Documentação Completa
+# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key
 
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# WhatsApp Provider (escolha um)
+WHATSAPP_PROVIDER=evolution
+
+# Evolution API
+EVOLUTION_API_URL=http://localhost:8080
+EVOLUTION_API_KEY=your-api-key
+EVOLUTION_INSTANCE=your-instance
+
+# Stripe (opcional)
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
 ```
-docs/
-├── operations/              # 🔧 Operações do dia-a-dia
-│   ├── QUICK-CHANGES-GUIDE.md   # Acesso VPS, logs, troubleshooting
-│   ├── MONITORING.md            # Monitoramento e alertas
-│   └── TROUBLESHOOTING.md       # Solução de problemas
-│
-├── setup/                   # ⚙️ Configuração e Deploy
-│   ├── CI-CD-WORKFLOW.md        # Deploy automatizado (recomendado)
-│   ├── DEPLOYMENT-PROCESS.md    # Deploy manual (emergência)
-│   ├── DOPPLER-SETUP.md         # Configuração de secrets
-│   └── PRODUCTION-SETUP.md      # Setup de produção
-│
-├── architecture/            # 🏗️ Arquitetura
-│   ├── ARCHITECTURE.md          # Visão geral do sistema
-│   ├── ARQUITETURA_360.md       # Arquitetura detalhada
-│   └── PRD-BOT-STICKERS.md      # Product Requirements
-│
-├── features/                # ✨ Funcionalidades
-│   ├── STICKERS.md              # Como funcionam os stickers
-│   ├── STICKERS_ANIMADOS.md     # Stickers animados (GIF/vídeo)
-│   ├── TWITTER-VIDEO-DOWNLOAD.md # Download de vídeos do Twitter
-│   └── PENDING_STICKERS.md      # Sistema de stickers pendentes
-│
-├── integrations/            # 🔌 Integrações
-│   ├── AVISA_API_DOCS.md        # API de WhatsApp (Avisa)
-│   ├── ABACATEPAY-IMPLEMENTATION.md # Pagamentos
-│   └── ENDPOINTS.md             # Endpoints do bot
-│
-├── business/                # 💼 Negócio
-│   └── BUSINESS_RULES.md        # 85+ regras de negócio
-│
-├── sprints/                 # 📅 Histórico de sprints
-│   └── SPRINT-*.md              # Resumos de cada sprint
-│
-├── images/                  # 🖼️ Imagens da documentação
-└── archive/                 # 📦 Docs arquivados
+
+### Providers de WhatsApp
+
+#### Evolution API (Recomendado - Open Source)
+
+```bash
+docker run -d --name evolution \
+  -p 8080:8080 \
+  atendai/evolution-api:latest
+```
+
+#### Z-API (SaaS)
+
+```env
+WHATSAPP_PROVIDER=zapi
+ZAPI_INSTANCE_ID=xxx
+ZAPI_TOKEN=xxx
 ```
 
 ---
 
-## 🛠️ Scripts
-
-```
-scripts/
-├── database/                # 🗄️ Banco de dados
-│   ├── migrations/              # Migrações SQL
-│   ├── analytics*.sql           # Queries de analytics
-│   └── apply-migration.ts       # Aplicar migrações
-│
-├── deploy/                  # 🚀 Deploy
-│   ├── build-and-push.sh        # Build e push de imagem
-│   └── add-doppler-secrets.sh   # Configurar secrets
-│
-├── tests/                   # 🧪 Testes
-│   └── test-*.ts/sh             # 22 arquivos de teste
-│
-├── tools/                   # 🔧 Utilitários
-│   ├── health-check.ts          # Verificar saúde do sistema
-│   ├── add-celebrity.sh         # Adicionar celebridades
-│   └── collect-avisa-*.ts       # Coletar docs da API
-│
-├── examples/                # 💡 Exemplos
-│   ├── enviar-sticker.py        # Enviar sticker via Python
-│   └── exemplo-sticker.sh       # Exemplo em shell
-│
-└── local/                   # 💻 Desenvolvimento local
-    ├── start-local.sh           # Iniciar ambiente local
-    └── stop-local.sh            # Parar ambiente local
-```
-
----
-
-## 🏗️ Arquitetura
+## Arquitetura
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     VPS (YOUR_VPS_IP)                      │
 │                     Docker Swarm Stack                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐   │
 │  │   Backend    │  │    Worker    │  │  Evolution API  │   │
-│  │   (Fastify)  │  │   (BullMQ)   │  │  (wa.ytem.com)  │   │
+│  │   (Fastify)  │  │   (BullMQ)   │  │   (WhatsApp)    │   │
 │  └──────┬───────┘  └──────┬───────┘  └────────┬────────┘   │
 │         │                  │                   │             │
 │         └──────────┬───────┴───────────────────┘             │
 │                    │                                         │
 │         ┌──────────▼────────────┐                           │
-│         │  Redis (ytem-redis)   │                           │
+│         │        Redis          │                           │
 │         └───────────────────────┘                           │
 └─────────────────────────────────────────────────────────────┘
                            │
@@ -149,44 +152,20 @@ scripts/
               └────────────────────────┘
 ```
 
-### Serviços
+---
 
-| Serviço | URL | Função |
-|---------|-----|--------|
-| Backend | https://your-domain.com | API REST + Webhooks |
-| Worker | - | Processa filas BullMQ |
-| Evolution API | https://your-evolution-api.com | Integração WhatsApp |
-| Supabase | YOUR_SUPABASE_PROJECT_ID.supabase.co | Banco + Storage |
+## Documentacao
+
+| Documento | Descricao |
+|-----------|-----------|
+| [Setup Completo](docs/setup/PRODUCTION-SETUP.md) | Configuracao de producao |
+| [Arquitetura](docs/architecture/ARCHITECTURE.md) | Visao geral do sistema |
+| [Stickers](docs/features/STICKERS.md) | Como funcionam os stickers |
+| [Troubleshooting](docs/operations/TROUBLESHOOTING.md) | Solucao de problemas |
 
 ---
 
-## 🔑 Acessos Rápidos
-
-### VPS
-
-```bash
-# Acessar VPS (requer Doppler configurado)
-vps-ssh
-
-# Ver logs do backend
-vps-ssh "docker service logs sticker_backend --tail 50"
-
-# Ver status dos serviços
-vps-ssh "docker service ls | grep sticker"
-```
-
-### URLs Importantes
-
-| Recurso | URL |
-|---------|-----|
-| Health Check | https://your-domain.com/health |
-| Supabase Dashboard | https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID |
-| GitHub Actions | https://github.com/your-username/sticker/actions |
-| Doppler Secrets | https://dashboard.doppler.com |
-
----
-
-## 📦 Tech Stack
+## Tech Stack
 
 | Tecnologia | Uso |
 |------------|-----|
@@ -194,19 +173,42 @@ vps-ssh "docker service ls | grep sticker"
 | **Fastify** | API REST |
 | **BullMQ** | Filas de processamento |
 | **Sharp** | Processamento de imagens |
-| **FFmpeg** | Processamento de vídeos |
+| **FFmpeg** | Processamento de videos |
 | **Supabase** | Banco de dados + Storage |
 | **Redis** | Cache + Filas |
-| **Docker Swarm** | Orquestração |
-| **GitHub Actions** | CI/CD |
-| **Doppler** | Gerenciamento de secrets |
+| **Docker Swarm** | Orquestracao |
+| **Next.js** | Admin Panel |
 
 ---
 
-## 📝 Licença
+## Contribuindo
 
-Projeto privado.
+1. Fork o repositorio
+2. Crie uma branch: `git checkout -b feat/minha-feature`
+3. Faca commits: `git commit -m "feat: minha feature"`
+4. Push: `git push origin feat/minha-feature`
+5. Abra um Pull Request
+
+### Commits
+
+Usamos [Conventional Commits](https://www.conventionalcommits.org/):
+
+- `feat:` Nova feature
+- `fix:` Bug fix
+- `docs:` Documentacao
+- `refactor:` Refatoracao
+- `test:` Testes
 
 ---
 
-**Última atualização:** 07/01/2026
+## Licenca
+
+MIT License - veja [LICENSE](LICENSE) para detalhes.
+
+---
+
+## Disclaimer
+
+Este software e fornecido "como esta", sem garantia de qualquer tipo. Os autores nao se responsabilizam por qualquer dano ou ban de conta resultante do uso deste software.
+
+**NAO use este projeto para spam ou qualquer atividade que viole os Termos de Servico do WhatsApp.**

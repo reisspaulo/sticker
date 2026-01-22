@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080';
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || 'I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=';
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || 'YOUR_EVOLUTION_API_KEY';
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || 'meu-zap';
 
 async function createWatermarkSticker(opacity: number, label: string): Promise<Buffer> {

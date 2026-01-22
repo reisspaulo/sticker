@@ -113,7 +113,7 @@ services:
         - "traefik.docker.network=traefik-public"
 
         # HTTP Router
-        - "traefik.http.routers.evolution.rule=Host(`wa.ytem.com.br`)"
+        - "traefik.http.routers.evolution.rule=Host(`your-evolution-api.com`)"
         - "traefik.http.routers.evolution.entrypoints=websecure"
         - "traefik.http.routers.evolution.tls=true"
         - "traefik.http.routers.evolution.tls.certresolver=letsencrypt"
@@ -158,7 +158,7 @@ services:
         - "traefik.docker.network=traefik-public"
 
         # HTTP Router
-        - "traefik.http.routers.evolution-manager.rule=Host(`wa-manager.ytem.com.br`)"
+        - "traefik.http.routers.evolution-manager.rule=Host(`your-evolution-manager.com`)"
         - "traefik.http.routers.evolution-manager.entrypoints=websecure"
         - "traefik.http.routers.evolution-manager.tls=true"
         - "traefik.http.routers.evolution-manager.tls.certresolver=letsencrypt"

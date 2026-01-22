@@ -1,4 +1,4 @@
-# ☁️ Cloudflare DNS Setup - stickers.ytem.com.br
+# ☁️ Cloudflare DNS Setup - your-domain.com
 
 Guia completo para configurar DNS no Cloudflare e habilitar SSL para o Sticker Bot.
 
@@ -7,8 +7,8 @@ Guia completo para configurar DNS no Cloudflare e habilitar SSL para o Sticker B
 ## 📋 Pré-requisitos
 
 - Acesso ao dashboard Cloudflare
-- Domínio `ytem.com.br` gerenciado pelo Cloudflare
-- VPS rodando em `69.62.100.250` (Contabo - srv1007351)
+- Domínio `your-domain.com` gerenciado pelo Cloudflare
+- VPS rodando em `YOUR_VPS_IP` (Contabo - srv1007351)
 - Traefik configurado na VPS (já existe)
 
 ---
@@ -16,9 +16,9 @@ Guia completo para configurar DNS no Cloudflare e habilitar SSL para o Sticker B
 ## 🎯 Objetivo
 
 Configurar os subdomínios para apontar para a VPS e obter certificados SSL automáticos via Traefik + Let's Encrypt:
-- **wa.ytem.com.br** → Evolution API ✅ (deployado)
-- **wa-manager.ytem.com.br** → Evolution Manager ✅ (deployado)
-- **stickers.ytem.com.br** → Sticker Bot (pendente)
+- **your-evolution-api.com** → Evolution API ✅ (deployado)
+- **your-evolution-manager.com** → Evolution Manager ✅ (deployado)
+- **your-domain.com** → Sticker Bot (pendente)
 
 ---
 
@@ -41,24 +41,24 @@ Clique em **Add record** e configure:
 |-------|-------|
 | **Type** | `A` |
 | **Name** | `stickers` |
-| **IPv4 address** | `69.62.100.250` |
+| **IPv4 address** | `YOUR_VPS_IP` |
 | **Proxy status** | ☁️ **Proxied** (nuvem laranja) |
 | **TTL** | Auto |
 
-**Resultado:** `stickers.ytem.com.br` → `69.62.100.250`
+**Resultado:** `your-domain.com` → `YOUR_VPS_IP`
 
 **Para Evolution API (já configurado ✅):**
 
 | Campo | Valor |
 |-------|-------|
 | **Name** | `wa` |
-| **IPv4** | `69.62.100.250` |
+| **IPv4** | `YOUR_VPS_IP` |
 | **Proxied** | ☁️ Sim |
 
 | Campo | Valor |
 |-------|-------|
 | **Name** | `wa-manager` |
-| **IPv4** | `69.62.100.250` |
+| **IPv4** | `YOUR_VPS_IP` |
 | **Proxied** | ☁️ Sim |
 
 ### 1.3 Salvar
@@ -141,7 +141,7 @@ SSH na VPS e verifique:
 vps-ssh "docker service inspect traefik_traefik --format '{{json .Spec.TaskTemplate.ContainerSpec.Env}}' | jq"
 
 # Ou SSH direto
-ssh root@69.62.100.250
+ssh root@YOUR_VPS_IP
 ```
 
 Deve conter:
@@ -152,7 +152,7 @@ Deve conter:
 
 Com DNS Challenge configurado, o Traefik automaticamente:
 1. Detecta novo domínio via labels no stack
-2. Cria registro TXT no Cloudflare (_acme-challenge.stickers.ytem.com.br)
+2. Cria registro TXT no Cloudflare (_acme-challenge.your-domain.com)
 3. Valida com Let's Encrypt
 4. Obtém certificado SSL válido
 5. Renova automaticamente a cada 60 dias
@@ -167,20 +167,20 @@ Com DNS Challenge configurado, o Traefik automaticamente:
 
 ```bash
 # Verificar resolução DNS
-dig stickers.ytem.com.br
-dig wa.ytem.com.br
-dig wa-manager.ytem.com.br
+dig your-domain.com
+dig your-evolution-api.com
+dig your-evolution-manager.com
 
 # Deve retornar:
-# *.ytem.com.br. 300 IN A <IP_CLOUDFLARE>
+# *.your-domain.com. 300 IN A <IP_CLOUDFLARE>
 ```
 
-**Nota:** O IP retornado será um IP do Cloudflare (proxy), **não** 69.62.100.250 diretamente.
+**Nota:** O IP retornado será um IP do Cloudflare (proxy), **não** YOUR_VPS_IP diretamente.
 
 ### 5.2 Teste com nslookup
 
 ```bash
-nslookup stickers.ytem.com.br
+nslookup your-domain.com
 
 # Deve retornar IPs do Cloudflare (proxy ativo)
 ```
@@ -189,13 +189,13 @@ nslookup stickers.ytem.com.br
 
 ```bash
 # Testar Evolution API (já funcionando)
-curl -I https://wa.ytem.com.br
+curl -I https://your-evolution-api.com
 
 # Testar Sticker Bot (quando deployado)
-curl -I http://stickers.ytem.com.br
+curl -I http://your-domain.com
 
 # Ou forçar resolução direta
-curl -I --resolve stickers.ytem.com.br:80:69.62.100.250 http://stickers.ytem.com.br
+curl -I --resolve your-domain.com:80:YOUR_VPS_IP http://your-domain.com
 ```
 
 ---
@@ -210,8 +210,8 @@ cd /Users/paulohenrique/sticker
 
 # Build e push imagem
 npm run build
-docker build -t ghcr.io/reisspaulo/stickerbot:latest .
-docker push ghcr.io/reisspaulo/stickerbot:latest
+docker build -t ghcr.io/your-username/stickerbot:latest .
+docker push ghcr.io/your-username/stickerbot:latest
 
 # Deploy para VPS (com Doppler secrets)
 ./deploy/deploy-sticker.sh prd
@@ -219,7 +219,7 @@ docker push ghcr.io/reisspaulo/stickerbot:latest
 
 O Traefik automaticamente:
 1. Detectará o novo serviço via labels
-2. Configurará roteamento para `stickers.ytem.com.br`
+2. Configurará roteamento para `your-domain.com`
 3. Obterá certificado SSL via DNS Challenge
 4. Ativará HTTPS
 
@@ -231,22 +231,22 @@ O Traefik automaticamente:
 
 ```bash
 # Verificar certificado SSL Evolution API (já funcionando)
-curl -I https://wa.ytem.com.br
+curl -I https://your-evolution-api.com
 
 # Verificar Sticker Bot (quando deployado)
-curl -I https://stickers.ytem.com.br/health
+curl -I https://your-domain.com/health
 ```
 
 Deve retornar **HTTP/2 200** (ou 404 se o endpoint não existir ainda).
 
 **URLs em produção:**
-- ✅ https://wa.ytem.com.br (Evolution API)
-- ✅ https://wa-manager.ytem.com.br (Evolution Manager)
-- ⏳ https://stickers.ytem.com.br (Sticker Bot - pendente)
+- ✅ https://your-evolution-api.com (Evolution API)
+- ✅ https://your-evolution-manager.com (Evolution Manager)
+- ⏳ https://your-domain.com (Sticker Bot - pendente)
 
 ### 7.2 Verificar no Navegador
 
-1. Abra: https://stickers.ytem.com.br/health
+1. Abra: https://your-domain.com/health
 2. Verifique o cadeado (🔒) na barra de endereços
 3. Clique no cadeado → **Certificate**
 4. Emissor deve ser: **Let's Encrypt** ou **R3**
@@ -254,7 +254,7 @@ Deve retornar **HTTP/2 200** (ou 404 se o endpoint não existir ainda).
 ### 7.3 Health Check
 
 ```bash
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 
 # Resposta esperada:
 {
@@ -273,7 +273,7 @@ curl https://stickers.ytem.com.br/health
 
 ### Problema: DNS não resolve
 
-**Sintoma:** `dig stickers.ytem.com.br` retorna `NXDOMAIN`
+**Sintoma:** `dig your-domain.com` retorna `NXDOMAIN`
 
 **Soluções:**
 1. Aguarde 5-10 minutos para propagação DNS
@@ -347,8 +347,8 @@ curl https://stickers.ytem.com.br/health
 ## 📊 Checklist de Validação
 
 **Evolution API (Concluído ✅)**
-- [x] Registro A criado (`wa` → `69.62.100.250`)
-- [x] Registro A criado (`wa-manager` → `69.62.100.250`)
+- [x] Registro A criado (`wa` → `YOUR_VPS_IP`)
+- [x] Registro A criado (`wa-manager` → `YOUR_VPS_IP`)
 - [x] Proxy Status ativado
 - [x] SSL/TLS Mode: Full (strict)
 - [x] DNS resolvendo
@@ -356,13 +356,13 @@ curl https://stickers.ytem.com.br/health
 - [x] Certificado SSL válido
 
 **Sticker Bot (Pendente)**
-- [ ] Registro A criado (`stickers` → `69.62.100.250`)
+- [ ] Registro A criado (`stickers` → `YOUR_VPS_IP`)
 - [ ] Proxy Status ativado (☁️ laranja)
 - [ ] SSL/TLS Mode: **Full (strict)**
 - [ ] Token Cloudflare configurado (para DNS Challenge)
-- [ ] DNS resolvendo corretamente (`dig stickers.ytem.com.br`)
+- [ ] DNS resolvendo corretamente (`dig your-domain.com`)
 - [ ] Aplicação deployada na VPS
-- [ ] HTTPS funcionando (`https://stickers.ytem.com.br/health`)
+- [ ] HTTPS funcionando (`https://your-domain.com/health`)
 - [ ] Certificado SSL válido (Let's Encrypt)
 - [ ] Health check retornando status 200
 
@@ -373,14 +373,14 @@ curl https://stickers.ytem.com.br/health
 ```
 Usuário
   ↓
-Cloudflare (*.ytem.com.br) - Proxied + DDoS Protection
+Cloudflare (*.your-domain.com) - Proxied + DDoS Protection
   ↓ HTTPS
-VPS (69.62.100.250 - srv1007351)
+VPS (YOUR_VPS_IP - srv1007351)
   ↓
 Traefik (Reverse Proxy + SSL via DNS Challenge)
-  ├→ wa.ytem.com.br → Evolution API v2.3.7 → PostgreSQL 15
-  ├→ wa-manager.ytem.com.br → Evolution Manager
-  └→ stickers.ytem.com.br → sticker_backend (Fastify - Port 3000)
+  ├→ your-evolution-api.com → Evolution API v2.3.7 → PostgreSQL 15
+  ├→ your-evolution-manager.com → Evolution Manager
+  └→ your-domain.com → sticker_backend (Fastify - Port 3000)
                                 ├→ Evolution API (webhooks)
                                 └→ Supabase (storage)
       ↓
@@ -403,14 +403,14 @@ Traefik (Reverse Proxy + SSL via DNS Challenge)
 
 ```bash
 # Verificar DNS
-dig wa.ytem.com.br
-dig stickers.ytem.com.br
+dig your-evolution-api.com
+dig your-domain.com
 
 # Testar HTTPS (Evolution API - funcionando)
-curl -I https://wa.ytem.com.br
+curl -I https://your-evolution-api.com
 
 # Testar HTTPS (Sticker Bot - quando deployado)
-curl -I https://stickers.ytem.com.br/health
+curl -I https://your-domain.com/health
 
 # Ver logs do Traefik
 vps-ssh "docker service logs traefik_traefik -f"
@@ -419,7 +419,7 @@ vps-ssh "docker service logs traefik_traefik -f"
 vps-ssh "docker service ls"
 
 # Verificar certificado SSL
-echo | openssl s_client -servername wa.ytem.com.br -connect wa.ytem.com.br:443 2>/dev/null | openssl x509 -noout -dates
+echo | openssl s_client -servername your-evolution-api.com -connect your-evolution-api.com:443 2>/dev/null | openssl x509 -noout -dates
 ```
 
 ---

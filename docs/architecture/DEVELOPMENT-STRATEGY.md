@@ -67,8 +67,8 @@
 │  ┌──────────────────────────────────────────┐  │
 │  │         Traefik (Reverse Proxy)          │  │
 │  │  - SSL Automático (Let's Encrypt)        │  │
-│  │  - wa.ytem.com.br → evolution_api        │  │
-│  │  - stickers.ytem.com.br → sticker_backend│  │
+│  │  - your-evolution-api.com → evolution_api        │  │
+│  │  - your-domain.com → sticker_backend│  │
 │  └──────────────┬───────────────────────────┘  │
 │                 │                               │
 │  ┌──────────────┴───────────────────────────┐  │
@@ -104,9 +104,9 @@
 - ✅ **Traefik:** SSL automático
 
 **URLs:**
-- Evolution API: `https://wa.ytem.com.br`
-- Sticker Bot: `https://stickers.ytem.com.br`
-- Webhook: `https://stickers.ytem.com.br/webhook`
+- Evolution API: `https://your-evolution-api.com`
+- Sticker Bot: `https://your-domain.com`
+- Webhook: `https://your-domain.com/webhook`
 
 ---
 
@@ -166,7 +166,7 @@ sticker/
 - [x] Supabase configurado (tabelas + storage)
 - [x] Redis + BullMQ configurado
 - [x] Doppler configurado (7/7 secrets)
-- [x] DNS Cloudflare configurado (stickers.ytem.com.br)
+- [x] DNS Cloudflare configurado (your-domain.com)
 - [x] Estrutura de deployment criada
 - [x] Documentação completa
 
@@ -233,7 +233,7 @@ sticker/
 
 **Tarefas:**
 - [ ] Criar stack file Evolution API
-- [ ] Configurar DNS `wa.ytem.com.br`
+- [ ] Configurar DNS `your-evolution-api.com`
 - [ ] Migrar dados WhatsApp (sessions + PostgreSQL)
 - [ ] Deploy Evolution na VPS
 - [ ] Deploy Sticker Bot na VPS
@@ -255,7 +255,7 @@ sticker/
 
 ```bash
 # Evolution API (.env file)
-AUTHENTICATION_API_KEY=I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=
+AUTHENTICATION_API_KEY=YOUR_EVOLUTION_API_KEY
 DATABASE_CONNECTION_URI=postgresql://evolution:evolution_password@postgres:5432/evolution
 CACHE_REDIS_URI=redis://redis:6379
 
@@ -492,7 +492,7 @@ docker logs -f sticker_bot_worker
 3. ✅ Documentação completa
 4. ✅ Backup das instâncias WhatsApp
 5. ✅ Doppler configurado com secrets de produção
-6. ✅ DNS configurado (wa.ytem.com.br)
+6. ✅ DNS configurado (your-evolution-api.com)
 
 ---
 

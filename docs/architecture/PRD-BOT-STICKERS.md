@@ -360,7 +360,7 @@ Bora testar? Manda uma foto aí!
 | Webhook | Validar API key da Evolution API |
 | SQL Injection | Query parametrizadas (Postgres) |
 | Rate Limiting | Redis + middleware Fastify |
-| HTTPS | SSL via Let's Encrypt (stickers.ytem.com.br) |
+| HTTPS | SSL via Let's Encrypt (your-domain.com) |
 
 ---
 
@@ -412,7 +412,7 @@ Bora testar? Manda uma foto aí!
 | Supabase Free (até 1GB) | $0 |
 | Redis (local) | $0 |
 | Evolution API (local) | $0 |
-| Domínio (ytem.com.br) | $0 (já tem) |
+| Domínio (your-domain.com) | $0 (já tem) |
 | SSL (Let's Encrypt) | $0 |
 
 **Total:** $0/mês 🎉
@@ -444,7 +444,7 @@ Bora testar? Manda uma foto aí!
                  ↓ (webhook)
 ┌────────────────────────────────────────────────────┐
 │         Backend Fastify (TypeScript)               │
-│         https://stickers.ytem.com.br                  │
+│         https://your-domain.com                  │
 │                                                    │
 │  Endpoints:                                        │
 │  - POST /webhook     (recebe mensagens)            │
@@ -504,7 +504,7 @@ WhatsApp (usuário envia imagem)
     ↓
 Evolution API detecta nova mensagem
     ↓
-Evolution API → POST https://stickers.ytem.com.br/webhook
+Evolution API → POST https://your-domain.com/webhook
     ↓
 Backend Fastify valida webhook (API key)
     ↓
@@ -632,12 +632,12 @@ volumes:
   redis_data:
 ```
 
-**Nginx config (stickers.ytem.com.br):**
+**Nginx config (your-domain.com):**
 
 ```nginx
 server {
     listen 80;
-    server_name stickers.ytem.com.br;
+    server_name your-domain.com;
 
     # Redirecionar para HTTPS
     return 301 https://$server_name$request_uri;
@@ -645,11 +645,11 @@ server {
 
 server {
     listen 443 ssl http2;
-    server_name stickers.ytem.com.br;
+    server_name your-domain.com;
 
     # SSL (Let's Encrypt)
-    ssl_certificate /etc/letsencrypt/live/stickers.ytem.com.br/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/stickers.ytem.com.br/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
 
     # Proxy para backend
     location / {
@@ -757,7 +757,7 @@ COMMENT ON COLUMN stickers.sent_at IS 'Quando o sticker foi enviado ao usuário 
   "user_number": "5511999999999",
   "user_name": "Paulo",
   "file_path": "stickers-estaticos/user_5511999999999/1735252800_abc123.webp",
-  "file_url": "https://ludlztjdvwsrwlsczoje.supabase.co/storage/v1/object/public/stickers-estaticos/user_5511999999999/1735252800_abc123.webp",
+  "file_url": "https://YOUR_SUPABASE_PROJECT_ID.supabase.co/storage/v1/object/public/stickers-estaticos/user_5511999999999/1735252800_abc123.webp",
   "file_size_bytes": 87654,
   "tipo": "estatico",
   "status": "enviado",
@@ -774,7 +774,7 @@ COMMENT ON COLUMN stickers.sent_at IS 'Quando o sticker foi enviado ao usuário 
   "user_number": "5511999999999",
   "user_name": "Paulo",
   "file_path": "stickers-estaticos/user_5511999999999/1735260000_def456.webp",
-  "file_url": "https://ludlztjdvwsrwlsczoje.supabase.co/storage/v1/object/public/stickers-estaticos/user_5511999999999/1735260000_def456.webp",
+  "file_url": "https://YOUR_SUPABASE_PROJECT_ID.supabase.co/storage/v1/object/public/stickers-estaticos/user_5511999999999/1735260000_def456.webp",
   "file_size_bytes": 92341,
   "tipo": "estatico",
   "status": "pendente",
@@ -1270,7 +1270,7 @@ Algo deu errado, tenta de novo? 🤔
    - [x] Setup Fastify com TypeScript
 
 2. **Supabase**
-   - [x] Criar projeto no Supabase (usando projeto existente: ludlztjdvwsrwlsczoje)
+   - [x] Criar projeto no Supabase (usando projeto existente: YOUR_SUPABASE_PROJECT_ID)
    - [x] Criar tabela `users` (migration aplicada)
    - [x] Criar tabela `stickers` (migration aplicada com campos adicionais)
    - [x] Criar tabela `usage_logs` (auditoria)
@@ -1306,8 +1306,8 @@ Algo deu errado, tenta de novo? 🤔
    - [x] Testar build local: ✅ Compilação TypeScript OK
 
 6. **Cloudflare DNS** ✅ COMPLETO
-   - [x] Identificar domínio correto (ytem.com.br, não .com)
-   - [x] Criar registro DNS A: stickers.ytem.com.br → 157.230.50.63
+   - [x] Identificar domínio correto (your-domain.com, não .com)
+   - [x] Criar registro DNS A: your-domain.com → 157.230.50.63
    - [x] Ativar Cloudflare Proxy (☁️ DDoS protection)
    - [x] Verificar propagação DNS (resolving para IPs Cloudflare)
    - [x] SSL Mode: Full (strict) configurado
@@ -1328,7 +1328,7 @@ Algo deu errado, tenta de novo? 🤔
 - ✅ Build TypeScript funciona sem erros
 - ✅ Estrutura de deployment criada e documentada
 - ✅ Doppler configurado (7/7 secrets em dev e prd)
-- ✅ DNS Cloudflare configurado e propagado (stickers.ytem.com.br)
+- ✅ DNS Cloudflare configurado e propagado (your-domain.com)
 
 **Arquivos Criados:**
 - `src/` - 13 arquivos TypeScript
@@ -1614,7 +1614,7 @@ Algo deu errado, tenta de novo? 🤔
    - [ ] Evolution API local → Sticker Bot local
 
 3. **Deploy VPS (Infraestrutura)**
-   - [ ] Configurar DNS (stickers.ytem.com.br) ✅ JÁ FEITO
+   - [ ] Configurar DNS (your-domain.com) ✅ JÁ FEITO
    - [ ] Configurar SSL (Let's Encrypt via Traefik)
    - [ ] Fazer deploy via Docker Swarm
    - [ ] Configurar restart automático
@@ -1672,7 +1672,7 @@ Após validar todas as funcionalidades do Sticker Bot localmente (Sprints 2-7), 
    - [ ] Adicionar labels Traefik para SSL automático
 
 2. **Configurar DNS para Evolution API**
-   - [ ] Criar registro DNS: `wa.ytem.com.br` → 157.230.50.63
+   - [ ] Criar registro DNS: `your-evolution-api.com` → 157.230.50.63
    - [ ] Ativar Cloudflare Proxy
    - [ ] Aguardar propagação DNS
 
@@ -1695,7 +1695,7 @@ Após validar todas as funcionalidades do Sticker Bot localmente (Sprints 2-7), 
      - De: `http://localhost:8080`
      - Para: `http://evolution_api:8080` (Docker network)
    - [ ] Re-deploy Sticker Bot com nova config
-   - [ ] Configurar webhook: `https://stickers.ytem.com.br/webhook`
+   - [ ] Configurar webhook: `https://your-domain.com/webhook`
 
 6. **Testes End-to-End em Produção**
    - [ ] Testar conexão WhatsApp na VPS
@@ -1714,7 +1714,7 @@ Após validar todas as funcionalidades do Sticker Bot localmente (Sprints 2-7), 
 - ✅ WhatsApp conectado e estável (sem desconexões)
 - ✅ Sticker Bot + Evolution API comunicando via Docker network
 - ✅ Webhooks funcionando (Evolution → Sticker Bot)
-- ✅ SSL ativado em ambos (wa.ytem.com.br e stickers.ytem.com.br)
+- ✅ SSL ativado em ambos (your-evolution-api.com e your-domain.com)
 - ✅ Nenhuma dependência do Mac local
 - ✅ Sistema funcionando 24/7 sem interrupções
 
@@ -1727,8 +1727,8 @@ Após validar todas as funcionalidades do Sticker Bot localmente (Sprints 2-7), 
 │  ┌──────────────────────────────────────────┐  │
 │  │         Traefik (Reverse Proxy)          │  │
 │  │  - SSL Automático (Let's Encrypt)        │  │
-│  │  - wa.ytem.com.br → evolution_api        │  │
-│  │  - stickers.ytem.com.br → sticker_backend│  │
+│  │  - your-evolution-api.com → evolution_api        │  │
+│  │  - your-domain.com → sticker_backend│  │
 │  └──────────────┬───────────────────────────┘  │
 │                 │                               │
 │  ┌──────────────┴───────────────────────────┐  │
@@ -2194,7 +2194,7 @@ docker stats sticker_bot_worker
 #### 📋 Checklist Pré-Deploy
 
 **Infraestrutura:**
-- [ ] DNS configurado (stickers.ytem.com.br → 157.230.50.63) ✅ JÁ FEITO
+- [ ] DNS configurado (your-domain.com → 157.230.50.63) ✅ JÁ FEITO
 - [ ] SSL/HTTPS via Traefik (Let's Encrypt)
 - [ ] Doppler configurado com secrets de produção ✅ JÁ FEITO
 - [ ] Docker Swarm inicializado na VPS
@@ -2202,9 +2202,9 @@ docker stats sticker_bot_worker
 
 **Evolution API:**
 - [ ] Mover Evolution API para VPS
-- [ ] DNS: wa.ytem.com.br → 157.230.50.63
+- [ ] DNS: your-evolution-api.com → 157.230.50.63
 - [ ] Backup das sessões WhatsApp (volume sync)
-- [ ] Reconfigurar webhook: `https://stickers.ytem.com.br/webhook`
+- [ ] Reconfigurar webhook: `https://your-domain.com/webhook`
 
 **Sticker Bot:**
 - [ ] Build da imagem Docker
@@ -2224,7 +2224,7 @@ docker stats sticker_bot_worker
 
 **Config: prd (Produção)**
 ```bash
-SUPABASE_URL=https://ludlztjdvwsrwlsczoje.supabase.co
+SUPABASE_URL=https://YOUR_SUPABASE_PROJECT_ID.supabase.co
 SUPABASE_SERVICE_KEY=[REDACTED]
 EVOLUTION_API_URL=http://evolution_api:8080  # ← Docker network
 EVOLUTION_API_KEY=[REDACTED]
@@ -2597,7 +2597,7 @@ GROUP BY tipo;
 #### Infraestrutura
 
 - [x] Backend rodando em produção (VPS)
-- [x] HTTPS configurado (stickers.ytem.com.br)
+- [x] HTTPS configurado (your-domain.com)
 - [x] Webhook da Evolution API conectado
 - [x] Supabase PostgreSQL + Storage funcionando
 - [x] Redis + BullMQ funcionando

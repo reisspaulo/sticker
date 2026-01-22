@@ -147,19 +147,19 @@ Documentos antigos ou obsoletos.
 
 | Serviço | URL |
 |---------|-----|
-| **Admin Panel** | https://admin-stickers.ytem.com.br/ |
-| Supabase | https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje |
-| GitHub Actions | https://github.com/reisspaulo/sticker/actions |
+| **Admin Panel** | https://admin-your-domain.com/ |
+| Supabase | https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID |
+| GitHub Actions | https://github.com/your-username/sticker/actions |
 | Doppler | https://dashboard.doppler.com |
 
 ### Endpoints
 
 | Endpoint | URL |
 |----------|-----|
-| **Admin Panel** | https://admin-stickers.ytem.com.br/ |
-| Health Check | https://stickers.ytem.com.br/health |
-| Webhook | https://stickers.ytem.com.br/webhook |
-| Evolution API | https://wa.ytem.com.br |
+| **Admin Panel** | https://admin-your-domain.com/ |
+| Health Check | https://your-domain.com/health |
+| Webhook | https://your-domain.com/webhook |
+| Evolution API | https://your-evolution-api.com |
 
 ### Comandos VPS
 

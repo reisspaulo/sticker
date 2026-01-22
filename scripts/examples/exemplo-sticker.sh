@@ -3,7 +3,7 @@
 # Evolution API - Exemplos de Envio de Stickers
 # Documentação: https://doc.evolution-api.com/v1/api-reference/message-controller/send-sticker
 
-API_KEY="I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc="
+API_KEY="YOUR_EVOLUTION_API_KEY"
 API_URL="http://localhost:8080"
 INSTANCE="meu-zap"
 

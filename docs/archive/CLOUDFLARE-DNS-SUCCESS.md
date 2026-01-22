@@ -2,7 +2,7 @@
 
 **Status:** ✅ DNS CONFIGURADO E PROPAGANDO
 **Data:** 26/12/2025 23:24 BRT
-**Domínio:** stickers.ytem.com.br
+**Domínio:** your-domain.com
 **Tempo Total:** ~5 minutos
 
 ---
@@ -12,7 +12,7 @@
 ### 1. Domínio Correto Identificado
 ```
 ❌ ytem.com (não existe)
-✅ ytem.com.br (domínio ativo no Cloudflare)
+✅ your-domain.com (domínio ativo no Cloudflare)
 
 Zone ID: d0424e32b7e49ea992ddd6f6b4c39718
 ```
@@ -32,12 +32,12 @@ Criado em: 2025-12-27T02:24:08.328989Z
 
 ### 3. DNS Propagation Verificada
 ```bash
-$ dig +short stickers.ytem.com.br
+$ dig +short your-domain.com
 104.21.51.37
 172.67.220.123
 
-$ nslookup stickers.ytem.com.br
-Name:   stickers.ytem.com.br
+$ nslookup your-domain.com
+Name:   your-domain.com
 Address: 104.21.51.37
 Address: 172.67.220.123
 ```
@@ -64,14 +64,14 @@ Todos os arquivos com domínio incorreto foram atualizados:
 
 ### URL do Sticker Bot
 ```
-✅ https://stickers.ytem.com.br
+✅ https://your-domain.com
 ```
 
 ### Endpoints Disponíveis (após deploy)
 ```
-🔗 Health Check: https://stickers.ytem.com.br/health
-🔗 Ping: https://stickers.ytem.com.br/ping
-🔗 Webhook: https://stickers.ytem.com.br/webhook
+🔗 Health Check: https://your-domain.com/health
+🔗 Ping: https://your-domain.com/ping
+🔗 Webhook: https://your-domain.com/webhook
 ```
 
 ### Características
@@ -86,23 +86,23 @@ Todos os arquivos com domínio incorreto foram atualizados:
 
 ### Comando dig
 ```bash
-$ dig stickers.ytem.com.br
+$ dig your-domain.com
 
-; <<>> DiG 9.10.6 <<>> stickers.ytem.com.br
+; <<>> DiG 9.10.6 <<>> your-domain.com
 ;; ANSWER SECTION:
-stickers.ytem.com.br.  300  IN  A  104.21.51.37
-stickers.ytem.com.br.  300  IN  A  172.67.220.123
+your-domain.com.  300  IN  A  104.21.51.37
+your-domain.com.  300  IN  A  172.67.220.123
 ```
 
 ### Comando nslookup
 ```bash
-$ nslookup stickers.ytem.com.br
+$ nslookup your-domain.com
 
 Server:     1.1.1.1
 Address:    1.1.1.1#53
 
 Non-authoritative answer:
-Name:   stickers.ytem.com.br
+Name:   your-domain.com
 Address: 104.21.51.37
 Address: 172.67.220.123
 ```
@@ -122,8 +122,8 @@ cd /Users/paulohenrique/sticker
 npm run build
 
 # Build e push Docker image
-docker build -t ghcr.io/reisspaulo/stickerbot:latest .
-docker push ghcr.io/reisspaulo/stickerbot:latest
+docker build -t ghcr.io/your-username/stickerbot:latest .
+docker push ghcr.io/your-username/stickerbot:latest
 
 # Deploy para VPS (com secrets do Doppler)
 ./deploy/deploy-sticker.sh prd
@@ -142,10 +142,10 @@ O que vai acontecer:
 
 ```bash
 # Health check
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 
 # Verificar certificado SSL
-echo | openssl s_client -servername stickers.ytem.com.br -connect stickers.ytem.com.br:443 2>/dev/null | openssl x509 -noout -issuer
+echo | openssl s_client -servername your-domain.com -connect your-domain.com:443 2>/dev/null | openssl x509 -noout -issuer
 
 # Ver logs
 ssh root@157.230.50.63 'docker service logs sticker_backend --tail 100'
@@ -155,7 +155,7 @@ ssh root@157.230.50.63 'docker service logs sticker_backend --tail 100'
 
 No dashboard da Evolution API:
 ```
-URL: https://stickers.ytem.com.br/webhook
+URL: https://your-domain.com/webhook
 Event: MESSAGES_UPSERT
 ```
 
@@ -199,7 +199,7 @@ Event: MESSAGES_UPSERT
 ```
 Usuário
   ↓
-  https://stickers.ytem.com.br/webhook
+  https://your-domain.com/webhook
   ↓
 Cloudflare (Proxy)
   ├─ DDoS Protection
@@ -220,11 +220,11 @@ Fastify API (Node.js/TypeScript)
 
 ### Certificados SSL
 ```
-1. Deploy do stack com label: Host(`stickers.ytem.com.br`)
+1. Deploy do stack com label: Host(`your-domain.com`)
 2. Traefik detecta novo domínio
 3. Traefik verifica se tem certificado SSL
 4. Traefik usa DNS Challenge:
-   a. Cria registro TXT: _acme-challenge.stickers.ytem.com.br
+   a. Cria registro TXT: _acme-challenge.your-domain.com
    b. Usa token Cloudflare para criar registro
    c. Let's Encrypt valida registro TXT
    d. Let's Encrypt emite certificado válido
@@ -238,7 +238,7 @@ Fastify API (Node.js/TypeScript)
 ## ✅ Checklist Completo
 
 ### DNS
-- [x] ✅ Domínio correto identificado (ytem.com.br)
+- [x] ✅ Domínio correto identificado (your-domain.com)
 - [x] ✅ Zone ID obtida (d0424e32b7e49ea992ddd6f6b4c39718)
 - [x] ✅ Registro A criado (stickers → 157.230.50.63)
 - [x] ✅ Proxy ativado (☁️ laranja)
@@ -262,7 +262,7 @@ Fastify API (Node.js/TypeScript)
 ## 🐞 Troubleshooting
 
 ### Já Resolvido
-- ✅ Domínio incorreto (ytem.com vs ytem.com.br) - Corrigido
+- ✅ Domínio incorreto (ytem.com vs your-domain.com) - Corrigido
 - ✅ DNS propagation - OK (resolvendo)
 - ✅ Documentação desatualizada - Atualizada (9 arquivos)
 
@@ -291,7 +291,7 @@ ssh root@157.230.50.63 'docker service logs traefik_traefik --tail 50' | grep ce
 sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
 
 # Testar novamente
-dig stickers.ytem.com.br
+dig your-domain.com
 ```
 
 ---
@@ -300,14 +300,14 @@ dig stickers.ytem.com.br
 
 ```bash
 # Verificar DNS
-dig stickers.ytem.com.br
-nslookup stickers.ytem.com.br
+dig your-domain.com
+nslookup your-domain.com
 
 # Testar HTTPS (após deploy)
-curl -I https://stickers.ytem.com.br/health
+curl -I https://your-domain.com/health
 
 # Ver certificado SSL (após deploy)
-echo | openssl s_client -servername stickers.ytem.com.br -connect stickers.ytem.com.br:443 2>/dev/null | openssl x509 -noout -dates
+echo | openssl s_client -servername your-domain.com -connect your-domain.com:443 2>/dev/null | openssl x509 -noout -dates
 
 # Deploy
 ./deploy/deploy-sticker.sh prd

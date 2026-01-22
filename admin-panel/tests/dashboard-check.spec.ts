@@ -19,13 +19,13 @@ test('check dashboard errors', async ({ page }) => {
   });
 
   // Fazer login
-  await page.goto('https://admin-stickers.ytem.com.br/login');
-  await page.fill('input[type="email"]', 'paulo.reis@ytem.com.br');
-  await page.fill('input[type="password"]', 'Admin@2026');
+  await page.goto('https://admin-your-domain.com/login');
+  await page.fill('input[type="email"]', 'test@example.com');
+  await page.fill('input[type="password"]', 'TEST_PASSWORD');
   await page.click('button[type="submit"]');
 
   // Esperar carregar o dashboard
-  await page.waitForURL('https://admin-stickers.ytem.com.br/', { timeout: 10000 });
+  await page.waitForURL('https://admin-your-domain.com/', { timeout: 10000 });
   console.log('✅ Redirecionou para dashboard');
 
   // Esperar a página carregar completamente

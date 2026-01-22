@@ -7,7 +7,7 @@
 Todos os endpoints requerem autenticação via header:
 
 ```http
-apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=
+apikey: YOUR_EVOLUTION_API_KEY
 ```
 
 ## 🌐 Base URL
@@ -49,7 +49,7 @@ POST /instance/create
 **Headers:**
 ```json
 {
-  "apikey": "I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=",
+  "apikey": "YOUR_EVOLUTION_API_KEY",
   "Content-Type": "application/json"
 }
 ```
@@ -89,7 +89,7 @@ POST /instance/create
 **Exemplo cURL:**
 ```bash
 curl -X POST http://localhost:8080/instance/create \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "instanceName": "meu-whatsapp",
@@ -111,7 +111,7 @@ GET /instance/connect/{instanceName}
 **Headers:**
 ```json
 {
-  "apikey": "I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc="
+  "apikey": "YOUR_EVOLUTION_API_KEY"
 }
 ```
 
@@ -128,7 +128,7 @@ GET /instance/connect/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl http://localhost:8080/instance/connect/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 ---
@@ -160,7 +160,7 @@ GET /instance/connectionState/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl http://localhost:8080/instance/connectionState/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 ---
@@ -193,7 +193,7 @@ GET /instance/fetchInstances
 **Exemplo cURL:**
 ```bash
 curl http://localhost:8080/instance/fetchInstances \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 ---
@@ -221,7 +221,7 @@ DELETE /instance/delete/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl -X DELETE http://localhost:8080/instance/delete/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 ---
@@ -238,7 +238,7 @@ DELETE /instance/logout/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl -X DELETE http://localhost:8080/instance/logout/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 ---
@@ -286,7 +286,7 @@ POST /message/sendText/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl -X POST http://localhost:8080/message/sendText/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "number": "5511999999999",
@@ -325,7 +325,7 @@ POST /message/sendMedia/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl -X POST http://localhost:8080/message/sendMedia/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "number": "5511999999999",
@@ -364,7 +364,7 @@ POST /message/sendSticker/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl -X POST http://localhost:8080/message/sendSticker/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "number": "5511999999999",
@@ -398,7 +398,7 @@ POST /message/sendWhatsAppAudio/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl -X POST http://localhost:8080/message/sendWhatsAppAudio/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "number": "5511999999999",
@@ -431,7 +431,7 @@ POST /message/sendLocation/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl -X POST http://localhost:8080/message/sendLocation/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "number": "5511999999999",
@@ -468,7 +468,7 @@ POST /message/sendContact/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl -X POST http://localhost:8080/message/sendContact/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "number": "5511999999999",
@@ -496,7 +496,7 @@ GET /chat/findChats/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl http://localhost:8080/chat/findChats/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 ---
@@ -518,7 +518,7 @@ GET /chat/findMessages/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl 'http://localhost:8080/chat/findMessages/meu-whatsapp?remoteJid=5511999999999@s.whatsapp.net&limit=20' \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 ---
@@ -561,7 +561,7 @@ GET /chat/findContacts/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl http://localhost:8080/chat/findContacts/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 ---
@@ -581,7 +581,7 @@ GET /chat/getProfilePicture/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl 'http://localhost:8080/chat/getProfilePicture/meu-whatsapp?number=5511999999999' \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 ---
@@ -600,7 +600,7 @@ GET /group/findGroupInfos/{instanceName}
 **Exemplo cURL:**
 ```bash
 curl http://localhost:8080/group/findGroupInfos/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 ---
@@ -631,7 +631,7 @@ Use os mesmos endpoints de mensagem, mas com o ID do grupo:
 
 ```bash
 curl -X POST http://localhost:8080/message/sendText/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "number": "120363XXXXXXXXX@g.us",
@@ -687,17 +687,17 @@ POST /webhook/set/{instanceName}
 ```bash
 # 1. Criar instância
 curl -X POST http://localhost:8080/instance/create \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{"instanceName": "bot", "integration": "WHATSAPP-BAILEYS"}'
 
 # 2. Obter QR Code
 curl http://localhost:8080/instance/connect/bot \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' | jq -r '.base64' > qrcode.txt
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' | jq -r '.base64' > qrcode.txt
 
 # 3. Verificar status
 curl http://localhost:8080/instance/connectionState/bot \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 ---

@@ -299,7 +299,7 @@ CREATE TABLE twitter_downloads (
 ```bash
 # Evolution API
 EVOLUTION_API_URL=http://evolution_evolution_api:8080
-EVOLUTION_API_KEY=I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=
+EVOLUTION_API_KEY=YOUR_EVOLUTION_API_KEY
 EVOLUTION_INSTANCE=meu-zap
 
 # Avisa API

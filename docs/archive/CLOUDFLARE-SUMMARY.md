@@ -1,6 +1,6 @@
 # ☁️ Resumo: Cloudflare + DNS para Sticker Bot
 
-**TLDR:** Como configurar DNS no Cloudflare para o Sticker Bot funcionar em **https://stickers.ytem.com.br**
+**TLDR:** Como configurar DNS no Cloudflare para o Sticker Bot funcionar em **https://your-domain.com**
 
 ---
 
@@ -36,7 +36,7 @@
 Aguarde o DNS propagar. Teste:
 
 ```bash
-dig stickers.ytem.com.br
+dig your-domain.com
 ```
 
 Deve retornar um IP (será do Cloudflare, não 157.230.50.63 diretamente).
@@ -57,7 +57,7 @@ O Traefik automaticamente:
 ### Passo 5: Testar
 
 ```bash
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 ```
 
 Deve retornar:
@@ -106,10 +106,10 @@ O Traefik já está configurado para usar DNS Challenge com token da API Cloudfl
 
 ```
 1. Deploy do Sticker Bot na VPS
-2. Traefik detecta label: traefik.http.routers.sticker-api.rule=Host(`stickers.ytem.com.br`)
+2. Traefik detecta label: traefik.http.routers.sticker-api.rule=Host(`your-domain.com`)
 3. Traefik vê que precisa de certificado SSL
 4. Traefik usa DNS Challenge:
-   a. Cria registro TXT no Cloudflare (_acme-challenge.stickers.ytem.com.br)
+   a. Cria registro TXT no Cloudflare (_acme-challenge.your-domain.com)
    b. Let's Encrypt valida o registro
    c. Let's Encrypt emite certificado válido
 5. Traefik configura HTTPS automaticamente
@@ -129,7 +129,7 @@ O Traefik já está configurado para usar DNS Challenge com token da API Cloudfl
 sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
 
 # Aguardar 5 minutos e tentar novamente
-dig stickers.ytem.com.br
+dig your-domain.com
 ```
 
 ### Erro de certificado SSL
@@ -165,9 +165,9 @@ ssh root@157.230.50.63 'docker service logs sticker_backend --tail 100'
 - [ ] Registro A criado (`stickers` → `157.230.50.63`)
 - [ ] Proxy ativado (☁️ laranja)
 - [ ] SSL Mode: Full (strict)
-- [ ] DNS resolvendo (`dig stickers.ytem.com.br`)
+- [ ] DNS resolvendo (`dig your-domain.com`)
 - [ ] Deploy executado (`./deploy/deploy-sticker.sh prd`)
-- [ ] HTTPS funcionando (`curl https://stickers.ytem.com.br/health`)
+- [ ] HTTPS funcionando (`curl https://your-domain.com/health`)
 
 ---
 

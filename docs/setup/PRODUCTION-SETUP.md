@@ -29,15 +29,15 @@ Secrets: Doppler
 
 ### **Domínio Principal**
 ```
-ytem.com.br
+your-domain.com
 ```
 
 ### **Subdomínios Ativos**
 
 | Subdomínio | Serviço | IP | Porta | SSL |
 |------------|---------|----|----|-----|
-| `wa.ytem.com.br` | Evolution API | 69.62.100.250 | 8080 | ✅ Let's Encrypt |
-| `stickers.ytem.com.br` | Sticker Bot Backend | 69.62.100.250 | 3000 | ✅ Let's Encrypt |
+| `your-evolution-api.com` | Evolution API | YOUR_VPS_IP | 8080 | ✅ Let's Encrypt |
+| `your-domain.com` | Sticker Bot Backend | YOUR_VPS_IP | 3000 | ✅ Let's Encrypt |
 
 ### **Configuração DNS**
 
@@ -46,8 +46,8 @@ ytem.com.br
 **Registros:**
 ```dns
 ; A Records
-wa.ytem.com.br.         IN  A   69.62.100.250
-stickers.ytem.com.br.   IN  A   69.62.100.250
+your-evolution-api.com.         IN  A   YOUR_VPS_IP
+your-domain.com.   IN  A   YOUR_VPS_IP
 
 ; TTL recomendado: 3600 (1 hora)
 ```
@@ -59,12 +59,12 @@ Cliente (WhatsApp/Browser)
     ↓
 DNS Resolver
     ↓
-69.62.100.250:443 (HTTPS)
+YOUR_VPS_IP:443 (HTTPS)
     ↓
 Traefik (Reverse Proxy)
     ↓
 ┌─────────────────┬─────────────────┐
-│ wa.ytem.com.br  │ stickers.ytem   │
+│ your-evolution-api.com  │ stickers.ytem   │
 │      ↓          │      ↓          │
 │ Evolution API   │ Sticker Backend │
 │   (Port 8080)   │   (Port 3000)   │
@@ -77,7 +77,7 @@ Traefik (Reverse Proxy)
 
 ### **VPS Host**
 ```
-IP: 69.62.100.250
+IP: YOUR_VPS_IP
 OS: Linux (assumido)
 Docker: Swarm Mode
 Acesso: SSH via password (Doppler: VPS_HOST, VPS_USER, VPS_PASSWORD)
@@ -99,7 +99,7 @@ networks:
 
 ```yaml
 Service: sticker_backend
-Image: ghcr.io/reisspaulo/stickerbot:latest
+Image: ghcr.io/your-username/stickerbot:latest
 Command: node dist/server.js
 Replicas: 1
 Placement: manager node
@@ -114,9 +114,9 @@ Networks:
 NODE_ENV=production
 PORT=3000
 LOG_LEVEL=info
-SUPABASE_URL=https://ludlztjdvwsrwlsczoje.supabase.co
+SUPABASE_URL=https://YOUR_SUPABASE_PROJECT_ID.supabase.co
 SUPABASE_SERVICE_KEY=<from-doppler>
-REDIS_URL=redis://:ytem_redis_secure_2024@ytem-databases_redis:6379
+REDIS_URL=redis://:YOUR_REDIS_PASSWORD@ytem-databases_redis:6379
 EVOLUTION_API_URL=http://evolution_evolution_api:8080
 EVOLUTION_API_KEY=<from-doppler>
 EVOLUTION_INSTANCE=meu-zap
@@ -134,7 +134,7 @@ Reservations:
 
 **Health Check:**
 ```bash
-URL: https://stickers.ytem.com.br/health
+URL: https://your-domain.com/health
 Interval: 30s
 Path: /health
 Expected: {"status":"healthy"}
@@ -144,7 +144,7 @@ Expected: {"status":"healthy"}
 ```yaml
 traefik.enable: true
 traefik.docker.network: traefik-public
-traefik.http.routers.sticker-api.rule: Host(`stickers.ytem.com.br`)
+traefik.http.routers.sticker-api.rule: Host(`your-domain.com`)
 traefik.http.routers.sticker-api.entrypoints: websecure
 traefik.http.routers.sticker-api.tls: true
 traefik.http.routers.sticker-api.tls.certresolver: letsencrypt
@@ -159,7 +159,7 @@ traefik.http.services.sticker-api.loadbalancer.healthcheck.interval: 30s
 
 ```yaml
 Service: sticker_worker
-Image: ghcr.io/reisspaulo/stickerbot:latest
+Image: ghcr.io/your-username/stickerbot:latest
 Command: node dist/worker.js
 Replicas: 1
 Placement: manager node
@@ -172,9 +172,9 @@ Networks:
 ```bash
 NODE_ENV=production
 LOG_LEVEL=info
-SUPABASE_URL=https://ludlztjdvwsrwlsczoje.supabase.co
+SUPABASE_URL=https://YOUR_SUPABASE_PROJECT_ID.supabase.co
 SUPABASE_SERVICE_KEY=<from-doppler>
-REDIS_URL=redis://:ytem_redis_secure_2024@ytem-databases_redis:6379
+REDIS_URL=redis://:YOUR_REDIS_PASSWORD@ytem-databases_redis:6379
 EVOLUTION_API_URL=http://evolution_evolution_api:8080
 EVOLUTION_API_KEY=<from-doppler>
 EVOLUTION_INSTANCE=meu-zap
@@ -201,7 +201,7 @@ Reservations:
 ```yaml
 Service: evolution_evolution_api
 Stack: evolution (stack separado)
-URL: https://wa.ytem.com.br
+URL: https://your-evolution-api.com
 Instance: meu-zap
 Status: open (conectado)
 Profile: Clareoou
@@ -209,13 +209,13 @@ Profile: Clareoou
 
 **API Key:**
 ```
-I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=
+YOUR_EVOLUTION_API_KEY
 ```
 
 **Webhook Configurado:**
 ```json
 {
-  "url": "https://stickers.ytem.com.br/webhook",
+  "url": "https://your-domain.com/webhook",
   "enabled": true,
   "events": [
     "MESSAGES_UPSERT",
@@ -225,7 +225,7 @@ I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=
     "CONNECTION_UPDATE"
   ],
   "headers": {
-    "apikey": "I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc="
+    "apikey": "YOUR_EVOLUTION_API_KEY"
   }
 }
 ```
@@ -238,7 +238,7 @@ I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=
 Service: ytem-databases_redis
 Stack: ytem-databases (stack separado)
 Port: 6379
-Password: ytem_redis_secure_2024
+Password: YOUR_REDIS_PASSWORD
 Network: ytem-backend
 ```
 
@@ -254,8 +254,8 @@ Network: ytem-backend
 ### **Projeto Supabase**
 
 ```
-URL: https://ludlztjdvwsrwlsczoje.supabase.co
-Project ID: ludlztjdvwsrwlsczoje
+URL: https://YOUR_SUPABASE_PROJECT_ID.supabase.co
+Project ID: YOUR_SUPABASE_PROJECT_ID
 Region: us-east-1 (assumido)
 Tier: Free/Pro (não especificado)
 ```
@@ -264,7 +264,7 @@ Tier: Free/Pro (não especificado)
 
 **Connection String:**
 ```
-postgresql://postgres:[password]@db.ludlztjdvwsrwlsczoje.supabase.co:5432/postgres
+postgresql://postgres:[password]@db.YOUR_SUPABASE_PROJECT_ID.supabase.co:5432/postgres
 ```
 
 **Tabelas:**
@@ -341,7 +341,7 @@ Path pattern: user_{number}/{timestamp}_{hash}.webp
 
 **Exemplo:**
 ```
-https://ludlztjdvwsrwlsczoje.supabase.co/storage/v1/object/public/stickers-estaticos/user_5511946304133/1766889344797_4a81c0e5ab7bbfeb.webp
+https://YOUR_SUPABASE_PROJECT_ID.supabase.co/storage/v1/object/public/stickers-estaticos/user_5511946304133/1766889344797_4a81c0e5ab7bbfeb.webp
 ```
 
 #### **stickers-animados**
@@ -372,19 +372,19 @@ Configs:
 
 ```bash
 # Supabase
-SUPABASE_URL=https://ludlztjdvwsrwlsczoje.supabase.co
+SUPABASE_URL=https://YOUR_SUPABASE_PROJECT_ID.supabase.co
 SUPABASE_SERVICE_KEY=eyJhbG... (JWT token)
 
 # Evolution API
 EVOLUTION_API_URL=http://evolution_evolution_api:8080
-EVOLUTION_API_KEY=I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=
+EVOLUTION_API_KEY=YOUR_EVOLUTION_API_KEY
 EVOLUTION_INSTANCE=meu-zap
 
 # Redis
-REDIS_URL=redis://:ytem_redis_secure_2024@ytem-databases_redis:6379
+REDIS_URL=redis://:YOUR_REDIS_PASSWORD@ytem-databases_redis:6379
 
 # VPS Access (para deploy)
-VPS_HOST=69.62.100.250
+VPS_HOST=YOUR_VPS_IP
 VPS_USER=root
 VPS_PASSWORD=<password>
 
@@ -463,7 +463,7 @@ GROUP BY action;
 
 **Health Check:**
 ```bash
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 
 # Retorna:
 {
@@ -513,25 +513,25 @@ npm run build
 
 # 2. Build e push Docker
 docker buildx build --platform linux/amd64 \
-  -t ghcr.io/reisspaulo/stickerbot:latest \
-  -t ghcr.io/reisspaulo/stickerbot:latest \
+  -t ghcr.io/your-username/stickerbot:latest \
+  -t ghcr.io/your-username/stickerbot:latest \
   . --push
 
 # 3. Update services
 vps-ssh "docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend && \
+  --image ghcr.io/your-username/stickerbot:latest sticker_backend && \
   docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker"
+  --image ghcr.io/your-username/stickerbot:latest sticker_worker"
 ```
 
 ### **Container Registry**
 
 ```
 Registry: GitHub Container Registry (ghcr.io)
-Organization: reisspaulo
+Organization: your-username
 Images:
-  - ghcr.io/reisspaulo/stickerbot:latest
-  - ghcr.io/reisspaulo/stickerbot:latest
+  - ghcr.io/your-username/stickerbot:latest
+  - ghcr.io/your-username/stickerbot:latest
 Visibility: Private
 Authentication: GitHub PAT (via docker login)
 ```
@@ -550,8 +550,8 @@ Authentication: GitHub PAT (via docker login)
   "profileName": "Clareoou",
   "number": null,
   "integration": "WHATSAPP-BAILEYS",
-  "serverUrl": "https://wa.ytem.com.br",
-  "apikey": "I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc="
+  "serverUrl": "https://your-evolution-api.com",
+  "apikey": "YOUR_EVOLUTION_API_KEY"
 }
 ```
 
@@ -559,8 +559,8 @@ Authentication: GitHub PAT (via docker login)
 
 ```bash
 # Gerar QR code
-curl -s https://wa.ytem.com.br/instance/connect/meu-zap \
-  -H "apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=" | \
+curl -s https://your-evolution-api.com/instance/connect/meu-zap \
+  -H "apikey: YOUR_EVOLUTION_API_KEY" | \
   jq -r '.base64' | \
   sed 's/data:image\/png;base64,//' | \
   base64 -D > /tmp/qrcode.png && \
@@ -571,7 +571,7 @@ curl -s https://wa.ytem.com.br/instance/connect/meu-zap \
 
 **Recebe eventos:**
 ```
-POST https://stickers.ytem.com.br/webhook
+POST https://your-domain.com/webhook
 ```
 
 **Eventos processados:**
@@ -598,7 +598,7 @@ POST https://stickers.ytem.com.br/webhook
 
 **Evolution API:**
 ```
-Header: apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=
+Header: apikey: YOUR_EVOLUTION_API_KEY
 ```
 
 ### **SSL/TLS**
@@ -655,7 +655,7 @@ vps-ssh "docker service rollback sticker_backend"
 vps-ssh "docker service rollback sticker_worker"
 
 # 3. Verificar
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 ```
 
 ### **Reconstrução do Zero**
@@ -733,7 +733,7 @@ vps-ssh "docker service scale sticker_backend=2"
 ### **Acessos Necessários**
 
 ```
-VPS SSH: root@69.62.100.250 (password via Doppler)
+VPS SSH: root@YOUR_VPS_IP (password via Doppler)
 Doppler: https://dashboard.doppler.com/
 Supabase: https://supabase.com/dashboard
 GHCR: GitHub account com acesso ao registry
@@ -753,7 +753,7 @@ vps-ssh "docker stack rm sticker"
 ./deploy/deploy-sticker.sh prd
 
 # Verificar saúde
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 ```
 
 ---

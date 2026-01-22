@@ -34,7 +34,7 @@ Na versão 2.2.3+, o campo `sticker` deve ser uma **string direta** com a URL ou
 
 ```bash
 curl -X POST http://localhost:8080/message/sendSticker/meu-zap \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "number": "5511999999999",
@@ -46,7 +46,7 @@ curl -X POST http://localhost:8080/message/sendSticker/meu-zap \
 
 ```bash
 curl -X POST http://localhost:8080/message/sendSticker/meu-zap \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "number": "5511999999999",
@@ -162,7 +162,7 @@ import requests
 import base64
 
 API_URL = "http://localhost:8080"
-API_KEY = "I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc="
+API_KEY = "YOUR_EVOLUTION_API_KEY"
 INSTANCE = "meu-zap"
 
 def enviar_sticker(numero, caminho_imagem):
@@ -216,7 +216,7 @@ Para testar rapidamente, use este sticker de exemplo:
 
 ```bash
 curl -X POST http://localhost:8080/message/sendSticker/meu-zap \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "number": "SEU_NUMERO_AQUI",

@@ -10,7 +10,7 @@ import type {
 } from '../types/links';
 
 // Base URL for short links (includes /l prefix for redirect route)
-const SHORT_URL_BASE = process.env.SHORT_URL_BASE || 'https://fig.ytem.com.br/l';
+const SHORT_URL_BASE = process.env.SHORT_URL_BASE || 'https://your-shortener.com/l';
 
 /**
  * Create a new tracked link

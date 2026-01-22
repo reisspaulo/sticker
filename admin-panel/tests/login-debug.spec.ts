@@ -16,7 +16,7 @@ test('debug login flow', async ({ page }) => {
 
   // Ir para a página de login
   console.log('📍 Navegando para /login...');
-  await page.goto('https://admin-stickers.ytem.com.br/login');
+  await page.goto('https://admin-your-domain.com/login');
 
   // Esperar a página carregar
   await page.waitForLoadState('networkidle');
@@ -29,8 +29,8 @@ test('debug login flow', async ({ page }) => {
 
   // Preencher o formulário
   console.log('📝 Preenchendo formulário...');
-  await page.fill('input[type="email"]', 'paulo.reis@ytem.com.br');
-  await page.fill('input[type="password"]', 'Admin@2026');
+  await page.fill('input[type="email"]', 'test@example.com');
+  await page.fill('input[type="password"]', 'TEST_PASSWORD');
 
   console.log('🖱️ Clicando em Entrar...');
 

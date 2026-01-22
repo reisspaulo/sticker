@@ -2,7 +2,7 @@
 
 > Bot de WhatsApp para criação de figurinhas a partir de imagens, vídeos e links do Twitter/TikTok
 
-**Produção:** https://stickers.ytem.com.br
+**Produção:** https://your-domain.com
 
 ---
 
@@ -12,7 +12,7 @@
 
 ```bash
 # 1. Clonar e instalar
-git clone https://github.com/reisspaulo/sticker.git
+git clone https://github.com/your-username/sticker.git
 cd sticker
 npm install
 
@@ -125,7 +125,7 @@ scripts/
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     VPS (69.62.100.250)                      │
+│                     VPS (YOUR_VPS_IP)                      │
 │                     Docker Swarm Stack                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
@@ -153,10 +153,10 @@ scripts/
 
 | Serviço | URL | Função |
 |---------|-----|--------|
-| Backend | https://stickers.ytem.com.br | API REST + Webhooks |
+| Backend | https://your-domain.com | API REST + Webhooks |
 | Worker | - | Processa filas BullMQ |
-| Evolution API | https://wa.ytem.com.br | Integração WhatsApp |
-| Supabase | ludlztjdvwsrwlsczoje.supabase.co | Banco + Storage |
+| Evolution API | https://your-evolution-api.com | Integração WhatsApp |
+| Supabase | YOUR_SUPABASE_PROJECT_ID.supabase.co | Banco + Storage |
 
 ---
 
@@ -179,9 +179,9 @@ vps-ssh "docker service ls | grep sticker"
 
 | Recurso | URL |
 |---------|-----|
-| Health Check | https://stickers.ytem.com.br/health |
-| Supabase Dashboard | https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje |
-| GitHub Actions | https://github.com/reisspaulo/sticker/actions |
+| Health Check | https://your-domain.com/health |
+| Supabase Dashboard | https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID |
+| GitHub Actions | https://github.com/your-username/sticker/actions |
 | Doppler Secrets | https://dashboard.doppler.com |
 
 ---

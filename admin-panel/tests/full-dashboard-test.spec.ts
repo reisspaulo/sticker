@@ -42,18 +42,18 @@ test('full dashboard analysis with real credentials', async ({ page }) => {
 
   // Ir para login
   console.log('1. Navegando para /login...');
-  await page.goto('https://admin-stickers.ytem.com.br/login');
+  await page.goto('https://admin-your-domain.com/login');
   await page.waitForLoadState('networkidle');
 
   // Fazer login
   console.log('2. Fazendo login...');
-  await page.fill('input[type="email"]', 'paulo.reis@ytem.com.br');
-  await page.fill('input[type="password"]', 'Admin@2026');
+  await page.fill('input[type="email"]', 'test@example.com');
+  await page.fill('input[type="password"]', 'TEST_PASSWORD');
   await page.click('button[type="submit"]');
 
   // Aguardar redirect
   console.log('3. Aguardando redirect...');
-  await page.waitForURL('https://admin-stickers.ytem.com.br/', { timeout: 15000 });
+  await page.waitForURL('https://admin-your-domain.com/', { timeout: 15000 });
   console.log('✅ Redirecionou para dashboard');
 
   // Esperar a página carregar COMPLETAMENTE

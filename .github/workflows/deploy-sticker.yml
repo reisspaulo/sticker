@@ -130,7 +130,7 @@ jobs:
           sleep 10
 
           # Get health response
-          HEALTH_RESPONSE=$(curl -s https://stickers.ytem.com.br/health)
+          HEALTH_RESPONSE=$(curl -s https://your-domain.com/health)
           echo "Health response: $HEALTH_RESPONSE"
 
           # Check if healthy
@@ -152,7 +152,7 @@ jobs:
             echo "This may indicate the deploy did not complete correctly."
             # Don't fail yet - give rolling update more time
             sleep 30
-            HEALTH_RESPONSE=$(curl -s https://stickers.ytem.com.br/health)
+            HEALTH_RESPONSE=$(curl -s https://your-domain.com/health)
             DEPLOYED_SHA=$(echo $HEALTH_RESPONSE | jq -r '.git_sha')
             if [ "$DEPLOYED_SHA" != "$EXPECTED_SHA" ]; then
               echo "❌ CRITICAL: Version mismatch persists after retry!"
@@ -180,4 +180,4 @@ jobs:
         run: |
           echo "✅ Deployment successful!"
           echo "📦 Image: ${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          echo "🌐 URL: https://stickers.ytem.com.br"
+          echo "🌐 URL: https://your-domain.com"

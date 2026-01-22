@@ -177,7 +177,7 @@ sticker/
 Todas as credenciais estão no arquivo `.env`:
 
 ```env
-API_KEY=I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=
+API_KEY=YOUR_EVOLUTION_API_KEY
 API_URL=http://localhost:8080
 ```
 

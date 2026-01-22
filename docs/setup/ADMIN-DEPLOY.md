@@ -2,7 +2,7 @@
 
 **Guia definitivo para deploy do painel administrativo**
 
-**URL Produção**: https://admin-stickers.ytem.com.br
+**URL Produção**: https://admin-your-domain.com
 
 ---
 
@@ -30,11 +30,11 @@ git commit -m "fix(admin): descrição da mudança"
 git push origin main
 
 # 6. Acompanhar deploy no GitHub Actions
-# https://github.com/reisspaulo/sticker/actions
+# https://github.com/your-username/sticker/actions
 # Workflow: "Deploy Sticker Admin"
 
 # 7. Verificar produção (após 2-3 minutos)
-# https://admin-stickers.ytem.com.br
+# https://admin-your-domain.com
 ```
 
 **Tempo total**: ~2-3 minutos (automático)
@@ -107,13 +107,13 @@ git push origin main
 3. Build Docker image (Next.js)
    - Usa SUPABASE_URL e SUPABASE_ANON_KEY como build args
    ↓
-4. Push para ghcr.io/reisspaulo/sticker-admin:latest
+4. Push para ghcr.io/your-username/sticker-admin:latest
    ↓
 5. SSH na VPS
    ↓
 6. Docker service update (zero-downtime)
    - Service: sticker_admin
-   - Traefik route: admin-stickers.ytem.com.br
+   - Traefik route: admin-your-domain.com
    ↓
 7. Verificação de saúde
    ↓
@@ -128,7 +128,7 @@ git push origin main
 
 ```bash
 # Opção 1: GitHub UI
-# https://github.com/reisspaulo/sticker/actions
+# https://github.com/your-username/sticker/actions
 # Clica no workflow "Deploy Sticker Admin"
 
 # Opção 2: Via CLI
@@ -155,7 +155,7 @@ gh run watch
 
 ```bash
 # Verificar se admin está respondendo
-curl -I https://admin-stickers.ytem.com.br
+curl -I https://admin-your-domain.com
 
 # Deve retornar:
 # HTTP/2 200 OK
@@ -225,7 +225,7 @@ npm run build
 
 ### Problema: Admin retorna 502 Bad Gateway
 
-**Sintoma**: https://admin-stickers.ytem.com.br mostra erro 502
+**Sintoma**: https://admin-your-domain.com mostra erro 502
 
 **Causa**: Container não está rodando ou falhou ao iniciar
 
@@ -252,7 +252,7 @@ Se o deploy causou problemas:
 ~/bin/vps-ssh "docker service update --rollback sticker_admin"
 
 # Verificar que voltou
-curl -I https://admin-stickers.ytem.com.br
+curl -I https://admin-your-domain.com
 ```
 
 **O rollback retorna para a versão anterior imediatamente.**
@@ -308,7 +308,7 @@ Durante deploy:
 
 Após deploy:
 
-- [ ] Admin abre em https://admin-stickers.ytem.com.br
+- [ ] Admin abre em https://admin-your-domain.com
 - [ ] Login funciona
 - [ ] Funcionalidades testadas manualmente
 - [ ] Sem erros no console do browser

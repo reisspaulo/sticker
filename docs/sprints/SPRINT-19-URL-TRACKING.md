@@ -25,7 +25,7 @@ O bot de figurinhas precisa de um sistema proprio de tracking de URLs para:
 │                         SISTEMA DE URL TRACKING                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  fig.ytem.com.br/abc123  ──────────────────────────────────────────────┐    │
+│  your-shortener.com/abc123  ──────────────────────────────────────────────┐    │
 │         │                                                               │    │
 │         ▼                                                               │    │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────────┐ │    │
@@ -53,7 +53,7 @@ O bot de figurinhas precisa de um sistema proprio de tracking de URLs para:
 
 | Item | Decisao | Motivo |
 |------|---------|--------|
-| **Dominio** | `fig.ytem.com.br` | Subdominio gratuito, ja temos ytem.com.br |
+| **Dominio** | `your-shortener.com` | Subdominio gratuito, ja temos your-domain.com |
 | **Uso** | Interno (admin panel) | Por enquanto so admins criam links |
 | **Geolocalizacao** | MaxMind GeoLite2 | Gratuito, sem delay (banco local) |
 | **Links personalizados** | Sim | Editavel no admin panel |
@@ -73,7 +73,7 @@ O bot de figurinhas precisa de um sistema proprio de tracking de URLs para:
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  FASE 1: Infraestrutura (Critico)                                           │
-│  ├── Configurar DNS fig.ytem.com.br no Cloudflare                           │
+│  ├── Configurar DNS your-shortener.com no Cloudflare                           │
 │  ├── Configurar Traefik para novo subdominio                                │
 │  ├── Criar tabelas no Supabase (url_links, url_clicks)                      │
 │  └── Configurar MaxMind GeoLite2                                            │
@@ -274,7 +274,7 @@ Cria um novo link trackado.
 {
   "id": "uuid",
   "short_code": "blackfriday",
-  "short_url": "https://fig.ytem.com.br/blackfriday",
+  "short_url": "https://your-shortener.com/blackfriday",
   "original_url": "https://exemplo.com/pagina-longa",
   "title": "Promocao Black Friday",
   "clicks_count": 0,
@@ -302,7 +302,7 @@ Detalhes de um link com estatisticas.
   "link": {
     "id": "uuid",
     "short_code": "blackfriday",
-    "short_url": "https://fig.ytem.com.br/blackfriday",
+    "short_url": "https://your-shortener.com/blackfriday",
     "original_url": "https://exemplo.com/pagina-longa",
     "title": "Promocao Black Friday",
     "clicks_count": 1523,
@@ -444,7 +444,7 @@ export function getGeoFromIP(ip: string): GeoInfo | null {
 ### 4.5 Configuracao DNS (Cloudflare)
 
 ```bash
-# Adicionar registro A para fig.ytem.com.br
+# Adicionar registro A para your-shortener.com
 # Via Cloudflare API (chave no Doppler)
 
 curl -X POST "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records" \
@@ -453,7 +453,7 @@ curl -X POST "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records" 
   --data '{
     "type": "A",
     "name": "fig",
-    "content": "69.62.100.250",
+    "content": "YOUR_VPS_IP",
     "ttl": 3600,
     "proxied": true
   }'
@@ -470,8 +470,8 @@ services:
       labels:
         # ... labels existentes ...
 
-        # Novo router para fig.ytem.com.br
-        - "traefik.http.routers.sticker-links.rule=Host(`fig.ytem.com.br`)"
+        # Novo router para your-shortener.com
+        - "traefik.http.routers.sticker-links.rule=Host(`your-shortener.com`)"
         - "traefik.http.routers.sticker-links.entrypoints=websecure"
         - "traefik.http.routers.sticker-links.tls=true"
         - "traefik.http.routers.sticker-links.tls.certresolver=letsencrypt"
@@ -527,7 +527,7 @@ Admin cria campanha com botao
 ┌─────────────────────┐
 │ Substitui URL do    │
 │ botao pelo link     │
-│ fig.ytem.com.br/xxx │
+│ your-shortener.com/xxx │
 └─────────────────────┘
 ```
 
@@ -544,7 +544,7 @@ Adicionar na pagina de detalhes da campanha:
 ## 7. Checklist de Implementacao
 
 ### Fase 1: Infraestrutura
-- [ ] Criar registro DNS fig.ytem.com.br no Cloudflare
+- [ ] Criar registro DNS your-shortener.com no Cloudflare
 - [ ] Adicionar labels Traefik para novo subdominio
 - [ ] Criar migration: tabela url_links
 - [ ] Criar migration: tabela url_clicks

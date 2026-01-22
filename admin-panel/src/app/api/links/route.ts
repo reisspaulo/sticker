@@ -5,7 +5,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 // Base URL for short links
-const SHORT_URL_BASE = 'https://fig.ytem.com.br/l'
+const SHORT_URL_BASE = 'https://your-shortener.com/l'
 
 interface CreateLinkBody {
   original_url: string

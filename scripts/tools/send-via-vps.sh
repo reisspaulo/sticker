@@ -16,7 +16,7 @@ tar -xzf watermark-samples.tar.gz
 
 # Configurações Evolution API (interna no Docker)
 EVOLUTION_URL="http://evolution_evolution_api:8080"
-EVOLUTION_KEY="I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc="
+EVOLUTION_KEY="YOUR_EVOLUTION_API_KEY"
 INSTANCE="meu-zap"
 PHONE="5511946304133"
 

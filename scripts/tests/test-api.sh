@@ -3,7 +3,7 @@
 # Evolution API - Script de Teste
 # Use este script para testar a API sem precisar do Manager
 
-API_KEY="I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc="
+API_KEY="YOUR_EVOLUTION_API_KEY"
 API_URL="http://localhost:8080"
 
 echo "========================================="

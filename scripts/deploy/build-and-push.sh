@@ -32,7 +32,7 @@ echo ""
 
 TAG="${1:-latest}"
 REGISTRY="ghcr.io"
-NAMESPACE="reisspaulo"
+NAMESPACE="your-username"
 IMAGE_NAME="${REGISTRY}/${NAMESPACE}/stickerbot"
 
 echo "🐳 Building and pushing Sticker Bot image..."
@@ -45,7 +45,7 @@ if ! docker info 2>/dev/null | grep -q "ghcr.io"; then
   echo "⚠️  Not logged into ghcr.io"
   echo ""
   echo "Login with:"
-  echo "  echo \$GITHUB_TOKEN | docker login ghcr.io -u reisspaulo --password-stdin"
+  echo "  echo \$GITHUB_TOKEN | docker login ghcr.io -u your-username --password-stdin"
   echo ""
   read -p "Do you want to continue without login? (y/N) " -n 1 -r
   echo

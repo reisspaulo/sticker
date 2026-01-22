@@ -2,7 +2,7 @@
 
 **Status:** ✅ Configurado
 **Data:** 26/12/2025
-**Projeto:** ludlztjdvwsrwlsczoje
+**Projeto:** YOUR_SUPABASE_PROJECT_ID
 
 ---
 
@@ -80,13 +80,13 @@ Com o MCP configurado, o Claude Code poderá:
   "mcpServers": {
     "supabase": {
       "type": "http",
-      "url": "https://mcp.supabase.com/mcp?project_ref=ludlztjdvwsrwlsczoje&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage"
+      "url": "https://mcp.supabase.com/mcp?project_ref=YOUR_SUPABASE_PROJECT_ID&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage"
     }
   }
 }
 ```
 
-**Projeto:** `ludlztjdvwsrwlsczoje`
+**Projeto:** `YOUR_SUPABASE_PROJECT_ID`
 **Features:** Todas habilitadas ✅
 
 ---
@@ -163,7 +163,7 @@ claude /mcp
 
 ### Erro: "Project not found"
 **Causa:** Project ref incorreto
-**Solução:** Verificar se `ludlztjdvwsrwlsczoje` está correto no Supabase Dashboard
+**Solução:** Verificar se `YOUR_SUPABASE_PROJECT_ID` está correto no Supabase Dashboard
 
 ### Claude Code não consegue acessar Storage
 **Solução:**
@@ -183,9 +183,9 @@ claude /mcp
 
 ## 🔗 Links Úteis
 
-- **Supabase Dashboard:** https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje
-- **Storage:** https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/storage/buckets
-- **Database:** https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/editor
+- **Supabase Dashboard:** https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID
+- **Storage:** https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID/storage/buckets
+- **Database:** https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID/editor
 - **Claude Code MCP Docs:** https://docs.claude.com/claude-code/mcp
 
 ---

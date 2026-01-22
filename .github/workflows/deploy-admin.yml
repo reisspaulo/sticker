@@ -105,7 +105,7 @@ jobs:
                 --env AVISA_API_URL="$AVISA_API_URL" \
                 --env AVISA_API_TOKEN="$AVISA_API_TOKEN" \
                 --label traefik.enable=true \
-                --label "traefik.http.routers.sticker-admin.rule=Host(\`admin-stickers.ytem.com.br\`)" \
+                --label "traefik.http.routers.sticker-admin.rule=Host(\`admin-your-domain.com\`)" \
                 --label traefik.http.routers.sticker-admin.entrypoints=websecure \
                 --label traefik.http.routers.sticker-admin.tls=true \
                 --label traefik.http.routers.sticker-admin.tls.certresolver=letsencrypt \
@@ -123,4 +123,4 @@ jobs:
         run: |
           echo "Deployment successful!"
           echo "Image: ${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          echo "URL: https://admin-stickers.ytem.com.br"
+          echo "URL: https://admin-your-domain.com"

@@ -210,7 +210,7 @@ doppler run env | grep SECRET_NAME
 - **Doppler Dashboard:** https://dashboard.doppler.com
 - **Doppler Docs:** https://docs.doppler.com
 - **Supabase Dashboard:** https://supabase.com/dashboard
-- **Evolution Manager:** https://wa-manager.ytem.com.br
+- **Evolution Manager:** https://your-evolution-manager.com
 
 ---
 

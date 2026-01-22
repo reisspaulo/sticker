@@ -55,15 +55,15 @@ docker compose up -d
 ```bash
 # Listar instâncias
 curl http://localhost:8080/instance/fetchInstances \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 
 # Deletar instância antiga
 curl -X DELETE http://localhost:8080/instance/delete/NOME_INSTANCIA \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 
 # Criar nova instância
 curl -X POST http://localhost:8080/instance/create \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{"instanceName": "novo-nome", "integration": "WHATSAPP-BAILEYS"}'
 ```
@@ -115,11 +115,11 @@ docker compose logs evolution-api --tail 50
 ```bash
 # Deletar
 curl -X DELETE http://localhost:8080/instance/delete/NOME_INSTANCIA \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 
 # Recriar
 curl -X POST http://localhost:8080/instance/create \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{"instanceName": "nova-instancia", "integration": "WHATSAPP-BAILEYS"}'
 ```
@@ -317,7 +317,7 @@ evolution-manager:
 1. **Verificar se a instância está conectada:**
 ```bash
 curl http://localhost:8080/instance/connectionState/NOME_INSTANCIA \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 2. **Verificar formato do número:**
@@ -397,7 +397,7 @@ Veja mais em: [docs/STICKERS.md](STICKERS.md)
 **Solução:**
 ```bash
 # Certifique-se de usar o header correto
--H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+-H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 ---
@@ -411,13 +411,13 @@ Veja mais em: [docs/STICKERS.md](STICKERS.md)
 1. **Listar instâncias disponíveis:**
 ```bash
 curl http://localhost:8080/instance/fetchInstances \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 ```
 
 2. **Criar nova instância se necessário:**
 ```bash
 curl -X POST http://localhost:8080/instance/create \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{"instanceName": "meu-whatsapp", "integration": "WHATSAPP-BAILEYS"}'
 ```
@@ -485,7 +485,7 @@ curl http://localhost:8080/
 
 # Testar se instância existe
 curl http://localhost:8080/instance/fetchInstances \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc='
+  -H 'apikey: YOUR_EVOLUTION_API_KEY'
 
 # Testar PostgreSQL
 docker compose exec postgres psql -U evolution -d evolution -c "SELECT 1"

@@ -35,7 +35,7 @@ Usuários estão enviando imagens para criar stickers, o sistema processa e envi
 - ❌ Métricas e relatórios imprecisos
 
 ### Escopo
-- **Usuários Afetados**: Vitoria (553398030035) e Heitor (5517982298432)
+- **Usuários Afetados**: User1 (5511999999999) e User2 (5511888888888)
 - **Período**: 2026-01-19 (~01:51 - 01:57 UTC)
 - **Tabelas Afetadas**: `stickers`, `usage_logs`
 - **Sistema**: Worker de processamento de stickers (`sticker-worker-1`)
@@ -46,9 +46,9 @@ Usuários estão enviando imagens para criar stickers, o sistema processa e envi
 
 ### 1. Inconsistência nos Contadores
 
-**Usuário: Vitoria (★𝓥𝓲𝓽𝓸𝓻𝓲𝓪 ★)**
+**Usuário: User1 (★𝓥𝓲𝓽𝓸𝓻𝓲𝓪 ★)**
 ```sql
-whatsapp_number: 553398030035
+whatsapp_number: 5511999999999
 name: ★𝓥𝓲𝓽𝓸𝓻𝓲𝓪 ★
 daily_count: 1              ⚠️ Indica que criou 1 sticker
 daily_limit: 3
@@ -61,10 +61,10 @@ sticker_count: 0            ❌ NENHUM registro
 sticker_created_logs: 0     ❌ NENHUM log
 ```
 
-**Usuário: Heitor**
+**Usuário: User2**
 ```sql
-whatsapp_number: 5517982298432
-name: Heitor
+whatsapp_number: 5511888888888
+name: User2
 daily_count: 1              ⚠️ Indica que criou 1 sticker
 daily_limit: 3
 onboarding_step: 2          ⚠️ Indica que chegou ao 2º sticker
@@ -87,11 +87,11 @@ sticker_created_logs: 0     ❌ NENHUM log
 
 **URLs Gerados (prova de que processamento ocorreu):**
 ```
-Vitoria:
-https://ludlztjdvwsrwlsczoje.supabase.co/storage/v1/object/public/stickers-estaticos/user_553398030035/1768787478090_0759f1a70e460637.webp
+User1:
+https://YOUR_SUPABASE_PROJECT_ID.supabase.co/storage/v1/object/public/stickers-estaticos/user_5511999999999/1768787478090_0759f1a70e460637.webp
 
-Heitor:
-https://ludlztjdvwsrwlsczoje.supabase.co/storage/v1/object/public/stickers-estaticos/user_5517982298432/1768787879283_abfb9572cbc444fd.webp
+User2:
+https://YOUR_SUPABASE_PROJECT_ID.supabase.co/storage/v1/object/public/stickers-estaticos/user_5511888888888/1768787879283_abfb9572cbc444fd.webp
 ```
 
 ### 3. Silêncio na Tabela `usage_logs`
@@ -99,7 +99,7 @@ https://ludlztjdvwsrwlsczoje.supabase.co/storage/v1/object/public/stickers-estat
 **Esperado:**
 ```sql
 SELECT action FROM usage_logs
-WHERE user_number = '553398030035'
+WHERE user_number = '5511999999999'
 ORDER BY created_at DESC;
 
 -- Deveria ter:
@@ -127,9 +127,9 @@ INSERT INTO stickers (
   user_number, tipo, original_url, processed_url,
   storage_path, file_size, processing_time_ms, status
 ) VALUES (
-  '553398030035', 'estatico', 'whatsapp:test123',
-  'https://ludlztjdvwsrwlsczoje.supabase.co/storage/v1/object/public/stickers-estaticos/test.webp',
-  'user_553398030035/test.webp', 50000, 500, 'enviado'
+  '5511999999999', 'estatico', 'whatsapp:test123',
+  'https://YOUR_SUPABASE_PROJECT_ID.supabase.co/storage/v1/object/public/stickers-estaticos/test.webp',
+  'user_5511999999999/test.webp', 50000, 500, 'enviado'
 ) RETURNING id;
 
 -- ✅ RESULTADO: Sucesso!
@@ -180,14 +180,14 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 Após análise dos logs do servidor de produção, descobrimos que:
 
-**Logs do Worker para Heitor (`5517982298432-1768787878774-3A1484BFF72B06F85A9A`):**
+**Logs do Worker para User2 (`5511888888888-1768787878774-3A1484BFF72B06F85A9A`):**
 
 ```json
-{"msg":"Processing sticker job","jobId":"5517982298432-1768787878774-3A1484BFF72B06F85A9A"}
+{"msg":"Processing sticker job","jobId":"5511888888888-1768787878774-3A1484BFF72B06F85A9A"}
 {"msg":"Step 1: Processing static image"}
 {"msg":"Static sticker processed successfully","fileSize":28044}
 {"msg":"Step 2: Uploading to Supabase"}
-{"msg":"Public URL generated","url":"https://ludlztjdvwsrwlsczoje.supabase.co/storage/v1/object/public/stickers-estaticos/user_5517982298432/1768787879283_abfb9572cbc444fd.webp"}
+{"msg":"Public URL generated","url":"https://YOUR_SUPABASE_PROJECT_ID.supabase.co/storage/v1/object/public/stickers-estaticos/user_5511888888888/1768787879283_abfb9572cbc444fd.webp"}
 {"msg":"Step 3: Sending sticker to user (silently)"}
 {"msg":"Sending sticker via Evolution API"}
 // ❌ LOGS PARAM AQUI - NENHUM LOG APÓS ESTE PONTO
@@ -497,7 +497,7 @@ docker inspect sticker-worker-1 | grep -i restart
 **Como verificar:**
 ```bash
 # Testar latência para Supabase
-time curl -I https://ludlztjdvwsrwlsczoje.supabase.co
+time curl -I https://YOUR_SUPABASE_PROJECT_ID.supabase.co
 
 # Verificar timeout nas configurações do cliente Supabase
 # (atualmente não há timeout configurado)
@@ -608,7 +608,7 @@ docker ps
 
 ```bash
 # 1. Supabase (CRÍTICO)
-SUPABASE_URL=https://ludlztjdvwsrwlsczoje.supabase.co
+SUPABASE_URL=https://YOUR_SUPABASE_PROJECT_ID.supabase.co
 SUPABASE_SERVICE_KEY=eyJhbGciOiJI... (service role key)
 
 # 2. Redis
@@ -643,7 +643,7 @@ cat .env
 **Variáveis:**
 ```bash
 # .env local
-SUPABASE_URL=https://ludlztjdvwsrwlsczoje.supabase.co
+SUPABASE_URL=https://YOUR_SUPABASE_PROJECT_ID.supabase.co
 SUPABASE_SERVICE_KEY=eyJ... (mesma do prod)
 REDIS_URL=redis://localhost:6379
 ```
@@ -747,7 +747,7 @@ npm run diagnose-stickers
 🔍 DIAGNÓSTICO DE STICKERS FALTANDO
 ================================================================================
 
-📱 Investigando: 553398030035
+📱 Investigando: 5511999999999
 --------------------------------------------------------------------------------
 
 👤 DADOS DO USUÁRIO:

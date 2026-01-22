@@ -615,13 +615,13 @@ AVISA_API_TOKEN=ROm8VZ...
 
 ## 7. Endpoints Testados
 
-### Evolution API (https://wa.ytem.com.br)
+### Evolution API (https://your-evolution-api.com)
 
 | Endpoint | Testado | Resposta |
 |----------|---------|----------|
 | `GET /instance/connectionState/{instance}` | ✅ | `{instance:{state:"open"}}` |
 | `GET /instance/fetchInstances` | ✅ | `[{connectionStatus:"open", profileName:"Figurinhas"}]` |
-| `GET /webhook/find/{instance}` | ✅ | `{url:"https://stickers.ytem.com.br/webhook", enabled:true}` |
+| `GET /webhook/find/{instance}` | ✅ | `{url:"https://your-domain.com/webhook", enabled:true}` |
 | `GET /instance/connect/{instance}` | ⏳ | Retorna QR Code (não testado - só quando desconectado) |
 
 ### Avisa API (https://www.avisaapi.com.br/api)

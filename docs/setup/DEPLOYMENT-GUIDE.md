@@ -7,15 +7,15 @@ Guia completo de deploy do Sticker Bot para VPS usando Docker Swarm + Doppler.
 ## 📋 Visão Geral
 
 **Infraestrutura:**
-- VPS: 69.62.100.250 (Contabo - srv1007351)
+- VPS: YOUR_VPS_IP (Contabo - srv1007351)
 - Orquestrador: Docker Swarm
 - Reverse Proxy: Traefik (SSL automático via Let's Encrypt)
 - Secrets: Doppler
 - Registry: GitHub Container Registry (ghcr.io)
 - Domains:
-  - Sticker Bot: stickers.ytem.com.br
-  - Evolution API: wa.ytem.com.br
-  - Evolution Manager: wa-manager.ytem.com.br
+  - Sticker Bot: your-domain.com
+  - Evolution API: your-evolution-api.com
+  - Evolution Manager: your-evolution-manager.com
 
 **Serviços:**
 - `sticker_backend`: API Fastify (webhook + health check)
@@ -37,10 +37,10 @@ Internet
     ↓
 [Cloudflare Proxy] (DDoS Protection)
     ↓
-[Traefik] (SSL/Routing - VPS 69.62.100.250)
-    ├→ wa.ytem.com.br → [Evolution API v2.3.7] → [PostgreSQL 15]
-    ├→ wa-manager.ytem.com.br → [Evolution Manager]
-    └→ stickers.ytem.com.br → [sticker_backend] → [Evolution API]
+[Traefik] (SSL/Routing - VPS YOUR_VPS_IP)
+    ├→ your-evolution-api.com → [Evolution API v2.3.7] → [PostgreSQL 15]
+    ├→ your-evolution-manager.com → [Evolution Manager]
+    └→ your-domain.com → [sticker_backend] → [Evolution API]
                                                 → [Supabase]
          ↓
     [sticker_worker] → [Evolution API] (webhook queue)
@@ -79,7 +79,7 @@ Ver guia completo: `deploy/CLOUDFLARE-DNS-SETUP.md`
 vps-ssh "docker node ls"
 
 # Ou SSH direto (se tiver chave)
-ssh root@69.62.100.250
+ssh root@YOUR_VPS_IP
 
 # Verificar Docker Swarm
 docker node ls
@@ -99,7 +99,7 @@ doppler secrets --project sticker --config prd
 
 ```bash
 # Login no ghcr.io (necessário para push de imagens)
-echo $GITHUB_TOKEN | docker login ghcr.io -u reisspaulo --password-stdin
+echo $GITHUB_TOKEN | docker login ghcr.io -u your-username --password-stdin
 ```
 
 ### 5. Evolution API Deployada ✅
@@ -108,14 +108,14 @@ A Evolution API já está rodando na VPS:
 
 ```bash
 # Testar Evolution API
-curl https://wa.ytem.com.br
+curl https://your-evolution-api.com
 
 # Ver instâncias WhatsApp
-curl https://wa.ytem.com.br/instance/fetchInstances \
+curl https://your-evolution-api.com/instance/fetchInstances \
   -H "apikey: ${EVOLUTION_API_KEY}"
 
 # Conectar instância (gera QR Code)
-open https://wa.ytem.com.br/instance/connect/meu-zap
+open https://your-evolution-api.com/instance/connect/meu-zap
 ```
 
 **Instância ativa:** `meu-zap` (b2b76790-7a59-4eae-81dc-7dfabd0784b8)
@@ -128,12 +128,12 @@ cd /Users/paulohenrique/sticker
 npm run build
 
 # Build imagem Docker
-docker build -t ghcr.io/reisspaulo/stickerbot:latest .
-docker build -t ghcr.io/reisspaulo/stickerbot:latest .
+docker build -t ghcr.io/your-username/stickerbot:latest .
+docker build -t ghcr.io/your-username/stickerbot:latest .
 
 # Push para registry
-docker push ghcr.io/reisspaulo/stickerbot:latest
-docker push ghcr.io/reisspaulo/stickerbot:latest
+docker push ghcr.io/your-username/stickerbot:latest
+docker push ghcr.io/your-username/stickerbot:latest
 ```
 
 ---
@@ -145,9 +145,9 @@ docker push ghcr.io/reisspaulo/stickerbot:latest
 ```bash
 # 1. Build e push imagens
 npm run build
-docker build -t ghcr.io/reisspaulo/stickerbot:latest -t ghcr.io/reisspaulo/stickerbot:latest .
-docker push ghcr.io/reisspaulo/stickerbot:latest
-docker push ghcr.io/reisspaulo/stickerbot:latest
+docker build -t ghcr.io/your-username/stickerbot:latest -t ghcr.io/your-username/stickerbot:latest .
+docker push ghcr.io/your-username/stickerbot:latest
+docker push ghcr.io/your-username/stickerbot:latest
 
 # 2. Deploy stack com Doppler secrets
 ./deploy/deploy-sticker.sh prd
@@ -159,22 +159,22 @@ docker push ghcr.io/reisspaulo/stickerbot:latest
 # 1. Fazer mudanças no código
 # 2. Build e push nova imagem
 npm run build
-docker build -t ghcr.io/reisspaulo/stickerbot:latest .
-docker push ghcr.io/reisspaulo/stickerbot:latest
+docker build -t ghcr.io/your-username/stickerbot:latest .
+docker push ghcr.io/your-username/stickerbot:latest
 
 # 3. Atualizar serviço (zero downtime)
-ssh root@157.230.50.63 'docker service update --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend'
+ssh root@157.230.50.63 'docker service update --image ghcr.io/your-username/stickerbot:latest sticker_backend'
 ```
 
 ### Deploy Apenas Worker
 
 ```bash
 # Build e push
-docker build -t ghcr.io/reisspaulo/stickerbot:latest .
-docker push ghcr.io/reisspaulo/stickerbot:latest
+docker build -t ghcr.io/your-username/stickerbot:latest .
+docker push ghcr.io/your-username/stickerbot:latest
 
 # Update
-ssh root@157.230.50.63 'docker service update --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker'
+ssh root@157.230.50.63 'docker service update --image ghcr.io/your-username/stickerbot:latest sticker_worker'
 ```
 
 ---
@@ -212,13 +212,13 @@ vps-ssh "docker service logs sticker_backend --tail 100" | grep ERROR
 
 ```bash
 # Via curl
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 
 # Via navegador
-open https://stickers.ytem.com.br/health
+open https://your-domain.com/health
 
 # Ping simples
-curl https://stickers.ytem.com.br/ping
+curl https://your-domain.com/ping
 ```
 
 ---
@@ -274,12 +274,12 @@ vps-ssh "docker service ls | grep traefik"
 vps-ssh "docker service logs traefik_traefik --tail 50" | grep -E "stickers|wa.ytem"
 
 # Verificar DNS (deve retornar IPs do Cloudflare, não VPS diretamente)
-nslookup stickers.ytem.com.br
-nslookup wa.ytem.com.br
+nslookup your-domain.com
+nslookup your-evolution-api.com
 
 # Testar HTTPS
-curl -I https://stickers.ytem.com.br/health
-curl -I https://wa.ytem.com.br
+curl -I https://your-domain.com/health
+curl -I https://your-evolution-api.com
 ```
 
 ### Worker não processa jobs
@@ -306,7 +306,7 @@ ssh root@157.230.50.63 'docker exec -it $(docker ps -q -f name=redis) redis-cli 
 ssh root@157.230.50.63 'docker service rollback sticker_backend'
 
 # Ou especificar uma imagem antiga
-ssh root@157.230.50.63 'docker service update --image ghcr.io/reisspaulo/stickerbot:v1.0.0 sticker_backend'
+ssh root@157.230.50.63 'docker service update --image ghcr.io/your-username/stickerbot:v1.0.0 sticker_backend'
 ```
 
 ### Remover Stack Completamente
@@ -383,7 +383,7 @@ cat deploy/stack-sticker.yml | grep SUPABASE
 Ver guia detalhado: `deploy/CLOUDFLARE-DNS-SETUP.md`
 
 **Resumo:**
-1. Criar registro A no Cloudflare: `stickers.ytem.com.br` → `157.230.50.63`
+1. Criar registro A no Cloudflare: `your-domain.com` → `157.230.50.63`
 2. Ativar Proxy (☁️ laranja)
 3. SSL/TLS Mode: **Full (strict)**
 4. Aguardar propagação DNS (1-5 minutos)
@@ -393,10 +393,10 @@ Ver guia detalhado: `deploy/CLOUDFLARE-DNS-SETUP.md`
 
 ```bash
 # Deve resolver para IP do Cloudflare (proxy ativo)
-dig stickers.ytem.com.br
+dig your-domain.com
 
 # Testar HTTPS (após deploy)
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 ```
 
 ---
@@ -419,8 +419,8 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker build -t ghcr.io/reisspaulo/stickerbot:${{ github.sha }} .
-          docker push ghcr.io/reisspaulo/stickerbot:${{ github.sha }}
+          docker build -t ghcr.io/your-username/stickerbot:${{ github.sha }} .
+          docker push ghcr.io/your-username/stickerbot:${{ github.sha }}
 
       - name: Deploy to VPS
         run: |
@@ -432,22 +432,22 @@ jobs:
 ## 📞 Checklist de Deploy
 
 **Evolution API (Concluído ✅)**
-- [x] DNS Cloudflare configurado (wa.ytem.com.br → 69.62.100.250)
+- [x] DNS Cloudflare configurado (your-evolution-api.com → YOUR_VPS_IP)
 - [x] Proxy Cloudflare ativado
 - [x] Evolution API v2.3.7 deployada
 - [x] PostgreSQL 15 rodando
 - [x] Instância WhatsApp criada (meu-zap)
 - [x] QR Code pronto para scan
-- [x] HTTPS funcionando (https://wa.ytem.com.br)
+- [x] HTTPS funcionando (https://your-evolution-api.com)
 
 **Sticker Bot (Pendente)**
-- [ ] DNS Cloudflare configurado (stickers.ytem.com.br → 69.62.100.250)
+- [ ] DNS Cloudflare configurado (your-domain.com → YOUR_VPS_IP)
 - [ ] Código buildado (`npm run build`)
 - [ ] Testes passando (`npm test`)
 - [ ] Doppler configurado com secrets PRD
 - [ ] Imagem Docker buildada e pushed
 - [ ] Deploy executado (`./deploy/deploy-sticker.sh prd`)
-- [ ] Health check passou (https://stickers.ytem.com.br/health)
+- [ ] Health check passou (https://your-domain.com/health)
 - [ ] Webhook configurado na Evolution API
 
 ---
@@ -459,7 +459,7 @@ jobs:
 
 ## 🔗 URLs em Produção
 
-- **Evolution API:** https://wa.ytem.com.br
-- **Evolution Manager:** https://wa-manager.ytem.com.br
-- **Sticker Bot:** https://stickers.ytem.com.br (pendente)
-- **Traefik Dashboard:** http://69.62.100.250:8080/dashboard/
+- **Evolution API:** https://your-evolution-api.com
+- **Evolution Manager:** https://your-evolution-manager.com
+- **Sticker Bot:** https://your-domain.com (pendente)
+- **Traefik Dashboard:** http://YOUR_VPS_IP:8080/dashboard/

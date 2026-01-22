@@ -366,7 +366,7 @@ ffmpeg -i input.gif -loop 0 output.webp
 
 # 3. Envie via API
 curl -X POST http://localhost:8080/message/sendSticker/meu-zap \
-  -H "apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=" \
+  -H "apikey: YOUR_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "number": "5511999999999",
@@ -394,7 +394,7 @@ python3 -m http.server 8000
 
 # Passo 4: Enviar via API
 curl -X POST http://localhost:8080/message/sendSticker/meu-zap \
-  -H "apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=" \
+  -H "apikey: YOUR_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "number": "5511999999999",
@@ -437,7 +437,7 @@ def enviar_sticker_animado_local(numero, video_path):
     # 3. Enviar
     endpoint = "http://localhost:8080/message/sendSticker/meu-zap"
     headers = {
-        "apikey": "I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=",
+        "apikey": "YOUR_EVOLUTION_API_KEY",
         "Content-Type": "application/json"
     }
     payload = {

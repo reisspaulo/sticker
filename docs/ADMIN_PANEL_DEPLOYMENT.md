@@ -1,6 +1,6 @@
 # 🚀 Admin Panel - Deployment Checklist
 
-**URL:** https://admin-stickers.ytem.com.br/
+**URL:** https://admin-your-domain.com/
 
 Este documento serve como checklist obrigatório para qualquer deploy do Admin Panel.
 
@@ -32,7 +32,7 @@ npm run build
 ```
 
 **Verificações Manuais:**
-- [ ] Login funciona (https://admin-stickers.ytem.com.br/login)
+- [ ] Login funciona (https://admin-your-domain.com/login)
 - [ ] Redirect após login funciona
 - [ ] Página /stickers carrega dados
 - [ ] Página /stickers/emotions carrega dados
@@ -87,7 +87,7 @@ git commit -m "feat(admin): descrição da mudança"
 git push origin main
 
 # 2. Verificar GitHub Actions
-# Acessar: https://github.com/reisspaulo/sticker/actions
+# Acessar: https://github.com/your-username/sticker/actions
 
 # 3. Aguardar deploy automático
 ```
@@ -138,7 +138,7 @@ systemctl restart admin-panel
 
 ### Verificação Rápida (2 min)
 
-1. **Acesse a URL:** https://admin-stickers.ytem.com.br/
+1. **Acesse a URL:** https://admin-your-domain.com/
    - [ ] Página carrega sem erro
    - [ ] Redirect para /login funciona
 
@@ -197,7 +197,7 @@ vercel promote <deployment-url>
 
 ### Via GitHub Actions
 
-1. Ir para: https://github.com/reisspaulo/sticker/actions
+1. Ir para: https://github.com/your-username/sticker/actions
 2. Encontrar último deploy bem-sucedido
 3. Clicar "Re-run workflow"
 
@@ -258,9 +258,9 @@ pm2 restart admin-panel
 
 **Verificar:**
 1. Middleware logs: `console.log` no middleware.ts
-2. Supabase logs: https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/logs
+2. Supabase logs: https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID/logs
 3. Browser DevTools > Network tab
-4. RLS policies: https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/auth/policies
+4. RLS policies: https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID/auth/policies
 
 **Solução:**
 - Verificar se cookies estão sendo salvos
@@ -328,7 +328,7 @@ Relacionado: #<issue-number>
 - [Documentação Geral](./INDEX.md)
 - [Autenticação Fix](./decisions/auth-architecture-fix.md)
 - [CHANGELOG](../CHANGELOG.md)
-- [Supabase Dashboard](https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje)
+- [Supabase Dashboard](https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID)
 - [Vercel Dashboard](https://vercel.com/dashboard) (se aplicável)
 
 ---

@@ -56,7 +56,7 @@ NOVO (AbacatePay):
 | Campo | Valor |
 |-------|-------|
 | **Nome** | `StickerBot Pagamentos` |
-| **URL** | `https://stickers.ytem.com.br/webhook/abacatepay` |
+| **URL** | `https://your-domain.com/webhook/abacatepay` |
 | **Secret** | `stickerbot_webhook_2024_secret` |
 | **Eventos** | `billing.paid` |
 
@@ -166,7 +166,7 @@ Authorization: Bearer abc_dev_Ztj4Q3DnFhGxTFBYCCwqAZhD
 
 Disparado quando um pagamento PIX é confirmado.
 
-**URL configurada:** `https://stickers.ytem.com.br/webhook/abacatepay`
+**URL configurada:** `https://your-domain.com/webhook/abacatepay`
 
 **Payload esperado:**
 

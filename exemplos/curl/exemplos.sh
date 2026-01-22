@@ -2,7 +2,7 @@
 
 # Exemplos práticos de uso da Evolution API com cURL
 
-API_KEY="I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc="
+API_KEY="YOUR_EVOLUTION_API_KEY"
 API_URL="http://localhost:8080"
 INSTANCE="meu-whatsapp"
 

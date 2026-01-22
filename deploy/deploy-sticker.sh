@@ -32,7 +32,7 @@ echo ""
 # Usage: ./deploy/deploy-sticker.sh [dev|prd]
 
 CONFIG="${1:-prd}"
-VPS_HOST="root@69.62.100.250"
+VPS_HOST="root@YOUR_VPS_IP"
 STACK_NAME="sticker"
 
 echo "🚀 Deploying Sticker Bot Stack (config: $CONFIG)..."
@@ -99,7 +99,7 @@ networks:
 services:
   # Backend API
   backend:
-    image: ghcr.io/reisspaulo/stickerbot:latest
+    image: ghcr.io/your-username/stickerbot:latest
     command: ["node", "dist/server.js"]
     environment:
       - NODE_ENV=production
@@ -107,7 +107,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
-      - REDIS_URL=redis://:ytem_redis_secure_2024@ytem-databases_redis:6379
+      - REDIS_URL=redis://:YOUR_REDIS_PASSWORD@ytem-databases_redis:6379
       - EVOLUTION_API_URL=http://evolution_evolution_api:8080
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
       - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE}
@@ -159,7 +159,7 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
-        - "traefik.http.routers.sticker-api.rule=Host(\`stickers.ytem.com.br\`)"
+        - "traefik.http.routers.sticker-api.rule=Host(\`your-domain.com\`)"
         - "traefik.http.routers.sticker-api.entrypoints=websecure"
         - "traefik.http.routers.sticker-api.tls=true"
         - "traefik.http.routers.sticker-api.tls.certresolver=letsencrypt"
@@ -169,14 +169,14 @@ services:
 
   # Worker (BullMQ processor)
   worker:
-    image: ghcr.io/reisspaulo/stickerbot:latest
+    image: ghcr.io/your-username/stickerbot:latest
     command: ["node", "dist/worker.js"]
     environment:
       - NODE_ENV=production
       - LOG_LEVEL=${LOG_LEVEL}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
-      - REDIS_URL=redis://:ytem_redis_secure_2024@ytem-databases_redis:6379
+      - REDIS_URL=redis://:YOUR_REDIS_PASSWORD@ytem-databases_redis:6379
       - EVOLUTION_API_URL=http://evolution_evolution_api:8080
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
       - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE}
@@ -241,14 +241,14 @@ MAX_RETRIES=10
 RETRY_COUNT=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    STATUS=$(timeout 10 curl -s https://stickers.ytem.com.br/health | jq -r '.status' 2>/dev/null || echo "error")
+    STATUS=$(timeout 10 curl -s https://your-domain.com/health | jq -r '.status' 2>/dev/null || echo "error")
 
     if [ "$STATUS" = "healthy" ]; then
         echo ""
         echo "✅ Sticker Bot deployed successfully!"
-        echo "🌐 https://stickers.ytem.com.br"
-        echo "🔗 Webhook: https://stickers.ytem.com.br/webhook"
-        echo "💚 Health: https://stickers.ytem.com.br/health"
+        echo "🌐 https://your-domain.com"
+        echo "🔗 Webhook: https://your-domain.com/webhook"
+        echo "💚 Health: https://your-domain.com/health"
         echo ""
         echo "🔐 All secrets loaded from Doppler (config: $CONFIG)"
 

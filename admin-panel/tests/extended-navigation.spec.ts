@@ -26,11 +26,11 @@ test('extended navigation with error tracking', async ({ page }) => {
 
   // Login
   console.log('1. Login...');
-  await page.goto('https://admin-stickers.ytem.com.br/login', { waitUntil: 'networkidle' });
-  await page.fill('input[type="email"]', 'paulo.reis@ytem.com.br');
-  await page.fill('input[type="password"]', 'Admin@2026');
+  await page.goto('https://admin-your-domain.com/login', { waitUntil: 'networkidle' });
+  await page.fill('input[type="email"]', 'test@example.com');
+  await page.fill('input[type="password"]', 'TEST_PASSWORD');
   await page.click('button[type="submit"]');
-  await page.waitForURL('**/admin-stickers.ytem.com.br/', { timeout: 10000 });
+  await page.waitForURL('**/admin-your-domain.com/', { timeout: 10000 });
 
   console.log('2. Dashboard carregado, esperando 10s...');
   await page.waitForTimeout(10000);
@@ -42,11 +42,11 @@ test('extended navigation with error tracking', async ({ page }) => {
   await page.waitForTimeout(5000);
 
   console.log('4. Navegando para Emotions...');
-  await page.goto('https://admin-stickers.ytem.com.br/stickers/emotions', { waitUntil: 'networkidle' });
+  await page.goto('https://admin-your-domain.com/stickers/emotions', { waitUntil: 'networkidle' });
   await page.waitForTimeout(5000);
 
   console.log('5. Voltando para Dashboard...');
-  await page.goto('https://admin-stickers.ytem.com.br/', { waitUntil: 'networkidle' });
+  await page.goto('https://admin-your-domain.com/', { waitUntil: 'networkidle' });
   await page.waitForTimeout(5000);
 
   // Reload para forçar reinicialização

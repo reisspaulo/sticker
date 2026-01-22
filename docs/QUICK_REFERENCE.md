@@ -24,7 +24,7 @@ git push origin main
 
 # 4. Deploy automático via GitHub Actions
 # Aguardar 2-3 minutos
-# Verificar: https://admin-stickers.ytem.com.br
+# Verificar: https://admin-your-domain.com
 ```
 
 **Checklist rápido:**
@@ -54,7 +54,7 @@ vps-ssh "cd /path/to/project && git pull && docker service update sticker_backen
 
 ```bash
 # 1. Verificar logs do Supabase
-# Acessar: https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/logs
+# Acessar: https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID/logs
 
 # 2. Testar localmente
 cd admin-panel
@@ -64,7 +64,7 @@ doppler run -- npm run dev
 # Ver: admin-panel/middleware.ts
 
 # 4. Verificar RLS policies
-# Acessar: https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/auth/policies
+# Acessar: https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID/auth/policies
 ```
 
 ### Queries não executam
@@ -91,7 +91,7 @@ vps-ssh "docker service logs sticker_backend --tail 50 -f"
 vps-ssh "docker service ls | grep sticker"
 
 # 3. Health check
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 ```
 
 **Docs:** [QUICK-CHANGES-GUIDE.md](operations/QUICK-CHANGES-GUIDE.md)
@@ -191,10 +191,10 @@ git log --oneline -10
 
 | Recurso | URL |
 |---------|-----|
-| **Admin Panel** | https://admin-stickers.ytem.com.br/ |
-| **Bot Backend** | https://stickers.ytem.com.br/ |
-| Supabase Dashboard | https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje |
-| GitHub Actions | https://github.com/reisspaulo/sticker/actions |
+| **Admin Panel** | https://admin-your-domain.com/ |
+| **Bot Backend** | https://your-domain.com/ |
+| Supabase Dashboard | https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID |
+| GitHub Actions | https://github.com/your-username/sticker/actions |
 | Doppler | https://dashboard.doppler.com |
 
 ---

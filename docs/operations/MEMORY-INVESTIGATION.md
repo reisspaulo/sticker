@@ -1,7 +1,7 @@
 # Memory Investigation Guide - 94.2% Usage Analysis
 
 **Data:** 2026-01-16
-**VPS:** 69.62.100.250 (Contabo - srv1007351)
+**VPS:** YOUR_VPS_IP (Contabo - srv1007351)
 **Problema:** Memory usage at 94.2% após deploy Phase 1
 
 ---
@@ -10,12 +10,12 @@
 
 ```bash
 # Na sua máquina local:
-ssh root@69.62.100.250 'bash -s' < scripts/investigate-memory.sh
+ssh root@YOUR_VPS_IP 'bash -s' < scripts/investigate-memory.sh
 ```
 
 **Ou copiar e colar comandos manualmente:**
 ```bash
-ssh root@69.62.100.250
+ssh root@YOUR_VPS_IP
 # Depois copie comandos do script
 ```
 

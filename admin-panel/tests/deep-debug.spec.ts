@@ -24,11 +24,11 @@ test('deep debug supabase', async ({ page }) => {
   });
 
   console.log('\n=== LOGIN ===\n');
-  await page.goto('https://admin-stickers.ytem.com.br/login', { waitUntil: 'networkidle' });
-  await page.fill('input[type="email"]', 'paulo.reis@ytem.com.br');
-  await page.fill('input[type="password"]', 'Admin@2026');
+  await page.goto('https://admin-your-domain.com/login', { waitUntil: 'networkidle' });
+  await page.fill('input[type="email"]', 'test@example.com');
+  await page.fill('input[type="password"]', 'TEST_PASSWORD');
   await page.click('button[type="submit"]');
-  await page.waitForURL('**/admin-stickers.ytem.com.br/', { timeout: 15000 });
+  await page.waitForURL('**/admin-your-domain.com/', { timeout: 15000 });
 
   await page.waitForTimeout(2000);
 
@@ -64,7 +64,7 @@ test('deep debug supabase', async ({ page }) => {
   const fetchResult = await Promise.race([
     page.evaluate(async () => {
       try {
-        const url = 'https://ludlztjdvwsrwlsczoje.supabase.co/rest/v1/users?select=id&limit=1';
+        const url = 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co/rest/v1/users?select=id&limit=1';
         const response = await fetch(url, {
           headers: {
             'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1ZGx6dGpkdndzcndsemNvamUiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczNTI1NTU1MSwiZXhwIjoyMDUwODMxNTUxfQ.I8G92Dh9wvSqZBNiKxYLIkxImHLQTvUfXINZN9bMpIw',

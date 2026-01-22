@@ -1,6 +1,6 @@
 #!/bin/bash
 # Memory Investigation Script for VPS
-# Run this on VPS: ssh root@69.62.100.250 'bash -s' < scripts/investigate-memory.sh
+# Run this on VPS: ssh root@YOUR_VPS_IP 'bash -s' < scripts/investigate-memory.sh
 
 echo "=========================================="
 echo "🔍 MEMORY INVESTIGATION - VPS"

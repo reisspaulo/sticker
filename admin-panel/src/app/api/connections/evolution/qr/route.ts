@@ -15,7 +15,7 @@ interface EvolutionConnectResponse {
  */
 export async function GET() {
   try {
-    const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'https://wa.ytem.com.br'
+    const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'https://your-evolution-api.com'
     const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY
     const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || 'meu-zap'
 

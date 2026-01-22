@@ -119,7 +119,7 @@ Os seguintes secrets precisam ser configurados no Doppler:
 
 ### Config: dev (local)
 ```bash
-SUPABASE_URL=https://ludlztjdvwsrwlsczoje.supabase.co
+SUPABASE_URL=https://YOUR_SUPABASE_PROJECT_ID.supabase.co
 SUPABASE_SERVICE_KEY=<service_key>
 REDIS_URL=redis://localhost:6379
 EVOLUTION_API_URL=http://localhost:8080
@@ -130,7 +130,7 @@ LOG_LEVEL=debug
 
 ### Config: prd (VPS)
 ```bash
-SUPABASE_URL=https://ludlztjdvwsrwlsczoje.supabase.co
+SUPABASE_URL=https://YOUR_SUPABASE_PROJECT_ID.supabase.co
 SUPABASE_SERVICE_KEY=<service_key>
 REDIS_URL=redis://redis:6379
 EVOLUTION_API_URL=http://evolution_api:8080
@@ -157,10 +157,10 @@ LOG_LEVEL=info
 - **sticker_worker:** BullMQ worker (1 replica, 1GB RAM)
 
 ### Routing
-- **Domain:** stickers.ytem.com.br
+- **Domain:** your-domain.com
 - **Traefik:** Automatic SSL via Let's Encrypt
-- **Health:** https://stickers.ytem.com.br/health
-- **Webhook:** https://stickers.ytem.com.br/webhook
+- **Health:** https://your-domain.com/health
+- **Webhook:** https://your-domain.com/webhook
 
 ---
 

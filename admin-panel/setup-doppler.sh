@@ -99,7 +99,7 @@ if [ ${#MISSING_VARS[@]} -gt 0 ]; then
 
     echo ""
     echo "📚 Obtenha os valores em:"
-    echo "   https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/settings/api"
+    echo "   https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID/settings/api"
     echo ""
     exit 1
 fi

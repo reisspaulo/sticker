@@ -80,7 +80,7 @@ Ambos os scripts precisam:
    ```
 
 3. **Credenciais válidas**
-   - Email: `paulo.reis@ytem.com.br` (já configurado)
+   - Email: `test@example.com` (já configurado)
    - Senha: Você precisa preencher nos scripts
 
 ---

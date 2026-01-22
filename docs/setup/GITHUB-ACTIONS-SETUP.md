@@ -50,14 +50,14 @@ O `GITHUB_TOKEN` padrão do Actions **não** tem permissão para push em GHCR (G
 
 ### Acessar configurações:
 
-1. Ir para: https://github.com/reisspaulo/sticker/settings/secrets/actions
+1. Ir para: https://github.com/your-username/sticker/settings/secrets/actions
 2. Clicar em "New repository secret"
 
 ### Secrets necessários:
 
 | Nome | Valor | Como obter |
 |------|-------|------------|
-| `VPS_HOST` | `69.62.100.250` | IP da VPS |
+| `VPS_HOST` | `YOUR_VPS_IP` | IP da VPS |
 | `VPS_USER` | `root` | Usuário SSH |
 | `VPS_SSH_KEY` | Chave privada SSH | Ver abaixo |
 
@@ -85,7 +85,7 @@ ssh-keygen -t ed25519 -C "github-actions@stickerbot" -f ~/.ssh/github_actions_st
 cat ~/.ssh/github_actions_sticker.pub | vps-ssh "cat >> ~/.ssh/authorized_keys"
 
 # 3. Testar conexão
-ssh -i ~/.ssh/github_actions_sticker root@69.62.100.250 "echo 'Conexão OK!'"
+ssh -i ~/.ssh/github_actions_sticker root@YOUR_VPS_IP "echo 'Conexão OK!'"
 
 # 4. Copiar chave PRIVADA para GitHub Secret
 cat ~/.ssh/github_actions_sticker
@@ -130,12 +130,12 @@ git commit -m "Enable CI/CD with GitHub Actions"
 git push origin main
 
 # Acompanhar deploy:
-# https://github.com/reisspaulo/sticker/actions
+# https://github.com/your-username/sticker/actions
 ```
 
 ### Opção B: Deploy manual (via UI)
 
-1. Ir para: https://github.com/reisspaulo/sticker/actions
+1. Ir para: https://github.com/your-username/sticker/actions
 2. Selecionar workflow "Deploy Sticker Bot"
 3. Clicar em "Run workflow" → "Run workflow"
 4. Acompanhar progresso
@@ -152,7 +152,7 @@ vps-ssh "docker service ps sticker_backend --no-trunc | head -5"
 vps-ssh "docker service ps sticker_worker --no-trunc | head -5"
 
 # Testar health check
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 
 # Ver logs
 vps-ssh "docker service logs --tail 20 sticker_backend"
@@ -189,7 +189,7 @@ git push origin main
 ```bash
 # Terminal 1: Monitorar health check
 while true; do
-  curl -s https://stickers.ytem.com.br/health | jq '.status'
+  curl -s https://your-domain.com/health | jq '.status'
   sleep 1
 done
 
@@ -235,7 +235,7 @@ Após setup completo, você terá:
 
 ```bash
 # Testar chave localmente
-ssh -i ~/.ssh/chave_privada root@69.62.100.250
+ssh -i ~/.ssh/chave_privada root@YOUR_VPS_IP
 
 # Adicionar chave na VPS
 cat ~/.ssh/chave_publica.pub | vps-ssh "cat >> ~/.ssh/authorized_keys"
@@ -267,7 +267,7 @@ vps-ssh "docker service scale sticker_backend=2 sticker_worker=2"
 
 ```bash
 # Testar manualmente
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 
 # Ver logs
 vps-ssh "docker service logs sticker_backend --tail 50"
@@ -292,7 +292,7 @@ Após CI/CD funcionando, considere:
 
 ## 🔗 Links Úteis
 
-- **GitHub Actions:** https://github.com/reisspaulo/sticker/actions
-- **GHCR Packages:** https://github.com/reisspaulo?tab=packages
+- **GitHub Actions:** https://github.com/your-username/sticker/actions
+- **GHCR Packages:** https://github.com/your-username?tab=packages
 - **Tokens Settings:** https://github.com/settings/tokens
-- **Secrets Settings:** https://github.com/reisspaulo/sticker/settings/secrets/actions
+- **Secrets Settings:** https://github.com/your-username/sticker/settings/secrets/actions

@@ -6,7 +6,7 @@
 
 ## Contexto
 
-O admin-panel (https://admin-stickers.ytem.com.br/stickers) estava apresentando erro crítico:
+O admin-panel (https://admin-your-domain.com/stickers) estava apresentando erro crítico:
 - **Erro:** "Application error: a client-side exception has occurred" (React Error #185 - Maximum update depth exceeded)
 - **Páginas afetadas:** `/stickers` (outras páginas como `/stickers/emotions` e `/stickers/celebrities` funcionavam normalmente)
 - **Frequência:** Persistente, mesmo após múltiplos deploys e correções
@@ -107,7 +107,7 @@ O problema NÃO é:
 
 **Debug Detalhado:**
 ```
-✅ createClient executou: {url: https://ludlztjdvwsrwlsczoje.supabase.co, hasKey: true, keyLength: 208}
+✅ createClient executou: {url: https://YOUR_SUPABASE_PROJECT_ID.supabase.co, hasKey: true, keyLength: 208}
 ✅ fetchStickers CALLED with options: {tipo: all, search: , dateFrom: null, dateTo: null, pageSize: 30}
 ✅ Executando query...
 ❌ Query completou! [NUNCA APARECE - TRAVA AQUI]
@@ -150,10 +150,10 @@ A query fica pendente indefinidamente em `const { data, count, error: queryError
 ## Mudanças no Doppler
 
 Adicionadas as seguintes variáveis de ambiente:
-- `NEXT_PUBLIC_SUPABASE_URL` = "https://ludlztjdvwsrwlsczoje.supabase.co"
+- `NEXT_PUBLIC_SUPABASE_URL` = "https://YOUR_SUPABASE_PROJECT_ID.supabase.co"
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = "<sua-anon-key-aqui>" (anon key do Supabase)
 
-## Impacto no Backend (stickers.ytem.com.br)
+## Impacto no Backend (your-domain.com)
 
 **NENHUM impacto:**
 - Backend usa `SUPABASE_SERVICE_KEY` (não foi alterado)

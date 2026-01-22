@@ -440,12 +440,12 @@ ${details?.error ? `🐛 *Erro:* ${details.error}` : ''}
 ⏰ *Detectado em:* ${now.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
 
 🔧 *AÇÃO NECESSÁRIA:*
-1. Acesse https://admin-stickers.ytem.com.br
+1. Acesse https://admin-your-domain.com
 2. Vá em Configurações > Conexões
 3. Clique em "Reconectar" e escaneie o QR Code
 
 ⚡ *Ou via terminal:*
-curl -s https://wa.ytem.com.br/instance/connect/meu-zap -H "apikey: ..." | jq '.base64'`;
+curl -s https://your-evolution-api.com/instance/connect/meu-zap -H "apikey: ..." | jq '.base64'`;
 
   logger.error({
     msg: '[ALERT] 🔴 WhatsApp disconnection alert triggered',

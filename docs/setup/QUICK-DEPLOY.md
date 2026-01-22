@@ -18,10 +18,10 @@ git commit -m "feat: nova funcionalidade"
 git push origin main
 
 # 3. Acompanhar deploy
-# https://github.com/reisspaulo/sticker/actions
+# https://github.com/your-username/sticker/actions
 
 # 4. Verificar produção (após 2-3 min)
-curl https://stickers.ytem.com.br/health | jq
+curl https://your-domain.com/health | jq
 ```
 
 **📖 Documentação completa:** [CI-CD-WORKFLOW.md](./CI-CD-WORKFLOW.md)
@@ -37,19 +37,19 @@ curl https://stickers.ytem.com.br/health | jq
 ./scripts/stop-local.sh
 
 # 2. Build + transferir + deploy
-docker build --no-cache --platform linux/amd64 -t ghcr.io/reisspaulo/stickerbot:latest .
-docker tag ghcr.io/reisspaulo/stickerbot:latest ghcr.io/reisspaulo/stickerbot:latest
+docker build --no-cache --platform linux/amd64 -t ghcr.io/your-username/stickerbot:latest .
+docker tag ghcr.io/your-username/stickerbot:latest ghcr.io/your-username/stickerbot:latest
 
-docker save ghcr.io/reisspaulo/stickerbot:latest | gzip | vps-ssh "gunzip | docker load"
-docker save ghcr.io/reisspaulo/stickerbot:latest | gzip | vps-ssh "gunzip | docker load"
+docker save ghcr.io/your-username/stickerbot:latest | gzip | vps-ssh "gunzip | docker load"
+docker save ghcr.io/your-username/stickerbot:latest | gzip | vps-ssh "gunzip | docker load"
 
-vps-ssh "docker service update --force --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
-vps-ssh "docker service update --force --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker"
+vps-ssh "docker service update --force --image ghcr.io/your-username/stickerbot:latest sticker_backend"
+vps-ssh "docker service update --force --image ghcr.io/your-username/stickerbot:latest sticker_worker"
 
 # 3. Verificar
 vps-ssh "docker service logs --tail 20 sticker_backend"
 vps-ssh "docker service logs --tail 20 sticker_worker"
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 ```
 
 **Tempo total**: ~8 minutos
@@ -83,7 +83,7 @@ vps-ssh "docker service logs --tail 50 sticker_backend"
 vps-ssh "docker service logs --tail 50 sticker_worker"
 
 # Health check
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 
 # Verificar se tem containers locais rodando
 docker ps -a | grep -E "sticker|evolution"
@@ -106,7 +106,7 @@ lsof -i :8080  # Evolution local
 
 ```bash
 # Build com --no-cache
-docker build --no-cache --platform linux/amd64 -t ghcr.io/reisspaulo/stickerbot:latest .
+docker build --no-cache --platform linux/amd64 -t ghcr.io/your-username/stickerbot:latest .
 ```
 
 ### Serviço não inicia
@@ -127,13 +127,13 @@ vps-ssh "docker service update --rollback sticker_backend"
 
 ```bash
 # Ver workflow em execução
-# https://github.com/reisspaulo/sticker/actions
+# https://github.com/your-username/sticker/actions
 
 # Ver logs dos serviços na VPS
 vps-ssh "docker service logs -f sticker_backend"
 
 # Monitorar health em tempo real
-while true; do curl -s https://stickers.ytem.com.br/health | jq '.status,.version'; sleep 1; done
+while true; do curl -s https://your-domain.com/health | jq '.status,.version'; sleep 1; done
 ```
 
 ### Rollback (se necessário)

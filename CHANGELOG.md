@@ -168,7 +168,7 @@ Antes de remover:
 
 #### ✅ Corrigido - 2026-01-11
 
-**Problema:** Autenticação e queries não funcionando no admin panel (https://admin-stickers.ytem.com.br)
+**Problema:** Autenticação e queries não funcionando no admin panel (https://admin-your-domain.com)
 - Loop infinito (React Error #185)
 - Queries travando
 - Multiple GoTrueClient instances
@@ -276,8 +276,8 @@ Antes de remover:
 - [Documentação](./docs/INDEX.md)
 - [Guia de Deploy](./docs/setup/CI-CD-WORKFLOW.md)
 - [Decisões Arquiteturais](./docs/decisions/)
-- [Admin Panel](https://admin-stickers.ytem.com.br/)
-- [Bot Backend](https://stickers.ytem.com.br/)
+- [Admin Panel](https://admin-your-domain.com/)
+- [Bot Backend](https://your-domain.com/)
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Última atualização:** 2026-01-05
 **Stack:** sticker
-**VPS:** srv1007351 (69.62.100.250)
+**VPS:** srv1007351 (YOUR_VPS_IP)
 **Arquitetura:** x86_64 (Ubuntu 22.04)
 
 > **📚 Documentos relacionados:**
@@ -47,7 +47,7 @@ Usar apenas quando:
 ```
 ┌─────────────────────────────────────────────────┐
 │              CLOUDFLARE DNS                     │
-│         stickers.ytem.com.br                    │
+│         your-domain.com                    │
 └──────────────────┬──────────────────────────────┘
                    │
                    │ HTTPS (443)
@@ -57,7 +57,7 @@ Usar apenas quando:
 │       (Reverse Proxy + SSL Manager)              │
 │                                                  │
 │  ┌──────────────────────────────────────────┐  │
-│  │    stickers.ytem.com.br                  │  │
+│  │    your-domain.com                  │  │
 │  │    - /webhook (Evolution API)            │  │
 │  │    - /stripe/webhook (Stripe)            │  │
 │  │    - /health                             │  │
@@ -108,7 +108,7 @@ doppler secrets --project sticker --config prd
 |--------|-----------|---------|
 | `SUPABASE_URL` | URL do Supabase | `https://xxx.supabase.co` |
 | `SUPABASE_SERVICE_KEY` | Service key do Supabase | `eyJhbGci...` |
-| `EVOLUTION_API_KEY` | Chave da Evolution API | `I1hKpeX0...` |
+| `EVOLUTION_API_KEY` | Chave da Evolution API | `YOUR_KEY...` |
 | `EVOLUTION_INSTANCE` | Nome da instância | `meu-zap` |
 | `API_KEY` | Chave da API do bot | `c77c117de...` |
 | `OPENAI_API_KEY` | OpenAI API key | `sk-proj-...` |
@@ -165,7 +165,7 @@ docker ps -a | grep -E "sticker|evolution"
 docker build \
   --no-cache \
   --platform linux/amd64 \
-  -t ghcr.io/reisspaulo/stickerbot:latest \
+  -t ghcr.io/your-username/stickerbot:latest \
   -f Dockerfile \
   .
 ```
@@ -182,7 +182,7 @@ docker build \
 
 ```bash
 # Exportar imagem local e carregar na VPS (via pipe)
-docker save ghcr.io/reisspaulo/stickerbot:latest | gzip | vps-ssh "gunzip | docker load"
+docker save ghcr.io/your-username/stickerbot:latest | gzip | vps-ssh "gunzip | docker load"
 ```
 
 **Tamanho**: ~465MB compactado, ~5 minutos de transferência
@@ -191,8 +191,8 @@ docker save ghcr.io/reisspaulo/stickerbot:latest | gzip | vps-ssh "gunzip | dock
 
 ```bash
 # Atualizar backend e worker (mesma imagem)
-vps-ssh "docker service update --force --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
-vps-ssh "docker service update --force --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker"
+vps-ssh "docker service update --force --image ghcr.io/your-username/stickerbot:latest sticker_backend"
+vps-ssh "docker service update --force --image ghcr.io/your-username/stickerbot:latest sticker_worker"
 ```
 
 #### 6. Verificar Deploy
@@ -205,7 +205,7 @@ vps-ssh "docker service logs --tail 20 sticker_backend"
 vps-ssh "docker service logs --tail 20 sticker_worker"
 
 # Testar health check
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 ```
 
 ---
@@ -216,11 +216,11 @@ curl https://stickers.ytem.com.br/health
 # ⚠️ NÃO USE - Token sem permissão read:packages
 
 # Login no GitHub Container Registry
-echo $GITHUB_TOKEN | docker login ghcr.io -u reisspaulo --password-stdin
+echo $GITHUB_TOKEN | docker login ghcr.io -u your-username --password-stdin
 # ❌ Erro: Error saving credentials
 
 # Push das imagens
-docker push ghcr.io/reisspaulo/stickerbot:latest
+docker push ghcr.io/your-username/stickerbot:latest
 # ❌ Erro: denied: permission_denied
 ```
 
@@ -305,13 +305,13 @@ vps-ssh "docker service logs sticker_backend | grep -i error"
 
 ```bash
 # API Health
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 
 # Stats
-curl https://stickers.ytem.com.br/stats
+curl https://your-domain.com/stats
 
 # Webhook (deve retornar status: online)
-curl https://stickers.ytem.com.br/webhook
+curl https://your-domain.com/webhook
 ```
 
 ---
@@ -322,8 +322,8 @@ curl https://stickers.ytem.com.br/webhook
 
 ```bash
 # Força pull da imagem :latest e restart
-vps-ssh "docker service update --force --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
-vps-ssh "docker service update --force --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker"
+vps-ssh "docker service update --force --image ghcr.io/your-username/stickerbot:latest sticker_backend"
+vps-ssh "docker service update --force --image ghcr.io/your-username/stickerbot:latest sticker_worker"
 ```
 
 ### Atualizar Variável de Ambiente
@@ -443,7 +443,7 @@ vps-ssh "docker exec \$(docker ps -q -f name=sticker_backend) env | grep STRIPE"
 
 1. Acesse: https://dashboard.stripe.com/webhooks
 2. Clique em "+ Add endpoint"
-3. URL: `https://stickers.ytem.com.br/stripe/webhook`
+3. URL: `https://your-domain.com/stripe/webhook`
 4. Eventos para escutar:
    - `checkout.session.completed`
    - `customer.subscription.updated`
@@ -466,7 +466,7 @@ doppler secrets set STRIPE_WEBHOOK_SECRET="whsec_..." --project sticker --config
 
 ```bash
 # Via Stripe CLI
-stripe listen --forward-to https://stickers.ytem.com.br/stripe/webhook
+stripe listen --forward-to https://your-domain.com/stripe/webhook
 
 # Trigger evento de teste
 stripe trigger checkout.session.completed
@@ -504,15 +504,15 @@ sticker/
 
 | Recurso | URL |
 |---------|-----|
-| **API (Produção)** | https://stickers.ytem.com.br |
-| **Health Check** | https://stickers.ytem.com.br/health |
-| **Webhook Evolution** | https://stickers.ytem.com.br/webhook |
-| **Webhook Stripe** | https://stickers.ytem.com.br/stripe/webhook |
-| **Stats** | https://stickers.ytem.com.br/stats |
-| **Container Registry** | https://github.com/reisspaulo?tab=packages |
+| **API (Produção)** | https://your-domain.com |
+| **Health Check** | https://your-domain.com/health |
+| **Webhook Evolution** | https://your-domain.com/webhook |
+| **Webhook Stripe** | https://your-domain.com/stripe/webhook |
+| **Stats** | https://your-domain.com/stats |
+| **Container Registry** | https://github.com/your-username?tab=packages |
 | **Doppler Project** | https://dashboard.doppler.com/workplace/... |
 | **Stripe Dashboard** | https://dashboard.stripe.com |
-| **Supabase Dashboard** | https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje |
+| **Supabase Dashboard** | https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID |
 
 ---
 
@@ -551,7 +551,7 @@ sticker/
 ## 🚨 Em Caso de Problema
 
 1. **Verificar logs**: `vps-ssh "docker service logs sticker_backend --tail 200"`
-2. **Health check**: `curl https://stickers.ytem.com.br/health`
+2. **Health check**: `curl https://your-domain.com/health`
 3. **Rollback**: `vps-ssh "docker service update --rollback sticker_backend"`
 4. **Support**: Verificar documentação no `/root/brazyl-docs/`
 

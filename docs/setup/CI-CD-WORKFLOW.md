@@ -55,7 +55,7 @@ git push origin main
 
 ### Acompanhar o Deploy
 
-1. **GitHub Actions**: https://github.com/reisspaulo/sticker/actions
+1. **GitHub Actions**: https://github.com/your-username/sticker/actions
 2. **Ver progresso em tempo real**: Clicar no workflow em execução
 3. **Tempo médio**: ~2-3 minutos do push até produção
 
@@ -100,8 +100,8 @@ Build and push Docker image:
   - Plataforma: linux/amd64
   - Registry: ghcr.io (GitHub Container Registry)
   - Tags criadas:
-    - ghcr.io/reisspaulo/stickerbot:latest
-    - ghcr.io/reisspaulo/stickerbot:<git-sha>
+    - ghcr.io/your-username/stickerbot:latest
+    - ghcr.io/your-username/stickerbot:<git-sha>
   - Cache: GitHub Actions cache
 ```
 
@@ -127,7 +127,7 @@ echo "$GHCR_PAT" | docker login ghcr.io -u <username> --password-stdin
 ```bash
 docker service update \
   --with-registry-auth \
-  --image ghcr.io/reisspaulo/stickerbot:<git-sha> \
+  --image ghcr.io/your-username/stickerbot:<git-sha> \
   sticker_backend
 ```
 
@@ -195,14 +195,14 @@ sleep 30  # Aguarda backend estabilizar
 ```bash
 docker service update \
   --with-registry-auth \
-  --image ghcr.io/reisspaulo/stickerbot:<git-sha> \
+  --image ghcr.io/your-username/stickerbot:<git-sha> \
   sticker_worker
 ```
 
 ### 6. Health Check Final
 
 ```bash
-curl --fail https://stickers.ytem.com.br/health || exit 1
+curl --fail https://your-domain.com/health || exit 1
 ```
 
 Se falhar, o workflow **para com erro** e aciona rollback.
@@ -229,7 +229,7 @@ docker service update --rollback sticker_worker
 # Script de monitoramento (rodou em paralelo ao deploy)
 #!/bin/bash
 while true; do
-    RESULT=$(curl -s -o /tmp/health.json -w "%{http_code}" https://stickers.ytem.com.br/health)
+    RESULT=$(curl -s -o /tmp/health.json -w "%{http_code}" https://your-domain.com/health)
     if [ "$RESULT" = "200" ]; then
         VERSION=$(cat /tmp/health.json | jq -r '.version')
         STATUS=$(cat /tmp/health.json | jq -r '.status')
@@ -272,7 +272,7 @@ done
 **Análise:**
 - ✅ **100% uptime** - Todas as requisições retornaram HTTP 200
 - ✅ **Zero erros** - Nenhuma falha de conexão ou timeout
-- ✅ **Tempo do workflow**: 2m20s (https://github.com/reisspaulo/sticker/actions/runs/20719173706)
+- ✅ **Tempo do workflow**: 2m20s (https://github.com/your-username/sticker/actions/runs/20719173706)
 - ✅ **Status alternava** entre "healthy" e "degraded" (por uso de memória, não disponibilidade)
 - ✅ **Versão permaneceu estável** durante todo o processo
 
@@ -284,7 +284,7 @@ done
 
 ### Ver Logs do Workflow
 
-1. Acessar: https://github.com/reisspaulo/sticker/actions
+1. Acessar: https://github.com/your-username/sticker/actions
 2. Clicar no workflow em execução
 3. Ver logs em tempo real de cada step
 
@@ -293,7 +293,7 @@ done
 ```bash
 # Terminal 1: Health check contínuo
 while true; do
-    RESULT=$(curl -s https://stickers.ytem.com.br/health)
+    RESULT=$(curl -s https://your-domain.com/health)
     echo "$(date +%H:%M:%S) - $(echo $RESULT | jq -r '.status') - v$(echo $RESULT | jq -r '.version')"
     sleep 1
 done
@@ -317,7 +317,7 @@ vps-ssh "docker service logs --tail 50 -f sticker_worker"
 ### Verificar Versão em Produção
 
 ```bash
-curl https://stickers.ytem.com.br/health | jq '.version'
+curl https://your-domain.com/health | jq '.version'
 ```
 
 ---
@@ -343,7 +343,7 @@ git push origin main
 - Testar workflow após modificações
 
 **Como fazer**:
-1. Ir para: https://github.com/reisspaulo/sticker/actions
+1. Ir para: https://github.com/your-username/sticker/actions
 2. Selecionar "Deploy Sticker Bot" na lista de workflows
 3. Clicar em "Run workflow" → selecionar branch `main` → "Run workflow"
 4. Aguardar workflow completar (~2-3 min)
@@ -409,15 +409,15 @@ vps-ssh "docker service update --rollback sticker_backend"
 vps-ssh "docker service update --rollback sticker_worker"
 
 # Opção 2: Via tag específica do Git SHA
-vps-ssh "docker service update --image ghcr.io/reisspaulo/stickerbot:<git-sha-antigo> sticker_backend"
-vps-ssh "docker service update --image ghcr.io/reisspaulo/stickerbot:<git-sha-antigo> sticker_worker"
+vps-ssh "docker service update --image ghcr.io/your-username/stickerbot:<git-sha-antigo> sticker_backend"
+vps-ssh "docker service update --image ghcr.io/your-username/stickerbot:<git-sha-antigo> sticker_worker"
 ```
 
 ### Ver Histórico de Imagens
 
 ```bash
 # Ver todas as tags de imagens no GHCR
-gh api repos/reisspaulo/sticker/packages/container/stickerbot/versions
+gh api repos/your-username/sticker/packages/container/stickerbot/versions
 
 # Ver histórico de updates do serviço
 vps-ssh "docker service ps sticker_backend --no-trunc"
@@ -455,7 +455,7 @@ vps-ssh "docker service update --force sticker_backend"
 **Diagnóstico**:
 ```bash
 # Testar health check manualmente
-curl -v https://stickers.ytem.com.br/health
+curl -v https://your-domain.com/health
 
 # Ver logs
 vps-ssh "docker service logs --tail 50 sticker_backend"
@@ -482,10 +482,10 @@ vps-ssh "docker service update --rollback sticker_backend"
 **Diagnóstico**:
 ```bash
 # Verificar se imagem existe no GHCR
-gh api repos/reisspaulo/sticker/packages
+gh api repos/your-username/sticker/packages
 
 # Testar pull manual na VPS
-vps-ssh "docker pull ghcr.io/reisspaulo/stickerbot:latest"
+vps-ssh "docker pull ghcr.io/your-username/stickerbot:latest"
 
 # Verificar se VPS tem credenciais do Docker
 vps-ssh "cat ~/.docker/config.json"
@@ -515,20 +515,20 @@ O workflow agora inclui um step dedicado para fazer login no GHCR na VPS:
 **Solução temporária** (se o problema persistir):
 ```bash
 # Fazer login manual na VPS
-vps-ssh "echo \$GITHUB_TOKEN | docker login ghcr.io -u reisspaulo --password-stdin"
+vps-ssh "echo \$GITHUB_TOKEN | docker login ghcr.io -u your-username --password-stdin"
 
 # Forçar pull e update
-vps-ssh "docker service update --force --with-registry-auth --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
-vps-ssh "docker service update --force --with-registry-auth --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker"
+vps-ssh "docker service update --force --with-registry-auth --image ghcr.io/your-username/stickerbot:latest sticker_backend"
+vps-ssh "docker service update --force --with-registry-auth --image ghcr.io/your-username/stickerbot:latest sticker_worker"
 ```
 
 **Verificar que GHCR_PAT está configurado**:
 ```bash
 # Listar secrets do repositório
-gh secret list --repo reisspaulo/sticker
+gh secret list --repo your-username/sticker
 
 # Se GHCR_PAT não existir ou estiver expirado, criar novo
-gh secret set GHCR_PAT --repo reisspaulo/sticker
+gh secret set GHCR_PAT --repo your-username/sticker
 # Cole o Personal Access Token com scope 'write:packages' e 'read:packages'
 ```
 
@@ -550,7 +550,7 @@ git log -1 --oneline
 **Solução**:
 ```bash
 # Forçar pull e update
-vps-ssh "docker service update --force --with-registry-auth --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
+vps-ssh "docker service update --force --with-registry-auth --image ghcr.io/your-username/stickerbot:latest sticker_backend"
 ```
 
 ---
@@ -670,7 +670,7 @@ git push origin main
 # Aguardar workflow completar (2-3 min)
 
 # Verificar health
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 
 # Ver logs por 2-3 minutos
 vps-ssh "docker service logs -f sticker_backend"
@@ -726,11 +726,11 @@ jobs:
 
 | Recurso | URL |
 |---------|-----|
-| **GitHub Actions** | https://github.com/reisspaulo/sticker/actions |
-| **GHCR Packages** | https://github.com/reisspaulo?tab=packages |
-| **Health Check (Prod)** | https://stickers.ytem.com.br/health |
+| **GitHub Actions** | https://github.com/your-username/sticker/actions |
+| **GHCR Packages** | https://github.com/your-username?tab=packages |
+| **Health Check (Prod)** | https://your-domain.com/health |
 | **Workflow File** | `.github/workflows/deploy-sticker.yml` |
-| **GitHub Secrets** | https://github.com/reisspaulo/sticker/settings/secrets/actions |
+| **GitHub Secrets** | https://github.com/your-username/sticker/settings/secrets/actions |
 
 ---
 
@@ -753,10 +753,10 @@ git commit -m "feat: minha feature"
 git push origin main
 
 # 2. Aguardar workflow (2-3 min)
-# https://github.com/reisspaulo/sticker/actions
+# https://github.com/your-username/sticker/actions
 
 # 3. Verificar produção
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 ```
 
 ### Em caso de problema:
@@ -774,7 +774,7 @@ vps-ssh "docker service update --rollback sticker_worker"
 vps-ssh "docker service logs -f sticker_backend"
 
 # Health check
-watch -n 1 'curl -s https://stickers.ytem.com.br/health | jq'
+watch -n 1 'curl -s https://your-domain.com/health | jq'
 ```
 
 ---
@@ -919,11 +919,11 @@ O Admin Panel tem seu próprio workflow de deploy separado do Sticker Bot princi
 │          ├──→ Build Docker image (Next.js)                  │
 │          │    - Build args: SUPABASE_URL, SUPABASE_KEY      │
 │          │                                                   │
-│          ├──→ Push to ghcr.io/reisspaulo/sticker-admin      │
+│          ├──→ Push to ghcr.io/your-username/sticker-admin      │
 │          │                                                   │
 │          └──→ Deploy to VPS (Docker Swarm)                  │
 │               - Service: sticker_admin                       │
-│               - URL: https://admin-stickers.ytem.com.br     │
+│               - URL: https://admin-your-domain.com     │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -969,12 +969,12 @@ git commit -m "feat: adiciona nova funcionalidade no admin"
 git push origin main
 
 # 3. Pronto! Deploy automático iniciado
-# Acompanhe em: https://github.com/reisspaulo/sticker/actions
+# Acompanhe em: https://github.com/your-username/sticker/actions
 ```
 
 #### Opção 2: Manual (via GitHub UI)
 
-1. Ir para: https://github.com/reisspaulo/sticker/actions
+1. Ir para: https://github.com/your-username/sticker/actions
 2. Selecionar "Deploy Sticker Admin" na lista
 3. Clicar em "Run workflow" → selecionar `main` → "Run workflow"
 
@@ -982,9 +982,9 @@ git push origin main
 
 | Aspecto | Valor |
 |---------|-------|
-| **Imagem Docker** | `ghcr.io/reisspaulo/sticker-admin:latest` |
+| **Imagem Docker** | `ghcr.io/your-username/sticker-admin:latest` |
 | **Service Name** | `sticker_admin` |
-| **URL Pública** | https://admin-stickers.ytem.com.br |
+| **URL Pública** | https://admin-your-domain.com |
 | **Porta** | 3000 |
 | **Réplicas** | 1 |
 | **Autenticação** | Supabase Auth (role=admin) |
@@ -1007,7 +1007,7 @@ O serviço é exposto via Traefik com as seguintes labels:
 
 ```yaml
 --label traefik.enable=true
---label "traefik.http.routers.sticker-admin.rule=Host(`admin-stickers.ytem.com.br`)"
+--label "traefik.http.routers.sticker-admin.rule=Host(`admin-your-domain.com`)"
 --label traefik.http.routers.sticker-admin.entrypoints=websecure
 --label traefik.http.routers.sticker-admin.tls=true
 --label traefik.http.routers.sticker-admin.tls.certresolver=letsencrypt
@@ -1024,7 +1024,7 @@ vps-ssh "docker service ls | grep sticker_admin"
 vps-ssh "docker service logs sticker_admin --tail 50"
 
 # Testar acesso
-curl -s -o /dev/null -w "%{http_code}" https://admin-stickers.ytem.com.br
+curl -s -o /dev/null -w "%{http_code}" https://admin-your-domain.com
 # Deve retornar: 200
 ```
 
@@ -1160,7 +1160,7 @@ Se esquecer, o CI vai falhar com erro claro.
 gh run list --workflow=ci.yml --limit 5
 
 # Via browser
-# https://github.com/reisspaulo/sticker/actions/workflows/ci.yml
+# https://github.com/your-username/sticker/actions/workflows/ci.yml
 ```
 
 ### Documentação Relacionada
@@ -1248,7 +1248,7 @@ return reply.status(statusCode).send({
 ```yaml
 - name: Health check and version verification
   run: |
-    HEALTH_RESPONSE=$(curl -s https://stickers.ytem.com.br/health)
+    HEALTH_RESPONSE=$(curl -s https://your-domain.com/health)
     DEPLOYED_SHA=$(echo $HEALTH_RESPONSE | jq -r '.git_sha')
     EXPECTED_SHA="${{ github.sha }}"
 
@@ -1264,7 +1264,7 @@ return reply.status(statusCode).send({
 
 ```bash
 # Ver versão atual
-curl -s https://stickers.ytem.com.br/health | jq '{git_sha, deployed_at, version}'
+curl -s https://your-domain.com/health | jq '{git_sha, deployed_at, version}'
 
 # Output esperado:
 {
@@ -1286,7 +1286,7 @@ Se o CI/CD falhar com "Version mismatch":
 2. **Verificar se pull funcionou** - VPS pode estar usando cache
 3. **Forçar update manual**:
    ```bash
-   vps-ssh "docker service update --force --with-registry-auth --image ghcr.io/reisspaulo/stickerbot:$SHA sticker_backend"
+   vps-ssh "docker service update --force --with-registry-auth --image ghcr.io/your-username/stickerbot:$SHA sticker_backend"
    ```
 
 ### Scripts Manuais (Deprecated)
@@ -1322,14 +1322,14 @@ Usuários recebiam mensagens antigas (ex: "Digite começar", menu com "[1] Premi
 
 **Causa Raiz**:
 **Mismatch no nome da imagem Docker:**
-- CI/CD pushava para: `ghcr.io/reisspaulo/stickerbot`
-- Scripts manuais usavam: `ghcr.io/reisspaulo/sticker-bot-backend` ❌
+- CI/CD pushava para: `ghcr.io/your-username/stickerbot`
+- Scripts manuais usavam: `ghcr.io/your-username/sticker-bot-backend` ❌
 
 Quando alguém usava o script manual de deploy, ele puxava uma imagem **diferente** (antiga) do GHCR, sobrescrevendo o código atual.
 
 ```
-CI/CD → ghcr.io/reisspaulo/stickerbot:sha123    ✅ Código novo
-Manual → ghcr.io/reisspaulo/sticker-bot-backend  ❌ Código de semanas atrás
+CI/CD → ghcr.io/your-username/stickerbot:sha123    ✅ Código novo
+Manual → ghcr.io/your-username/sticker-bot-backend  ❌ Código de semanas atrás
 ```
 
 **Solução**:
@@ -1356,7 +1356,7 @@ Manual → ghcr.io/reisspaulo/sticker-bot-backend  ❌ Código de semanas atrás
 **Como detectar esse problema no futuro**:
 ```bash
 # 1. Verificar health check
-curl -s https://stickers.ytem.com.br/health | jq '.git_sha'
+curl -s https://your-domain.com/health | jq '.git_sha'
 
 # 2. Comparar com último commit
 git log -1 --format='%H'

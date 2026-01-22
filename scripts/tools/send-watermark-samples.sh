@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Configurações
-EVOLUTION_URL="https://stickers.ytem.com.br/evolution"
-EVOLUTION_KEY="I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc="
+EVOLUTION_URL="https://your-domain.com/evolution"
+EVOLUTION_KEY="YOUR_EVOLUTION_API_KEY"
 INSTANCE="meu-zap"
 PHONE="5511946304133"
 SAMPLES_DIR="watermark-samples"

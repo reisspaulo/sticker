@@ -41,12 +41,12 @@ PORT=3000
 LOG_LEVEL=info
 
 # Supabase (pegar do dashboard)
-SUPABASE_URL=https://ludlztjdvwsrwlsczoje.supabase.co
+SUPABASE_URL=https://YOUR_SUPABASE_PROJECT_ID.supabase.co
 SUPABASE_SERVICE_KEY=seu-service-key-aqui
 
 # Evolution API (local)
 EVOLUTION_API_URL=http://localhost:8080
-EVOLUTION_API_KEY=I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=
+EVOLUTION_API_KEY=YOUR_EVOLUTION_API_KEY
 EVOLUTION_INSTANCE=meu-zap
 ```
 
@@ -185,11 +185,11 @@ No dashboard da Evolution API (http://localhost:3001), configure o webhook:
 5. Salvar
 
 ### Produção ✅ Deployado
-Evolution API rodando em: https://wa.ytem.com.br
+Evolution API rodando em: https://your-evolution-api.com
 
-Configure webhook via Evolution Manager (https://wa-manager.ytem.com.br):
+Configure webhook via Evolution Manager (https://your-evolution-manager.com):
 1. Instâncias → **meu-zap**
-2. Webhook URL: `https://stickers.ytem.com.br/webhook`
+2. Webhook URL: `https://your-domain.com/webhook`
 3. Events: `MESSAGES_UPSERT`
 
 ---
@@ -205,7 +205,7 @@ Configure webhook via Evolution Manager (https://wa-manager.ytem.com.br):
 
 - Certifique-se que Evolution API está rodando
 - Local: `docker ps | grep evolution`
-- Produção: `curl https://wa.ytem.com.br`
+- Produção: `curl https://your-evolution-api.com`
 
 ### Erro: "Health check failed"
 
@@ -247,29 +247,29 @@ sticker/
 
 ### Pré-requisitos
 
-- ☁️ **DNS Cloudflare configurado** (stickers.ytem.com.br → 69.62.100.250)
+- ☁️ **DNS Cloudflare configurado** (your-domain.com → YOUR_VPS_IP)
 - 🔑 Acesso ao Doppler (projeto `sticker`)
-- 🖥️ Acesso à VPS (69.62.100.250 - Contabo srv1007351)
+- 🖥️ Acesso à VPS (YOUR_VPS_IP - Contabo srv1007351)
 - 📦 GitHub Container Registry configurado
-- ✅ **Evolution API deployada** (https://wa.ytem.com.br)
+- ✅ **Evolution API deployada** (https://your-evolution-api.com)
 
 ### 1. Configurar DNS no Cloudflare ⚠️ PRIMEIRO PASSO
 
 **Antes de tudo**, configure o DNS:
 
 1. Acesse: https://dash.cloudflare.com
-2. Selecione domínio **ytem.com.br**
+2. Selecione domínio **your-domain.com**
 3. DNS → **Add record**:
    - **Type:** A
    - **Name:** stickers
-   - **IPv4:** 69.62.100.250
+   - **IPv4:** YOUR_VPS_IP
    - **Proxy:** ☁️ Proxied (ON)
    - **TTL:** Auto
 4. SSL/TLS → **Full (strict)**
 
 **DNS já configurados:**
-- ✅ wa.ytem.com.br → Evolution API
-- ✅ wa-manager.ytem.com.br → Evolution Manager
+- ✅ your-evolution-api.com → Evolution API
+- ✅ your-evolution-manager.com → Evolution Manager
 
 Ver guia completo: `deploy/CLOUDFLARE-DNS-SETUP.md`
 
@@ -288,10 +288,10 @@ doppler configs create prd --project sticker
 
 # 3. Adicionar secrets
 doppler secrets set \
-  SUPABASE_URL="https://ludlztjdvwsrwlsczoje.supabase.co" \
+  SUPABASE_URL="https://YOUR_SUPABASE_PROJECT_ID.supabase.co" \
   SUPABASE_SERVICE_KEY="<service_key>" \
   EVOLUTION_API_URL="http://evolution_api:8080" \
-  EVOLUTION_API_KEY="I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=" \
+  EVOLUTION_API_KEY="YOUR_EVOLUTION_API_KEY" \
   EVOLUTION_INSTANCE="meu-zap" \
   LOG_LEVEL="info" \
   --project sticker --config prd
@@ -304,11 +304,11 @@ doppler secrets set \
 npm run build
 
 # 2. Build imagem Docker
-docker build -t ghcr.io/reisspaulo/stickerbot:latest -t ghcr.io/reisspaulo/stickerbot:latest .
+docker build -t ghcr.io/your-username/stickerbot:latest -t ghcr.io/your-username/stickerbot:latest .
 
 # 3. Push para registry
-docker push ghcr.io/reisspaulo/stickerbot:latest
-docker push ghcr.io/reisspaulo/stickerbot:latest
+docker push ghcr.io/your-username/stickerbot:latest
+docker push ghcr.io/your-username/stickerbot:latest
 
 # 4. Deploy para VPS (aguarda DNS propagar se necessário)
 ./deploy/deploy-sticker.sh prd
@@ -318,13 +318,13 @@ docker push ghcr.io/reisspaulo/stickerbot:latest
 
 ```bash
 # Verificar DNS (deve resolver)
-dig stickers.ytem.com.br
+dig your-domain.com
 
 # Health check (deve retornar 200)
-curl https://stickers.ytem.com.br/health
+curl https://your-domain.com/health
 
 # Verificar certificado SSL (deve ser Let's Encrypt)
-echo | openssl s_client -servername stickers.ytem.com.br -connect stickers.ytem.com.br:443 2>/dev/null | openssl x509 -noout -issuer
+echo | openssl s_client -servername your-domain.com -connect your-domain.com:443 2>/dev/null | openssl x509 -noout -issuer
 
 # Ver logs (usar vps-ssh wrapper)
 vps-ssh "docker service logs sticker_backend --tail 100"
@@ -333,15 +333,15 @@ vps-ssh "docker service logs sticker_backend --tail 100"
 vps-ssh "docker service ls | grep sticker"
 
 # Verificar Evolution API
-curl https://wa.ytem.com.br
+curl https://your-evolution-api.com
 ```
 
 ### 5. Configurar Webhook na Evolution API ✅
 
-Acessar Evolution Manager: https://wa-manager.ytem.com.br
+Acessar Evolution Manager: https://your-evolution-manager.com
 
 1. Instâncias → **meu-zap** (b2b76790-7a59-4eae-81dc-7dfabd0784b8)
-2. Webhook → **URL:** `https://stickers.ytem.com.br/webhook`
+2. Webhook → **URL:** `https://your-domain.com/webhook`
 3. Events → Selecione `MESSAGES_UPSERT`
 4. Salvar
 
@@ -366,9 +366,9 @@ Acessar Evolution Manager: https://wa-manager.ytem.com.br
 - [ ] Testes end-to-end em produção
 
 **URLs em Produção:**
-- ✅ Evolution API: https://wa.ytem.com.br
-- ✅ Evolution Manager: https://wa-manager.ytem.com.br
-- ⏳ Sticker Bot: https://stickers.ytem.com.br (pendente)
+- ✅ Evolution API: https://your-evolution-api.com
+- ✅ Evolution Manager: https://your-evolution-manager.com
+- ⏳ Sticker Bot: https://your-domain.com (pendente)
 
 ---
 

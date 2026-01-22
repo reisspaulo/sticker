@@ -12,7 +12,7 @@ function getSupabase() {
 // VPS Training API configuration
 function getVpsConfig() {
   return {
-    url: process.env.VPS_TRAINING_API_URL || 'http://69.62.100.250:8765',
+    url: process.env.VPS_TRAINING_API_URL || 'http://YOUR_VPS_IP:8765',
     apiKey: process.env.VPS_TRAINING_API_KEY || '',
   }
 }

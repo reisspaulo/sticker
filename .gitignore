@@ -16,6 +16,13 @@
 secrets/
 credentials.json
 
+# Claude Code settings (contém histórico de comandos com secrets)
+.claude/settings.local.json
+
+# Playwright reports (podem conter credenciais de teste)
+playwright-report/
+admin-panel/playwright-report/
+
 # Dados temporários
 qrcode-data.txt
 *.log

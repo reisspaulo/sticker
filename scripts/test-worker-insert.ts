@@ -49,7 +49,7 @@ async function testInsert() {
     user_number: '5511999999999', // Número de teste
     tipo: 'estatico' as const,
     original_url: 'whatsapp:test_message_id_12345',
-    processed_url: 'https://ludlztjdvwsrwlsczoje.supabase.co/storage/v1/object/public/stickers-estaticos/test.webp',
+    processed_url: 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co/storage/v1/object/public/stickers-estaticos/test.webp',
     storage_path: 'user_5511999999999/test_12345.webp',
     file_size: 45678,
     processing_time_ms: 1234,

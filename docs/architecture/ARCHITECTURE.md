@@ -16,7 +16,7 @@
 
 ### **Evolution API** (Recepção + Envio)
 - **Função**: Receber webhooks e enviar mensagens básicas
-- **Endpoint**: `https://stickers.ytem.com.br/webhook`
+- **Endpoint**: `https://your-domain.com/webhook`
 - **Responsável por**:
   - Conectar com WhatsApp via Baileys
   - Receber mensagens dos usuários
@@ -38,7 +38,7 @@
 
 ### **Backend StickerBot**
 - **Função**: Processar lógica de negócio
-- **Endpoint**: `https://stickers.ytem.com.br`
+- **Endpoint**: `https://your-domain.com`
 - **Responsável por**:
   - Receber webhooks da Evolution API
   - Processar comandos e mensagens
@@ -64,7 +64,7 @@
 └────────┬─────────┘
          │
          │ 2. Webhook POST
-         │    https://stickers.ytem.com.br/webhook
+         │    https://your-domain.com/webhook
          ↓
 ┌─────────────────────────────┐
 │   Backend StickerBot        │
@@ -436,7 +436,7 @@ Usuário clica: "💳 Cartão de Crédito"
 **Webhook Stripe → Backend:**
 Quando pagamento confirmado:
 ```
-Stripe → https://stickers.ytem.com.br/stripe/webhook
+Stripe → https://your-domain.com/stripe/webhook
 Backend ativa assinatura no Supabase
 Envia mensagem de confirmação
 ```
@@ -1340,7 +1340,7 @@ context:5511946304133 = {
 ### **Integrações Externas**
 
 **Stripe (Pagamentos)**
-- Webhook: `https://stickers.ytem.com.br/stripe/webhook`
+- Webhook: `https://your-domain.com/stripe/webhook`
 - Eventos monitorados:
   - `checkout.session.completed`
   - `invoice.payment_succeeded`
@@ -1615,7 +1615,7 @@ logMenuInteraction(userNumber, 'pix_payment_confirmed');
 - Evolution API: `http://localhost:8080` (local) / `http://evolution_api:8080` (VPS)
 - Avisa API: `https://www.avisaapi.com.br/api`
 - Stripe: `https://api.stripe.com/v1`
-- Supabase: `https://ludlztjdvwsrwlsczoje.supabase.co`
+- Supabase: `https://YOUR_SUPABASE_PROJECT_ID.supabase.co`
 
 **Documentação:**
 - Evolution API: https://doc.evolution-api.com

@@ -96,7 +96,7 @@ EXPECTED_VARS[SUPABASE_SERVICE_KEY]=$(doppler secrets get SUPABASE_SERVICE_KEY -
 
 echo "   Carregando REDIS_URL..."
 # Redis URL é hardcoded no deploy-sticker.sh (linha 163)
-EXPECTED_VARS[REDIS_URL]="redis://:ytem_redis_secure_2024@ytem-databases_redis:6379"
+EXPECTED_VARS[REDIS_URL]="redis://:YOUR_REDIS_PASSWORD@ytem-databases_redis:6379"
 
 echo "   Carregando EVOLUTION_API_URL..."
 # Evolution API URL é hardcoded (linha 164)

@@ -1,7 +1,7 @@
 # 🚀 Guia de Mudanças Rápidas - Sticker Bot
 
 > Documentação atualizada em: 08/01/2026
-> Ambiente: Produção em https://stickers.ytem.com.br
+> Ambiente: Produção em https://your-domain.com
 
 > **📚 Documentos relacionados:**
 > - [CI/CD Workflow (Deploy Automatizado)](../setup/CI-CD-WORKFLOW.md) - Como fazer deploy via git push
@@ -139,7 +139,7 @@ vps-ssh "echo 'Conexão OK' && hostname"
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     VPS (69.62.100.250)                      │
+│                     VPS (YOUR_VPS_IP)                      │
 │                     Docker Swarm Stack                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
@@ -156,7 +156,7 @@ vps-ssh "echo 'Conexão OK' && hostname"
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │              Admin Panel (Next.js)                    │  │
-│  │           admin-stickers.ytem.com.br                  │  │
+│  │           admin-your-domain.com                  │  │
 │  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                            │
@@ -173,18 +173,18 @@ vps-ssh "echo 'Conexão OK' && hostname"
 
 | Serviço | URL | Porta | Função |
 |---------|-----|-------|--------|
-| **Backend** | https://stickers.ytem.com.br | 3000 | API REST + Webhooks |
+| **Backend** | https://your-domain.com | 3000 | API REST + Webhooks |
 | **Worker** | - | - | Processa filas BullMQ |
-| **Admin Panel** | https://admin-stickers.ytem.com.br | 3000 | Gestao de stickers/emocoes |
-| **Evolution API** | https://wa.ytem.com.br | 8080 | Integração WhatsApp |
+| **Admin Panel** | https://admin-your-domain.com | 3000 | Gestao de stickers/emocoes |
+| **Evolution API** | https://your-evolution-api.com | 8080 | Integração WhatsApp |
 | **Redis** | ytem-databases_redis:6379 | 6379 | Filas + Cache |
-| **Supabase** | ludlztjdvwsrwlsczoje.supabase.co | 443 | Banco + Storage + Auth |
+| **Supabase** | YOUR_SUPABASE_PROJECT_ID.supabase.co | 443 | Banco + Storage + Auth |
 
 ### **Imagens Docker**
 
 ```bash
-ghcr.io/reisspaulo/stickerbot:latest  # Backend + Worker (mesma imagem)
-ghcr.io/reisspaulo/sticker-admin:latest        # Admin Panel (Next.js)
+ghcr.io/your-username/stickerbot:latest  # Backend + Worker (mesma imagem)
+ghcr.io/your-username/sticker-admin:latest        # Admin Panel (Next.js)
 ```
 
 ---
@@ -227,13 +227,13 @@ O GitHub Actions fará automaticamente:
 - Push para GitHub Container Registry
 - Deploy na VPS
 
-**Acompanhe em:** https://github.com/reisspaulo/sticker/actions
+**Acompanhe em:** https://github.com/your-username/sticker/actions
 
 #### **5. Verificar Saúde (após ~3-5 min)**
 
 ```bash
 # Health check
-curl https://stickers.ytem.com.br/health | jq '.'
+curl https://your-domain.com/health | jq '.'
 
 # Deve retornar:
 {
@@ -274,7 +274,7 @@ npm run build
 # Build para arquitetura AMD64 (VPS) e push para GitHub Container Registry
 docker buildx build \
   --platform linux/amd64 \
-  -t ghcr.io/reisspaulo/stickerbot:latest \
+  -t ghcr.io/your-username/stickerbot:latest \
   . \
   --push
 ```
@@ -287,9 +287,9 @@ docker buildx build \
 
 ```bash
 vps-ssh "docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend && \
+  --image ghcr.io/your-username/stickerbot:latest sticker_backend && \
   docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/stickerbot:latest sticker_worker"
+  --image ghcr.io/your-username/stickerbot:latest sticker_worker"
 ```
 
 #### **4. Verificar Saúde e Logs**
@@ -340,9 +340,9 @@ export async function sendWelcomeMessage(
 ```bash
 npm run build
 docker buildx build --platform linux/amd64 \
-  -t ghcr.io/reisspaulo/stickerbot:latest . --push
+  -t ghcr.io/your-username/stickerbot:latest . --push
 vps-ssh "docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
+  --image ghcr.io/your-username/stickerbot:latest sticker_backend"
 ```
 
 **Tempo:** ~5 minutos
@@ -355,7 +355,7 @@ vps-ssh "docker service update --force --with-registry-auth \
 
 ```bash
 # Acesse Supabase Dashboard ou use a CLI
-# https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje
+# https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID
 ```
 
 **SQL:**
@@ -543,7 +543,7 @@ git commit -m "feat: melhora UI do admin"
 git push origin main
 
 # 3. Acompanhar em:
-# https://github.com/reisspaulo/sticker/actions
+# https://github.com/your-username/sticker/actions
 ```
 
 **Workflow**: `.github/workflows/deploy-admin.yml`
@@ -552,7 +552,7 @@ git push origin main
 
 O admin usa Supabase Auth com verificação de role:
 - Apenas usuários com `role = 'admin'` na tabela `user_profiles` podem acessar
-- Login: https://admin-stickers.ytem.com.br/login
+- Login: https://admin-your-domain.com/login
 
 #### **Criar Novo Admin**
 
@@ -601,8 +601,8 @@ vps-ssh "docker service logs sticker_admin --tail 50"
 
 ```bash
 # Gerar e abrir QR code automaticamente
-curl -s https://wa.ytem.com.br/instance/connect/meu-zap \
-  -H "apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=" | \
+curl -s https://your-evolution-api.com/instance/connect/meu-zap \
+  -H "apikey: YOUR_EVOLUTION_API_KEY" | \
   jq -r '.base64' | \
   sed 's/data:image\/png;base64,//' | \
   base64 -D > /tmp/whatsapp-qrcode.png && \
@@ -612,8 +612,8 @@ curl -s https://wa.ytem.com.br/instance/connect/meu-zap \
 ### **Verificar Status da Conexão**
 
 ```bash
-curl -s https://wa.ytem.com.br/instance/fetchInstances \
-  -H "apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=" | \
+curl -s https://your-evolution-api.com/instance/fetchInstances \
+  -H "apikey: YOUR_EVOLUTION_API_KEY" | \
   jq '.[0] | {name, connectionStatus, profileName}'
 ```
 
@@ -629,11 +629,11 @@ curl -s https://wa.ytem.com.br/instance/fetchInstances \
 ### **Configurar Webhook**
 
 ```bash
-curl -X POST https://wa.ytem.com.br/webhook/set/meu-zap \
-  -H "apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=" \
+curl -X POST https://your-evolution-api.com/webhook/set/meu-zap \
+  -H "apikey: YOUR_EVOLUTION_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://stickers.ytem.com.br/webhook",
+    "url": "https://your-domain.com/webhook",
     "enabled": true,
     "events": [
       "MESSAGES_UPSERT",
@@ -641,7 +641,7 @@ curl -X POST https://wa.ytem.com.br/webhook/set/meu-zap \
       "CONNECTION_UPDATE"
     ],
     "headers": {
-      "apikey": "I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc="
+      "apikey": "YOUR_EVOLUTION_API_KEY"
     }
   }'
 ```
@@ -651,8 +651,8 @@ curl -X POST https://wa.ytem.com.br/webhook/set/meu-zap \
 **Reconectar:**
 ```bash
 # Gerar novo QR code e escanear novamente
-curl -s https://wa.ytem.com.br/instance/connect/meu-zap \
-  -H "apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc="
+curl -s https://your-evolution-api.com/instance/connect/meu-zap \
+  -H "apikey: YOUR_EVOLUTION_API_KEY"
 ```
 
 ---
@@ -662,18 +662,18 @@ curl -s https://wa.ytem.com.br/instance/connect/meu-zap \
 ### **Estrutura de Domínios**
 
 ```
-ytem.com.br (Domínio principal)
-├── wa.ytem.com.br              → Evolution API (WhatsApp)
+your-domain.com (Domínio principal)
+├── your-evolution-api.com              → Evolution API (WhatsApp)
 │   └── Porta: 8080
 │   └── Certificado: Let's Encrypt
 │   └── Traefik: evolution_api
 │
-├── stickers.ytem.com.br        → Sticker Bot (Backend)
+├── your-domain.com        → Sticker Bot (Backend)
 │   └── Porta: 3000
 │   └── Certificado: Let's Encrypt
 │   └── Traefik: sticker_backend
 │
-└── admin-stickers.ytem.com.br  → Admin Panel (Next.js)
+└── admin-your-domain.com  → Admin Panel (Next.js)
     └── Porta: 3000
     └── Certificado: Let's Encrypt
     └── Traefik: sticker_admin
@@ -684,9 +684,9 @@ ytem.com.br (Domínio principal)
 
 | Subdomínio | Tipo | Destino | TTL |
 |------------|------|---------|-----|
-| wa | A | 69.62.100.250 | 3600 |
-| stickers | A | 69.62.100.250 | 3600 |
-| admin-stickers | A | 69.62.100.250 | 3600 |
+| wa | A | YOUR_VPS_IP | 3600 |
+| stickers | A | YOUR_VPS_IP | 3600 |
+| admin-stickers | A | YOUR_VPS_IP | 3600 |
 
 ### **Traefik (Reverse Proxy)**
 
@@ -699,7 +699,7 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
-        - "traefik.http.routers.sticker-api.rule=Host(`stickers.ytem.com.br`)"
+        - "traefik.http.routers.sticker-api.rule=Host(`your-domain.com`)"
         - "traefik.http.routers.sticker-api.entrypoints=websecure"
         - "traefik.http.routers.sticker-api.tls=true"
         - "traefik.http.routers.sticker-api.tls.certresolver=letsencrypt"
@@ -708,7 +708,7 @@ services:
 
 **Como funciona:**
 1. Traefik escuta em `443` (HTTPS)
-2. Recebe request para `stickers.ytem.com.br`
+2. Recebe request para `your-domain.com`
 3. Verifica labels e roteia para `sticker_backend:3000`
 4. Gerencia certificado SSL automaticamente
 
@@ -721,7 +721,7 @@ services:
 
 **Verificar certificado:**
 ```bash
-echo | openssl s_client -connect stickers.ytem.com.br:443 2>/dev/null | \
+echo | openssl s_client -connect your-domain.com:443 2>/dev/null | \
   openssl x509 -noout -dates
 ```
 
@@ -749,19 +749,19 @@ vps-ssh "docker service update --force sticker_worker"
 
 **1. Verificar se webhook está configurado:**
 ```bash
-curl https://wa.ytem.com.br/webhook/find/meu-zap \
-  -H "apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=" | jq '.'
+curl https://your-evolution-api.com/webhook/find/meu-zap \
+  -H "apikey: YOUR_EVOLUTION_API_KEY" | jq '.'
 ```
 
 **2. Verificar se Evolution está conectado:**
 ```bash
-curl https://wa.ytem.com.br/instance/connectionState/meu-zap \
-  -H "apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=" | jq '.'
+curl https://your-evolution-api.com/instance/connectionState/meu-zap \
+  -H "apikey: YOUR_EVOLUTION_API_KEY" | jq '.'
 ```
 
 **3. Testar endpoint webhook diretamente:**
 ```bash
-curl https://stickers.ytem.com.br/webhook
+curl https://your-domain.com/webhook
 # Deve retornar: {"status":"online",...}
 ```
 
@@ -769,7 +769,7 @@ curl https://stickers.ytem.com.br/webhook
 
 **1. Verificar Redis:**
 ```bash
-curl https://stickers.ytem.com.br/health | jq '.services.redis'
+curl https://your-domain.com/health | jq '.services.redis'
 # Deve retornar: "connected"
 ```
 
@@ -780,7 +780,7 @@ vps-ssh "docker service logs sticker_worker --tail 50 | grep 'Processing sticker
 
 **3. Verificar Supabase:**
 ```bash
-curl https://stickers.ytem.com.br/health | jq '.services.supabase'
+curl https://your-domain.com/health | jq '.services.supabase'
 # Deve retornar: "connected"
 ```
 
@@ -792,7 +792,7 @@ curl https://stickers.ytem.com.br/health | jq '.services.supabase'
 ```bash
 # Force pull da nova imagem
 vps-ssh "docker service update --force --with-registry-auth \
-  --image ghcr.io/reisspaulo/stickerbot:latest sticker_backend"
+  --image ghcr.io/your-username/stickerbot:latest sticker_backend"
 ```
 
 ---
@@ -801,16 +801,16 @@ vps-ssh "docker service update --force --with-registry-auth \
 
 O Supabase tem logs separados por serviço. Acesse pelo dashboard:
 
-**URL Base:** https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/logs
+**URL Base:** https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID/logs
 
 ### **Tipos de Logs**
 
 | Tipo | URL | O que mostra |
 |------|-----|--------------|
-| **API Logs** | [/logs/edge-logs](https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/logs/edge-logs) | Requisições HTTP à API REST |
-| **Postgres Logs** | [/logs/postgres-logs](https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/logs/postgres-logs) | Queries SQL, erros de banco |
-| **Auth Logs** | [/logs/auth-logs](https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/logs/auth-logs) | Login, signup, tokens |
-| **Storage Logs** | [/logs/storage-logs](https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje/logs/storage-logs) | Upload/download de arquivos |
+| **API Logs** | [/logs/edge-logs](https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID/logs/edge-logs) | Requisições HTTP à API REST |
+| **Postgres Logs** | [/logs/postgres-logs](https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID/logs/postgres-logs) | Queries SQL, erros de banco |
+| **Auth Logs** | [/logs/auth-logs](https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID/logs/auth-logs) | Login, signup, tokens |
+| **Storage Logs** | [/logs/storage-logs](https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID/logs/storage-logs) | Upload/download de arquivos |
 
 ### **Queries Úteis no Log Explorer**
 
@@ -842,7 +842,7 @@ brew install supabase/tap/supabase
 supabase login
 
 # Ver logs do projeto
-supabase logs --project-ref ludlztjdvwsrwlsczoje
+supabase logs --project-ref YOUR_SUPABASE_PROJECT_ID
 ```
 
 ### **Dicas de Debug**
@@ -879,14 +879,14 @@ vps-ssh "docker system prune -af"
 
 | Recurso | URL |
 |---------|-----|
-| Backend Health | https://stickers.ytem.com.br/health |
-| Backend Webhook | https://stickers.ytem.com.br/webhook |
-| Admin Panel | https://admin-stickers.ytem.com.br |
-| Evolution API | https://wa.ytem.com.br |
-| Supabase Dashboard | https://supabase.com/dashboard/project/ludlztjdvwsrwlsczoje |
+| Backend Health | https://your-domain.com/health |
+| Backend Webhook | https://your-domain.com/webhook |
+| Admin Panel | https://admin-your-domain.com |
+| Evolution API | https://your-evolution-api.com |
+| Supabase Dashboard | https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID |
 | Doppler (Secrets) | https://dashboard.doppler.com/ |
-| GitHub Actions | https://github.com/reisspaulo/sticker/actions |
-| GitHub Container Registry | https://github.com/reisspaulo/sticker/pkgs/container/stickerbot |
+| GitHub Actions | https://github.com/your-username/sticker/actions |
+| GitHub Container Registry | https://github.com/your-username/sticker/pkgs/container/stickerbot |
 
 ### **Credenciais**
 
@@ -935,7 +935,7 @@ VPS_PASSWORD
 vps-ssh "docker service inspect sticker_backend --format='{{.PreviousSpec.TaskTemplate.ContainerSpec.Image}}'"
 
 # Voltar para versão anterior (se souber o SHA)
-vps-ssh "docker service update --image ghcr.io/reisspaulo/stickerbot@sha256:XXXXX sticker_backend"
+vps-ssh "docker service update --image ghcr.io/your-username/stickerbot@sha256:XXXXX sticker_backend"
 ```
 
 2. **Desligar tudo:**

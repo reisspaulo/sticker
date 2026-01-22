@@ -45,7 +45,7 @@ docker service update --force sticker_worker
 # Antes: allkeys-lru (ERRADO - deleta jobs!)
 # Depois: noeviction (CORRETO - falha ao invés de deletar)
 
-docker exec <redis-container> redis-cli -a ytem_redis_secure_2024 CONFIG SET maxmemory-policy noeviction
+docker exec <redis-container> redis-cli -a YOUR_REDIS_PASSWORD CONFIG SET maxmemory-policy noeviction
 ```
 **Status**: ✅ Executado (2026-01-19 02:46 UTC)
 
@@ -74,7 +74,7 @@ await Promise.race([item.fn(), timeoutPromise]);
 **⚠️ IMPORTANTE**: Tornar permanente editando `docker-compose.yml`:
 ```yaml
 redis:
-  command: redis-server --maxmemory-policy noeviction --requirepass ytem_redis_secure_2024
+  command: redis-server --maxmemory-policy noeviction --requirepass YOUR_REDIS_PASSWORD
 ```
 
 ---
@@ -211,7 +211,7 @@ Script cron que roda a cada 5 minutos e libera jobs travados:
 docker exec $(docker ps --filter 'name=sticker_worker' --format '{{.ID}}' | head -1) node -e "
 const { Queue } = require('bullmq');
 const queue = new Queue('process-sticker', {
-  connection: { host: 'ytem-databases_redis', port: 6379, password: 'ytem_redis_secure_2024' }
+  connection: { host: 'ytem-databases_redis', port: 6379, password: 'YOUR_REDIS_PASSWORD' }
 });
 (async () => {
   const active = await queue.getActive();

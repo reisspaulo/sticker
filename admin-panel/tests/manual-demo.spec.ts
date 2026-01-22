@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-const TEST_EMAIL = process.env.TEST_EMAIL || 'paulo.reis@ytem.com.br'
+const TEST_EMAIL = process.env.TEST_EMAIL || 'test@example.com'
 const TEST_PASSWORD = process.env.TEST_PASSWORD || 'aXGM7Y2ZPSUw5He'
 
 test('Manual Demo - Audience Builder', async ({ page }) => {

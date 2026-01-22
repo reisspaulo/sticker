@@ -11,11 +11,11 @@ test('test supabase queries directly', async ({ page }) => {
   });
 
   console.log('\n=== LOGIN ===\n');
-  await page.goto('https://admin-stickers.ytem.com.br/login', { waitUntil: 'networkidle' });
-  await page.fill('input[type="email"]', 'paulo.reis@ytem.com.br');
-  await page.fill('input[type="password"]', 'Admin@2026');
+  await page.goto('https://admin-your-domain.com/login', { waitUntil: 'networkidle' });
+  await page.fill('input[type="email"]', 'test@example.com');
+  await page.fill('input[type="password"]', 'TEST_PASSWORD');
   await page.click('button[type="submit"]');
-  await page.waitForURL('**/admin-stickers.ytem.com.br/', { timeout: 15000 });
+  await page.waitForURL('**/admin-your-domain.com/', { timeout: 15000 });
 
   await page.waitForTimeout(2000);
 

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 // Test credentials - set via environment or use defaults for manual testing
-const TEST_EMAIL = process.env.TEST_EMAIL || 'paulo.reis@ytem.com.br'
+const TEST_EMAIL = process.env.TEST_EMAIL || 'test@example.com'
 const TEST_PASSWORD = process.env.TEST_PASSWORD || ''
 
 // Helper function for login

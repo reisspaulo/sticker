@@ -27,7 +27,7 @@ Abra no navegador: http://localhost:3001
 
 Configure:
 - **Server URL:** `http://localhost:8080`
-- **API Key:** `I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=`
+- **API Key:** `YOUR_EVOLUTION_API_KEY`
 
 ### 4. Criar Instância e Conectar WhatsApp
 
@@ -42,7 +42,7 @@ No Manager:
 
 ```bash
 curl -X POST http://localhost:8080/message/sendText/meu-whatsapp \
-  -H 'apikey: I1hKpeX0MZhOzyd5xDbXFBqRslKMHzMWxDdYEIPssXc=' \
+  -H 'apikey: YOUR_EVOLUTION_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "number": "5511999999999",

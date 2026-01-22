@@ -132,7 +132,7 @@ deploy/
    git commit -m "feat: minha feature"
    git push origin main
    ```
-3. **Acompanhe em:** https://github.com/reisspaulo/sticker/actions
+3. **Acompanhe em:** https://github.com/your-username/sticker/actions
 
 ### Para entender como funciona:
 
@@ -179,7 +179,7 @@ A documentação foi criada com base em:
 4. **Rollback automático** testado e funcionando
 
 **Evidências:**
-- GitHub Actions workflow: https://github.com/reisspaulo/sticker/actions/runs/20719173706
+- GitHub Actions workflow: https://github.com/your-username/sticker/actions/runs/20719173706
 - Logs de monitoramento: 100% uptime durante deploy
 - Configuração: deploy/stack-sticker.yml (2 réplicas configuradas)
 - Workflow file: .github/workflows/deploy-sticker.yml

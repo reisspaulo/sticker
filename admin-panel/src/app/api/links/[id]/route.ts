@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-const SHORT_URL_BASE = 'https://fig.ytem.com.br/l'
+const SHORT_URL_BASE = 'https://your-shortener.com/l'
 
 interface UpdateLinkBody {
   original_url?: string

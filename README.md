@@ -7,22 +7,22 @@
 
 Bot de WhatsApp que transforma imagens, vídeos e links do Twitter/TikTok em figurinhas.
 
-## Antes de usar
+## Aviso importante
 
-Esse projeto usa APIs **não oficiais** do WhatsApp (Evolution API, Z-API, etc).
+Esse projeto usa APIs **não oficiais** do WhatsApp (Evolution API, Z-API).
 
 Isso significa que:
-- Seu número pode ser **banido permanentemente**
+- Seu número pode ser banido permanentemente
 - Viola os Termos de Serviço do WhatsApp
-- Pode dar problema legal dependendo do país
+- Pode ter implicações legais dependendo da região
 
-Foi exatamente isso que aconteceu com a gente - o WhatsApp baniu nosso número depois que o bot viralizou. Por isso estamos disponibilizando o código.
+Foi isso que aconteceu conosco - o WhatsApp baniu nosso número depois que o bot cresceu. Por isso decidimos disponibilizar o código.
 
-Se quiser usar em produção de verdade, considere a [API oficial do WhatsApp Business](https://business.whatsapp.com/products/business-platform).
+Para uso comercial, considere a [API oficial do WhatsApp Business](https://business.whatsapp.com/products/business-platform).
 
 ---
 
-## O que faz
+## Funcionalidades
 
 - Transforma imagens em stickers
 - Converte GIFs e vídeos em stickers animados
@@ -30,7 +30,7 @@ Se quiser usar em produção de verdade, considere a [API oficial do WhatsApp Bu
 - Baixa vídeos do TikTok
 - Limite diário por usuário (configurável)
 - Planos pagos via Stripe ou PIX
-- Painel admin em Next.js
+- Painel administrativo em Next.js
 - Fila de processamento com BullMQ
 
 ---
@@ -41,9 +41,9 @@ Se quiser usar em produção de verdade, considere a [API oficial do WhatsApp Bu
 
 - Node.js 20+
 - Redis
-- Supabase (ou Postgres)
+- Supabase (ou PostgreSQL)
 - FFmpeg instalado
-- Evolution API ou Z-API rodando
+- Evolution API ou Z-API
 
 ### Instalação
 
@@ -53,7 +53,7 @@ cd sticker
 npm install
 
 cp .env.example .env
-# preenche o .env
+# Configure o .env com suas credenciais
 
 npm run dev
 ```
@@ -83,7 +83,7 @@ SUPABASE_SERVICE_KEY=sua-service-key
 # Redis
 REDIS_URL=redis://localhost:6379
 
-# WhatsApp (escolhe um)
+# WhatsApp (escolha um provider)
 WHATSAPP_PROVIDER=evolution
 
 # Evolution API
@@ -98,7 +98,7 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 
 ### Providers de WhatsApp
 
-**Evolution API** (open source, roda local):
+**Evolution API** (open source):
 
 ```bash
 docker run -d --name evolution \
@@ -106,7 +106,7 @@ docker run -d --name evolution \
   atendai/evolution-api:latest
 ```
 
-**Z-API** (pago, mais estável):
+**Z-API** (serviço pago):
 
 ```env
 WHATSAPP_PROVIDER=zapi
@@ -147,41 +147,41 @@ ZAPI_TOKEN=xxx
 
 ## Documentação
 
-| Doc | O que é |
-|-----|---------|
-| [Setup de Produção](docs/setup/PRODUCTION-SETUP.md) | Como colocar no ar |
-| [Arquitetura](docs/architecture/ARCHITECTURE.md) | Como funciona por dentro |
+| Documento | Descrição |
+|-----------|-----------|
+| [Setup de Produção](docs/setup/PRODUCTION-SETUP.md) | Como fazer deploy |
+| [Arquitetura](docs/architecture/ARCHITECTURE.md) | Visão geral do sistema |
 | [Stickers](docs/features/STICKERS.md) | Como o processamento funciona |
-| [Troubleshooting](docs/operations/TROUBLESHOOTING.md) | Quando dá ruim |
+| [Troubleshooting](docs/operations/TROUBLESHOOTING.md) | Resolução de problemas |
 
 ---
 
 ## Stack
 
-| Tech | Pra quê |
-|------|---------|
-| TypeScript | Linguagem |
-| Fastify | API |
-| BullMQ | Filas |
-| Sharp | Processar imagens |
-| FFmpeg | Processar vídeos |
-| Supabase | Banco + Storage |
-| Redis | Cache + Filas |
+| Tecnologia | Uso |
+|------------|-----|
+| TypeScript | Linguagem principal |
+| Fastify | API REST |
+| BullMQ | Filas de processamento |
+| Sharp | Processamento de imagens |
+| FFmpeg | Processamento de vídeos |
+| Supabase | Banco de dados e Storage |
+| Redis | Cache e filas |
 | Docker Swarm | Orquestração |
-| Next.js | Admin |
+| Next.js | Painel administrativo |
 
 ---
 
 ## Contribuindo
 
-1. Faz um fork
-2. Cria uma branch: `git checkout -b minha-feature`
-3. Commita: `git commit -m "feat: minha feature"`
-4. Push: `git push origin minha-feature`
-5. Abre um PR
+1. Faça um fork do repositório
+2. Crie uma branch: `git checkout -b minha-feature`
+3. Faça commit: `git commit -m "feat: minha feature"`
+4. Faça push: `git push origin minha-feature`
+5. Abra um Pull Request
 
 Commits seguem o padrão [Conventional Commits](https://www.conventionalcommits.org/):
-- `feat:` feature nova
+- `feat:` nova funcionalidade
 - `fix:` correção de bug
 - `docs:` documentação
 - `refactor:` refatoração
@@ -190,12 +190,12 @@ Commits seguem o padrão [Conventional Commits](https://www.conventionalcommits.
 
 ## Licença
 
-MIT - faz o que quiser, só não me culpa se der merda.
+MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
 
 ---
 
-## Aviso final
+## Disclaimer
 
-Esse código é disponibilizado "como está". Não me responsabilizo se seu número for banido, se o WhatsApp te processar, ou qualquer outra coisa.
+Este software é disponibilizado "como está", sem garantias. Os autores não se responsabilizam por banimentos, problemas legais ou outras consequências do uso.
 
-**Não use pra spam.** Sério.
+Não utilize este projeto para spam ou atividades que violem os Termos de Serviço do WhatsApp.

@@ -7,7 +7,7 @@ const supabase = createClient(
 );
 
 async function investigateUsers() {
-  const phones = ['553398030035', '5517982298432'];
+  const phones = ['5511999999991', '5511999999992'];
   const names = ['Vitoria', 'Heitor'];
 
   for (let i = 0; i < phones.length; i++) {

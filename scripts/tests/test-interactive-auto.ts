@@ -4,7 +4,7 @@ import { sendButtons, sendList, sendPixButton } from '../src/services/avisaApi';
  * Automated test - sends all messages at once
  */
 
-const TEST_NUMBER = '5511946304133';
+const TEST_NUMBER = '5511999999999';
 
 async function runTests() {
   console.log('🚀 Enviando todas as mensagens interativas...\n');

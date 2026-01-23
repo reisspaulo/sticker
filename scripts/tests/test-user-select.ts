@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1ZGx6dGpkdndzcndsc2N6b2plIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2Njc5MTE1MSwiZXhwIjoyMDgyMzY3MTUxfQ.fl1GxEIj6BK5qpZte3z7HYUW3NWSwPQyYTFf6-38blY';
+const supabaseKey = 'YOUR_SUPABASE_SERVICE_KEY';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -11,7 +11,7 @@ async function testSelect() {
   const { data: existingUser, error: fetchError } = await supabase
     .from('users')
     .select('*')
-    .eq('whatsapp_number', '5511946304133')
+    .eq('whatsapp_number', '5511999999999')
     .single();
 
   if (fetchError) {

@@ -18,12 +18,12 @@ Envie suas imagens e GIFs para criar figurinhas incríveis!
 Dúvidas? Digite *ajuda*`;
 
 const data = JSON.stringify({
-  number: '5511946304133',
+  number: '5511999999999',
   text: message
 });
 
 const options = {
-  hostname: 'stickers.ytem.com.br',
+  hostname: 'your-domain.com',
   port: 443,
   path: '/webhook',
   method: 'POST',
@@ -35,7 +35,7 @@ const options = {
 
 // Send via Evolution API directly
 const evolutionOptions = {
-  hostname: 'evolution-api.ytem.com.br',
+  hostname: 'your-evolution-api.com',
   port: 443,
   path: `/message/sendText/${EVOLUTION_INSTANCE}`,
   method: 'POST',

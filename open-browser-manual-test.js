@@ -13,7 +13,7 @@ const { chromium } = require('playwright');
   // Login primeiro
   await page.goto('http://localhost:3000/login');
   await page.waitForSelector('input[type="email"]');
-  await page.fill('input[type="email"]', 'paulo.reis@ytem.com.br');
+  await page.fill('input[type="email"]', 'paulo.reis@your-domain.com');
   await page.fill('input[type="password"]', 'Admin@2026');
   await page.click('button[type="submit"]');
 

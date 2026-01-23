@@ -341,7 +341,7 @@ Path pattern: user_{number}/{timestamp}_{hash}.webp
 
 **Exemplo:**
 ```
-https://YOUR_SUPABASE_PROJECT_ID.supabase.co/storage/v1/object/public/stickers-estaticos/user_5511946304133/1766889344797_4a81c0e5ab7bbfeb.webp
+https://YOUR_SUPABASE_PROJECT_ID.supabase.co/storage/v1/object/public/stickers-estaticos/user_5511999999999/1766889344797_4a81c0e5ab7bbfeb.webp
 ```
 
 #### **stickers-animados**
@@ -429,8 +429,8 @@ docker service logs sticker_worker --tail 100 --follow
   "pid": 1,
   "hostname": "b3e91b33ac3a",
   "msg": "Processing sticker job",
-  "jobId": "5511946304133-1766889344287",
-  "userNumber": "5511946304133"
+  "jobId": "5511999999999-1766889344287",
+  "userNumber": "5511999999999"
 }
 ```
 

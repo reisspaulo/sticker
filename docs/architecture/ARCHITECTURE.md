@@ -415,7 +415,7 @@ Usuário clica: "💳 Cartão de Crédito"
 │ 🔗 *Clique no link abaixo para pagar:*         │
 │                                                 │
 │ https://buy.stripe.com/fZuaEWalB8dKb4e9ZS?    │
-│ client_reference_id=5511946304133              │
+│ client_reference_id=5511999999999              │
 │                                                 │
 │ ✅ *Pagamento 100% seguro* via Stripe          │
 │ 💳 Cartão, Pix ou boleto                       │
@@ -878,7 +878,7 @@ Por favor, tente novamente ou envie outra imagem.
 **Estrutura Avisa API:**
 ```typescript
 {
-  number: "5511946304133",
+  number: "5511999999999",
   buttontext: "📋 Ver Planos",
   toptext: "💎 *ESCOLHA SEU PLANO*",
   desc: "Selecione o plano ideal para você:",
@@ -929,7 +929,7 @@ Por favor, tente novamente ou envie outra imagem.
 **Estrutura Avisa API:**
 ```typescript
 {
-  number: "5511946304133",
+  number: "5511999999999",
   buttontext: "💳 Escolher Pagamento",
   toptext: "💰 *PAGAMENTO - PLANO PREMIUM*",
   desc: "Valor: R$ 5,00/mês\n\nEscolha sua forma de pagamento:",
@@ -964,7 +964,7 @@ Por favor, tente novamente ou envie outra imagem.
 **Estrutura Avisa API:**
 ```typescript
 {
-  number: "5511946304133",
+  number: "5511999999999",
   title: "💰 *Pagamento via PIX*",
   desc: `📋 *Plano:* Premium
 💵 *Valor:* R$ 5,00
@@ -1035,7 +1035,7 @@ Avisa API format (templateButtonReplyMessage):
 **Estrutura Avisa API:**
 ```typescript
 {
-  number: "5511946304133",
+  number: "5511999999999",
   title: "🎨 *Quer transformar em figurinha?*",
   desc: "Converter em figurinha animada",
   buttons: [
@@ -1119,7 +1119,7 @@ Avisa API format (templateButtonReplyMessage):
 **Estrutura Avisa API:**
 ```typescript
 {
-  number: "5511946304133",
+  number: "5511999999999",
   title: "🎨 *Gostou da figurinha?*",
   desc: "Quer fazer alguma edição?",
   footer: "Edições não contam no limite",
@@ -1271,8 +1271,8 @@ interface ConversationContext {
 
 **Exemplo:**
 ```
-context:5511946304133 = {
-  "user_number": "5511946304133",
+context:5511999999999 = {
+  "user_number": "5511999999999",
   "state": "awaiting_payment_method",
   "metadata": {
     "selected_plan": "premium",
@@ -1372,7 +1372,7 @@ context:5511946304133 = {
 {
   "level": 30,
   "msg": "Interactive response detected",
-  "userNumber": "5511946304133",
+  "userNumber": "5511999999999",
   "type": "list",
   "id": "plan_premium"
 }
@@ -1383,7 +1383,7 @@ context:5511946304133 = {
 {
   "level": 30,
   "msg": "Plans list menu sent via Avisa API",
-  "userNumber": "5511946304133"
+  "userNumber": "5511999999999"
 }
 ```
 
@@ -1568,7 +1568,7 @@ logMenuInteraction(userNumber, 'pix_payment_confirmed');
   "level": 30,
   "time": 1767562276108,
   "msg": "Interactive response detected",
-  "userNumber": "5511946304133",
+  "userNumber": "5511999999999",
   "type": "button",
   "id": "button_confirm_pix"
 }

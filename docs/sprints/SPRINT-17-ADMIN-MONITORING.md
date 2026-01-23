@@ -11,7 +11,7 @@
 ## 0. Pré-requisitos (Concluídos)
 
 ### 0.1 Configuração de Alertas
-- [x] Adicionar `ADMIN_WHATSAPP` no Doppler (`5511946304133`)
+- [x] Adicionar `ADMIN_WHATSAPP` no Doppler (`5511999999999`)
 - [x] Criar `alertWhatsAppDisconnected()` no `alertService.ts`
 - [x] Criar `alertWhatsAppReconnected()` no `alertService.ts`
 

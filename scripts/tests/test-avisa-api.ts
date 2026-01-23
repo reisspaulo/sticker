@@ -4,7 +4,7 @@ import { sendButtons, sendPixButton, sendList } from '../src/services/avisaApi';
  * Test script for Avisa API endpoints
  */
 
-const TEST_NUMBER = '5511946304133';
+const TEST_NUMBER = '5511999999999';
 
 async function testSendButtons() {
   console.log('\n🔘 Testando Send Buttons...\n');

@@ -58,7 +58,7 @@ Authorization: Bearer {{seutoken}}
   "status": true,
   "message": "Buttons sent successfully",
   "data": {
-    "number": "5511946304133@s.whatsapp.net",
+    "number": "5511999999999@s.whatsapp.net",
     "response": {
       "code": 200,
       "data": {
@@ -146,7 +146,7 @@ Authorization: Bearer {{seutoken}}
   "status": true,
   "message": "Message sent successfully",
   "data": {
-    "number": "5511946304133@s.whatsapp.net",
+    "number": "5511999999999@s.whatsapp.net",
     "message": "00020126580014br.gov.bcb.pix...",
     "response": {
       "code": 200,
@@ -247,7 +247,7 @@ Authorization: Bearer {{seutoken}}
   "status": true,
   "message": "List sent successfully",
   "data": {
-    "number": "5511946304133@s.whatsapp.net",
+    "number": "5511999999999@s.whatsapp.net",
     "response": {
       "code": 200,
       "data": {

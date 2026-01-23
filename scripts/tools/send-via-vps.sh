@@ -18,7 +18,7 @@ tar -xzf watermark-samples.tar.gz
 EVOLUTION_URL="http://evolution_evolution_api:8080"
 EVOLUTION_KEY="YOUR_EVOLUTION_API_KEY"
 INSTANCE="meu-zap"
-PHONE="5511946304133"
+PHONE="5511999999999"
 
 echo "📱 Enviando mensagem inicial..."
 docker exec ytem-sticker-backend curl -X POST "${EVOLUTION_URL}/message/sendText/${INSTANCE}" \

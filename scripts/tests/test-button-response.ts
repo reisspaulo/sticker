@@ -11,7 +11,7 @@ import chalk from 'chalk';
  * 4. Check Evolution API webhook logs to see what arrives
  */
 
-const TEST_NUMBER = '5511946304133';
+const TEST_NUMBER = '5511999999999';
 
 async function runButtonTest() {
   console.log(chalk.blue.bold('\n🧪 TESTE DE RESPOSTAS DE BOTÕES\n'));

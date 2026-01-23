@@ -25,7 +25,7 @@ const { chromium } = require('playwright');
     await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle' });
 
     console.log('📝 Preenchendo credenciais...');
-    await page.fill('input[type="email"]', 'paulo.reis@ytem.com.br');
+    await page.fill('input[type="email"]', 'paulo.reis@your-domain.com');
     await page.fill('input[type="password"]', 'Admin@2026');
 
     console.log('🔐 Fazendo login...');

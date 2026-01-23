@@ -6,7 +6,7 @@ import * as readline from 'readline';
  * Test all interactive message types to understand webhook responses
  */
 
-const TEST_NUMBER = '5511946304133';
+const TEST_NUMBER = '5511999999999';
 
 const rl = readline.createInterface({
   input: process.stdin,

@@ -7,7 +7,7 @@ import * as path from 'path';
 // Ou vamos usar a Avisa API que sabemos que funciona
 const AVISA_API_URL = 'https://www.avisaapi.com.br/api';
 const AVISA_TOKEN = process.env.AVISA_API_TOKEN || 'ROm8VZyoVYWTBmJjHfANrV3Ls3vF5SwLuzonI7U68K6l40SfKUIOJkybF6iq';
-const PHONE = '5511946304133';
+const PHONE = '5511999999999';
 
 async function sendText(text: string) {
   try {

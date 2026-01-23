@@ -21,7 +21,7 @@ async function diagnose() {
   console.log('\n🔍 DIAGNÓSTICO DE STICKERS FALTANDO\n');
   console.log('=' .repeat(80));
 
-  const phones = ['553398030035', '5517982298432'];
+  const phones = ['5511999999991', '5511999999992'];
 
   for (const phone of phones) {
     console.log(`\n📱 Investigando: ${phone}`);

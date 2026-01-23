@@ -63,7 +63,7 @@ async function createWatermarkSticker(opacity: number, label: string): Promise<B
 async function sendSticker(buffer: Buffer, caption: string) {
   const form = new FormData();
 
-  form.append('number', '5511946304133');
+  form.append('number', '5511999999999');
   form.append('mediaMessage', buffer, {
     filename: 'sticker.webp',
     contentType: 'image/webp'
@@ -91,7 +91,7 @@ async function sendSticker(buffer: Buffer, caption: string) {
     await axios.post(
       `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
       {
-        number: '5511946304133',
+        number: '5511999999999',
         text: caption,
         delay: 500
       },
@@ -114,7 +114,7 @@ async function main() {
   await axios.post(
     `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
     {
-      number: '5511946304133',
+      number: '5511999999999',
       text: '🧪 *TESTE DE MARCA D\'ÁGUA*\n\nVou enviar 3 versões com diferentes níveis de opacidade:\n\n1️⃣ Muito sutil (20% opacidade)\n2️⃣ Discreta (40% opacidade)\n3️⃣ Visível (60% opacidade)\n\nAguarde...',
       delay: 1000
     },
@@ -150,7 +150,7 @@ async function main() {
   await axios.post(
     `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
     {
-      number: '5511946304133',
+      number: '5511999999999',
       text: '✅ *Teste concluído!*\n\nQual versão você achou melhor?\n\n🤔 Considera que:\n• Muito sutil = usuários mal percebem a diferença\n• Muito visível = pode frustrar usuários gratuitos\n\nQual seria o equilíbrio ideal?',
       delay: 1000
     },

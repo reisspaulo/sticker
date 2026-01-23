@@ -242,7 +242,7 @@ WHERE DATE(created_at) = CURRENT_DATE;
 ### Sistema de Alertas Automático
 
 Se o job `send-pending` falhar:
-- ✅ Alerta enviado via WhatsApp (5511946304133)
+- ✅ Alerta enviado via WhatsApp (5511999999999)
 - ✅ Alerta enviado via Discord (se configurado)
 - ✅ Log completo salvo
 

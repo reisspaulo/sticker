@@ -67,7 +67,7 @@ test('deep debug supabase', async ({ page }) => {
         const url = 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co/rest/v1/users?select=id&limit=1';
         const response = await fetch(url, {
           headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1ZGx6dGpkdndzcndsemNvamUiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczNTI1NTU1MSwiZXhwIjoyMDUwODMxNTUxfQ.I8G92Dh9wvSqZBNiKxYLIkxImHLQTvUfXINZN9bMpIw',
+            'apikey': 'YOUR_SUPABASE_SERVICE_KEY',
             'Content-Type': 'application/json'
           }
         });

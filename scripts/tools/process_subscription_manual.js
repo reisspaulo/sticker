@@ -2,7 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const https = require('https');
 
 const supabase = createClient(
-  'https://ludlztjdvwsrwlsczoje.supabase.co',
+  'https://YOUR_SUPABASE_PROJECT_ID.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1ZGx6dGpkdndzcndsc2N6b2plIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2Njc5MTE1MSwiZXhwIjoyMDgyMzY3MTUxfQ.fl1GxEIj6BK5qpZte3z7HYUW3NWSwPQyYTFf6-38blY'
 );
 
@@ -103,7 +103,7 @@ async function main() {
   }
   
   console.log('User updated successfully!');
-  console.log('Phone: 5511946304133');
+  console.log('Phone: 5511999999999');
   console.log('Plan:', planType);
 }
 

@@ -30,7 +30,7 @@ interface AlertContext {
  */
 async function sendWhatsAppAlert(message: string): Promise<void> {
   try {
-    const ADMIN_NUMBER = process.env.ADMIN_WHATSAPP || '5511946304133';
+    const ADMIN_NUMBER = process.env.ADMIN_WHATSAPP || '5511999999999';
     const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://evolution_api:8080';
     const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
     const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || 'meu-zap';

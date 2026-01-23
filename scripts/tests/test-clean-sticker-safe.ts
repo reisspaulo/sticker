@@ -11,7 +11,7 @@
  *   npx tsx test-clean-sticker-safe.ts <caminho-da-imagem> <numero-whatsapp>
  *
  * EXEMPLO:
- *   npx tsx test-clean-sticker-safe.ts /tmp/test-person.jpg 5511946304133
+ *   npx tsx test-clean-sticker-safe.ts /tmp/test-person.jpg 5511999999999
  */
 
 import { exec } from 'child_process';
@@ -270,7 +270,7 @@ async function main() {
     console.error('\nUSO:');
     console.error('  npx tsx test-clean-sticker-safe.ts <imagem> <numero>\n');
     console.error('EXEMPLO:');
-    console.error('  npx tsx test-clean-sticker-safe.ts /tmp/test.jpg 5511946304133\n');
+    console.error('  npx tsx test-clean-sticker-safe.ts /tmp/test.jpg 5511999999999\n');
     process.exit(1);
   }
 

@@ -89,3 +89,4 @@ logs/
 *.zip
 *.tar
 test-results/
+.claude/

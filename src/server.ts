@@ -43,6 +43,16 @@ fastify.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, bo
   }
 });
 
+// Root route
+fastify.get('/', async (_request, reply) => {
+  return reply.status(200).send({
+    name: 'StickerBot',
+    description: 'WhatsApp Sticker Bot API',
+    status: 'online',
+    docs: 'https://stickers.ytem.com.br/health',
+  });
+});
+
 // Register routes
 fastify.register(webhookRoutes, { prefix: '/webhook' });
 

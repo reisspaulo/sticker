@@ -10,6 +10,7 @@ import statsRoutes from './routes/stats';
 import stripeWebhookRoutes from './routes/stripeWebhook';
 import linksRoutes from './routes/links';
 import redirectRoutes from './routes/redirect';
+import legalRoutes from './routes/legal';
 import { initializeScheduledJobs, checkPendingStickersRecovery } from './jobs';
 import { initGeoService } from './services/geoService';
 import { featureFlags, logFeatureFlags } from './config/features';
@@ -73,6 +74,7 @@ fastify.register(statsRoutes, { prefix: '/stats' });
 fastify.register(stripeWebhookRoutes, { prefix: '/stripe' });
 fastify.register(linksRoutes, { prefix: '/links' });
 fastify.register(redirectRoutes, { prefix: '/l' });
+fastify.register(legalRoutes);
 
 // Start server
 const start = async () => {

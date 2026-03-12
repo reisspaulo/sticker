@@ -387,7 +387,7 @@ ${context.additionalInfo ? `\n📋 *Info adicional:*\n${JSON.stringify(context.a
  * This is critical because the bot stops working when disconnected
  */
 export async function alertWhatsAppDisconnected(
-  api: 'evolution' | 'avisa',
+  api: 'evolution' | 'avisa' | 'meta',
   details?: { lastConnected?: Date; error?: string }
 ): Promise<void> {
   const alertKey = `whatsapp_disconnected_${api}`;
@@ -460,7 +460,7 @@ curl -s https://your-evolution-api.com/instance/connect/meu-zap -H "apikey: ..."
 /**
  * Send notification when WhatsApp reconnects
  */
-export async function alertWhatsAppReconnected(api: 'evolution' | 'avisa'): Promise<void> {
+export async function alertWhatsAppReconnected(api: 'evolution' | 'avisa' | 'meta'): Promise<void> {
   const apiName = api === 'evolution' ? 'Evolution API' : 'Avisa API';
 
   const message = `✅ *WHATSAPP RECONECTADO*

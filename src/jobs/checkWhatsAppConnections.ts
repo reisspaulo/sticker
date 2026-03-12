@@ -1,10 +1,12 @@
 import axios from 'axios';
 import logger from '../config/logger';
 import { alertWhatsAppDisconnected, alertWhatsAppReconnected } from '../services/alertService';
+import { featureFlags } from '../config/features';
 
 // Track previous connection state to detect changes
 let previousEvolutionState: boolean | null = null;
 let previousAvisaState: boolean | null = null;
+let previousMetaState: boolean | null = null;
 
 interface EvolutionStatusResponse {
   instance?: {
@@ -100,14 +102,78 @@ async function checkAvisaConnection(): Promise<boolean> {
 }
 
 /**
- * Main job function - Check both WhatsApp API connections
+ * Check Meta Cloud API connection status
+ */
+async function checkMetaConnection(): Promise<boolean> {
+  try {
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const apiVersion = process.env.META_API_VERSION || 'v22.0';
+
+    if (!accessToken || !phoneNumberId) {
+      logger.warn({ msg: '[CONNECTION_CHECK] Meta API credentials not set, skipping check' });
+      return false;
+    }
+
+    const response = await axios.get(
+      `https://graph.facebook.com/${apiVersion}/${phoneNumberId}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        timeout: 10000,
+      }
+    );
+
+    const isConnected = !!response.data?.id;
+
+    logger.debug({
+      msg: '[CONNECTION_CHECK] Meta Cloud API status',
+      phoneNumberId: response.data?.id,
+      displayName: response.data?.verified_name || response.data?.display_phone_number,
+      isConnected,
+    });
+
+    return isConnected;
+  } catch (error) {
+    logger.error({
+      msg: '[CONNECTION_CHECK] Failed to check Meta Cloud API',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return false;
+  }
+}
+
+/**
+ * Main job function - Check WhatsApp API connections based on active provider
  * Sends alerts when connection state changes
  */
 export async function checkWhatsAppConnectionsJob(): Promise<void> {
   logger.info({ msg: '[CONNECTION_CHECK] Starting WhatsApp connection check' });
 
   try {
-    // Check both APIs in parallel
+    // When using Meta Cloud API, only check Meta - skip legacy providers
+    if (featureFlags.USE_META) {
+      const metaConnected = await checkMetaConnection();
+
+      if (previousMetaState !== null) {
+        if (previousMetaState && !metaConnected) {
+          logger.warn({ msg: '[CONNECTION_CHECK] Meta Cloud API DISCONNECTED!' });
+          await alertWhatsAppDisconnected('meta');
+        } else if (!previousMetaState && metaConnected) {
+          logger.info({ msg: '[CONNECTION_CHECK] Meta Cloud API RECONNECTED!' });
+          await alertWhatsAppReconnected('meta');
+        }
+      }
+      previousMetaState = metaConnected;
+
+      logger.info({
+        msg: '[CONNECTION_CHECK] WhatsApp connection check completed',
+        provider: 'meta',
+        meta: metaConnected ? 'connected' : 'disconnected',
+      });
+      return;
+    }
+
+    // Legacy: Check Evolution + Avisa APIs in parallel
     const [evolutionConnected, avisaConnected] = await Promise.all([
       checkEvolutionConnection(),
       checkAvisaConnection(),
@@ -116,11 +182,9 @@ export async function checkWhatsAppConnectionsJob(): Promise<void> {
     // Evolution API state change detection
     if (previousEvolutionState !== null) {
       if (previousEvolutionState && !evolutionConnected) {
-        // Was connected, now disconnected
         logger.warn({ msg: '[CONNECTION_CHECK] Evolution API DISCONNECTED!' });
         await alertWhatsAppDisconnected('evolution');
       } else if (!previousEvolutionState && evolutionConnected) {
-        // Was disconnected, now connected
         logger.info({ msg: '[CONNECTION_CHECK] Evolution API RECONNECTED!' });
         await alertWhatsAppReconnected('evolution');
       }
@@ -130,11 +194,9 @@ export async function checkWhatsAppConnectionsJob(): Promise<void> {
     // Avisa API state change detection
     if (previousAvisaState !== null) {
       if (previousAvisaState && !avisaConnected) {
-        // Was connected, now disconnected
         logger.warn({ msg: '[CONNECTION_CHECK] Avisa API DISCONNECTED!' });
         await alertWhatsAppDisconnected('avisa');
       } else if (!previousAvisaState && avisaConnected) {
-        // Was disconnected, now connected
         logger.info({ msg: '[CONNECTION_CHECK] Avisa API RECONNECTED!' });
         await alertWhatsAppReconnected('avisa');
       }
@@ -158,16 +220,28 @@ export async function checkWhatsAppConnectionsJob(): Promise<void> {
  * Get current connection status (for API/dashboard)
  */
 export async function getConnectionStatus(): Promise<{
-  evolution: { connected: boolean; checked: boolean };
-  avisa: { connected: boolean; checked: boolean };
+  provider: string;
+  meta?: { connected: boolean; checked: boolean };
+  evolution?: { connected: boolean; checked: boolean };
+  avisa?: { connected: boolean; checked: boolean };
   timestamp: string;
 }> {
+  if (featureFlags.USE_META) {
+    const metaConnected = await checkMetaConnection();
+    return {
+      provider: 'meta',
+      meta: { connected: metaConnected, checked: true },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   const [evolutionConnected, avisaConnected] = await Promise.all([
     checkEvolutionConnection(),
     checkAvisaConnection(),
   ]);
 
   return {
+    provider: featureFlags.USE_ZAPI ? 'zapi' : 'evolution',
     evolution: { connected: evolutionConnected, checked: true },
     avisa: { connected: avisaConnected, checked: true },
     timestamp: new Date().toISOString(),

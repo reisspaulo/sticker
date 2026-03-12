@@ -415,12 +415,15 @@ export default async function webhookMetaRoutes(fastify: FastifyInstance) {
           messageType: evolutionPayload.data.messageType,
         });
 
+        // processWebhookRequest sends the reply itself, so we return after it
         await processWebhookRequest(mockRequest, reply, fastify);
+        return;
       }
 
+      // No messages were processed (all skipped due to validation)
       return reply.status(200).send({
         status: 'ok',
-        messagesProcessed: messages.length,
+        messagesProcessed: 0,
         duration: Date.now() - startTime,
       });
     } catch (error) {
@@ -432,10 +435,13 @@ export default async function webhookMetaRoutes(fastify: FastifyInstance) {
       });
 
       // Meta requires 200 response even on errors (to avoid retries flooding)
-      return reply.status(200).send({
-        status: 'error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
+      // Only send if reply hasn't been sent yet
+      if (!reply.sent) {
+        return reply.status(200).send({
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
     }
   });
 }

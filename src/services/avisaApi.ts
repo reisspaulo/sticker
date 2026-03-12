@@ -22,16 +22,16 @@ export function isBrazilianNumber(phoneNumber: string): boolean {
 const avisaApiUrl = process.env.AVISA_API_URL || 'https://www.avisaapi.com.br/api';
 const avisaApiToken = process.env.AVISA_API_TOKEN;
 
-if (!avisaApiToken) {
+if (!process.env.USE_META && !process.env.USE_ZAPI && !avisaApiToken) {
   throw new Error('AVISA_API_TOKEN must be defined');
 }
 
 // Create axios instance with default configuration
 const api: AxiosInstance = axios.create({
-  baseURL: avisaApiUrl,
+  baseURL: avisaApiUrl || '',
   timeout: 30000, // 30 seconds
   headers: {
-    Authorization: `Bearer ${avisaApiToken}`,
+    Authorization: `Bearer ${avisaApiToken || ''}`,
     'Content-Type': 'application/json',
   },
 });

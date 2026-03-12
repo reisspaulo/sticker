@@ -4,6 +4,7 @@ import { config } from 'dotenv';
 import logger from './config/logger';
 import webhookRoutes from './routes/webhook';
 import webhookZapiRoutes from './routes/webhookZapi';
+import webhookMetaRoutes from './routes/webhookMeta';
 import healthRoutes from './routes/health';
 import statsRoutes from './routes/stats';
 import stripeWebhookRoutes from './routes/stripeWebhook';
@@ -51,6 +52,12 @@ if (featureFlags.ZAPI_WEBHOOK_ENABLED) {
   logger.info('✅ Z-API webhook endpoint registered at /webhook/zapi');
 }
 
+// Register Meta Cloud API webhook if enabled
+if (featureFlags.META_WEBHOOK_ENABLED) {
+  fastify.register(webhookMetaRoutes, { prefix: '/webhook' });
+  logger.info('✅ Meta Cloud API webhook endpoint registered at /webhook/meta');
+}
+
 fastify.register(healthRoutes);
 fastify.register(statsRoutes, { prefix: '/stats' });
 fastify.register(stripeWebhookRoutes, { prefix: '/stripe' });
@@ -74,6 +81,10 @@ const start = async () => {
 
     if (featureFlags.ZAPI_WEBHOOK_ENABLED) {
       logger.info(`📝 Z-API Webhook endpoint: http://${host}:${port}/webhook/zapi`);
+    }
+
+    if (featureFlags.META_WEBHOOK_ENABLED) {
+      logger.info(`📝 Meta Cloud API Webhook: http://${host}:${port}/webhook/meta`);
     }
 
     logger.info(`💚 Health check: http://${host}:${port}/health`);

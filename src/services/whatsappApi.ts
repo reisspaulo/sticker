@@ -2,15 +2,15 @@
  * WhatsApp API Adapter
  *
  * Provides a unified interface for WhatsApp operations that works with
- * either Evolution API + Avisa API or Z-API based on feature flags.
+ * Evolution API + Avisa API, Z-API, or Meta Cloud API based on feature flags.
  *
  * This adapter pattern allows seamless switching between providers without
  * changing code in 17+ files that use WhatsApp APIs.
  *
+ * Provider priority: USE_META > USE_ZAPI > Evolution API (default)
+ *
  * Usage:
  *   import { sendSticker, sendText, sendButtons } from './services/whatsappApi';
- *
- * The adapter automatically selects the correct implementation based on USE_ZAPI flag.
  */
 
 import { featureFlags } from '../config/features';
@@ -22,6 +22,9 @@ import * as avisaApi from './avisaApi';
 
 // Import Z-API
 import * as zapiApi from './zapiApi';
+
+// Import Meta Cloud API (lazy - only loaded when USE_META is true)
+const metaApi = featureFlags.USE_META ? require('./metaCloudApi') : null;
 
 // ============================================
 // TYPE DEFINITIONS
@@ -78,7 +81,10 @@ export interface SendPixButtonRequest {
  * Send a sticker to a WhatsApp user
  */
 export async function sendSticker(userNumber: string, stickerUrl: string): Promise<void> {
-  if (featureFlags.USE_ZAPI) {
+  if (featureFlags.USE_META) {
+    logger.debug('[WhatsApp Adapter] Using Meta Cloud API for sendSticker');
+    return metaApi.sendSticker(userNumber, stickerUrl);
+  } else if (featureFlags.USE_ZAPI) {
     logger.debug('[WhatsApp Adapter] Using Z-API for sendSticker');
     return zapiApi.sendSticker(userNumber, stickerUrl);
   } else {
@@ -98,12 +104,14 @@ export async function sendText(
     delayTyping?: number;
   }
 ): Promise<void> {
-  if (featureFlags.USE_ZAPI) {
+  if (featureFlags.USE_META) {
+    logger.debug('[WhatsApp Adapter] Using Meta Cloud API for sendText');
+    return metaApi.sendText(userNumber, text, options);
+  } else if (featureFlags.USE_ZAPI) {
     logger.debug('[WhatsApp Adapter] Using Z-API for sendText');
     return zapiApi.sendText(userNumber, text, options);
   } else {
     logger.debug('[WhatsApp Adapter] Using Evolution API for sendText');
-    // Evolution API doesn't support delay options, ignore them
     return evolutionApi.sendText(userNumber, text);
   }
 }
@@ -120,12 +128,14 @@ export async function sendVideo(
     async?: boolean;
   }
 ): Promise<void> {
-  if (featureFlags.USE_ZAPI) {
+  if (featureFlags.USE_META) {
+    logger.debug('[WhatsApp Adapter] Using Meta Cloud API for sendVideo');
+    return metaApi.sendVideo(userNumber, videoUrl, caption, options);
+  } else if (featureFlags.USE_ZAPI) {
     logger.debug('[WhatsApp Adapter] Using Z-API for sendVideo');
     return zapiApi.sendVideo(userNumber, videoUrl, caption, options);
   } else {
     logger.debug('[WhatsApp Adapter] Using Evolution API for sendVideo');
-    // Evolution API doesn't support viewOnce/async, ignore them
     return evolutionApi.sendVideo(userNumber, videoUrl, caption);
   }
 }
@@ -139,7 +149,9 @@ export async function sendVideo(
  * (Used to determine if interactive features should be sent)
  */
 export function isBrazilianNumber(phoneNumber: string): boolean {
-  if (featureFlags.USE_ZAPI) {
+  if (featureFlags.USE_META) {
+    return metaApi.isBrazilianNumber(phoneNumber);
+  } else if (featureFlags.USE_ZAPI) {
     return zapiApi.isBrazilianNumber(phoneNumber);
   } else {
     return avisaApi.isBrazilianNumber(phoneNumber);
@@ -150,7 +162,23 @@ export function isBrazilianNumber(phoneNumber: string): boolean {
  * Send interactive buttons to a WhatsApp user
  */
 export async function sendButtons(request: SendButtonsRequest): Promise<void> {
-  if (featureFlags.USE_ZAPI) {
+  if (featureFlags.USE_META) {
+    logger.debug('[WhatsApp Adapter] Using Meta Cloud API for sendButtons');
+
+    const metaRequest = {
+      number: request.number,
+      message: request.desc || request.message || '',
+      title: request.title,
+      footer: request.footer,
+      buttons: request.buttons.map((btn) => ({
+        type: 'REPLY' as const,
+        label: btn.text,
+        id: btn.id,
+      })),
+    };
+
+    return metaApi.sendButtons(metaRequest);
+  } else if (featureFlags.USE_ZAPI) {
     logger.debug('[WhatsApp Adapter] Using Z-API for sendButtons');
 
     // Transform to Z-API format
@@ -191,7 +219,26 @@ export async function sendButtons(request: SendButtonsRequest): Promise<void> {
  * Send interactive list to a WhatsApp user
  */
 export async function sendList(request: SendListRequest): Promise<void> {
-  if (featureFlags.USE_ZAPI) {
+  if (featureFlags.USE_META) {
+    logger.debug('[WhatsApp Adapter] Using Meta Cloud API for sendList');
+
+    const metaRequest = {
+      number: request.number,
+      message: request.desc || request.message || '',
+      title: request.toptext || request.title || '',
+      buttonLabel: request.buttontext || request.buttonLabel || '',
+      options:
+        request.list?.map((item) => ({
+          id: item.RowId,
+          title: item.title,
+          description: item.desc,
+        })) ||
+        request.options ||
+        [],
+    };
+
+    return metaApi.sendList(metaRequest);
+  } else if (featureFlags.USE_ZAPI) {
     logger.debug('[WhatsApp Adapter] Using Z-API for sendList');
 
     // Transform to Z-API format
@@ -240,7 +287,10 @@ export async function sendList(request: SendListRequest): Promise<void> {
  * Send PIX payment button to a WhatsApp user
  */
 export async function sendPixButton(request: SendPixButtonRequest): Promise<void> {
-  if (featureFlags.USE_ZAPI) {
+  if (featureFlags.USE_META) {
+    logger.debug('[WhatsApp Adapter] Using Meta Cloud API for sendPixButton');
+    return metaApi.sendPixButton(request);
+  } else if (featureFlags.USE_ZAPI) {
     logger.debug('[WhatsApp Adapter] Using Z-API for sendPixButton');
     return zapiApi.sendPixButton(request);
   } else {
@@ -265,7 +315,10 @@ export async function sendPixButton(request: SendPixButtonRequest): Promise<void
  * Check WhatsApp connection status
  */
 export async function checkConnection(): Promise<boolean> {
-  if (featureFlags.USE_ZAPI) {
+  if (featureFlags.USE_META) {
+    logger.debug('[WhatsApp Adapter] Using Meta Cloud API for checkConnection');
+    return metaApi.checkConnection();
+  } else if (featureFlags.USE_ZAPI) {
     logger.debug('[WhatsApp Adapter] Using Z-API for checkConnection');
     return zapiApi.checkConnection();
   } else {
@@ -286,6 +339,13 @@ export async function checkConnection(): Promise<boolean> {
  * @param messageKeyOrUrl - Either MessageKey (Evolution) or direct URL (Z-API)
  */
 export async function downloadMedia(messageKeyOrUrl: any): Promise<Buffer> {
+  // Check if it's a Meta media ID (string starting with 'meta:')
+  if (typeof messageKeyOrUrl === 'string' && messageKeyOrUrl.startsWith('meta:')) {
+    logger.debug('[WhatsApp Adapter] Downloading media via Meta Cloud API (2-step)');
+    const mediaId = messageKeyOrUrl.replace('meta:', '');
+    return metaApi.downloadMedia(mediaId);
+  }
+
   // Check if it's a direct URL (string) - Z-API mode
   if (typeof messageKeyOrUrl === 'string' && messageKeyOrUrl.startsWith('http')) {
     logger.debug('[WhatsApp Adapter] Downloading media from direct URL (Z-API mode)');
@@ -333,7 +393,10 @@ export async function downloadMedia(messageKeyOrUrl: any): Promise<Buffer> {
  * Set webhook URL
  */
 export async function setWebhook(webhookUrl: string): Promise<void> {
-  if (featureFlags.USE_ZAPI) {
+  if (featureFlags.USE_META) {
+    logger.debug('[WhatsApp Adapter] Meta Cloud API webhooks are configured in Developer Portal');
+    return;
+  } else if (featureFlags.USE_ZAPI) {
     logger.debug('[WhatsApp Adapter] Using Z-API for setWebhook');
     await zapiApi.setWebhook(webhookUrl);
     return;
@@ -348,7 +411,10 @@ export async function setWebhook(webhookUrl: string): Promise<void> {
  * Get current webhook URL
  */
 export async function getWebhook(): Promise<string | null> {
-  if (featureFlags.USE_ZAPI) {
+  if (featureFlags.USE_META) {
+    logger.debug('[WhatsApp Adapter] Meta Cloud API webhooks are configured in Developer Portal');
+    return null;
+  } else if (featureFlags.USE_ZAPI) {
     logger.debug('[WhatsApp Adapter] Using Z-API for getWebhook');
     return zapiApi.getWebhook();
   } else {

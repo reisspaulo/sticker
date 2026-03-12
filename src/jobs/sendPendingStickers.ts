@@ -1,5 +1,8 @@
 import { supabase } from '../config/supabase';
-import { sendSticker } from '../services/whatsappApi';
+import { sendSticker, sendTemplate } from '../services/whatsappApi';
+import { isConversationWindowOpen } from '../services/conversationWindow';
+import { TEMPLATES } from '../services/templateService';
+import { featureFlags } from '../config/features';
 import { logJobStart, logJobComplete, logJobFailed } from '../services/jobLogger';
 import logger from '../config/logger';
 
@@ -148,6 +151,39 @@ export async function sendPendingStickersJob(): Promise<{
             error: logError,
           });
           // Continue anyway - logging failure shouldn't block sending
+        }
+
+        // Meta Cloud API: stickers can only be sent within 24h window.
+        // If outside window, send a template to prompt user to reply first.
+        if (featureFlags.USE_META) {
+          const windowOpen = await isConversationWindowOpen(sticker.user_number);
+          if (!windowOpen) {
+            logger.info({
+              msg: '[SEND-PENDING-JOB] Outside 24h window, sending template notification',
+              stickerId: sticker.id,
+              userNumber: sticker.user_number,
+            });
+
+            await sendTemplate(sticker.user_number, TEMPLATES.STICKER_READY, 'pt_BR', [
+              { type: 'body', parameters: [{ type: 'text', text: '1' }] },
+            ]);
+
+            // Keep status as pending - sticker will be sent when user replies
+            // and opens the 24h window
+            const processingTimeMs = Date.now() - stickerStartTime;
+            if (logEntry) {
+              await supabase
+                .from('pending_sticker_sends')
+                .update({
+                  status: 'notified',
+                  processing_time_ms: processingTimeMs,
+                  error_message: 'Template sent - waiting for user reply to open 24h window',
+                })
+                .eq('id', logEntry.id);
+            }
+            skipped++;
+            continue;
+          }
         }
 
         // Attempt to send sticker (silently - no extra messages)

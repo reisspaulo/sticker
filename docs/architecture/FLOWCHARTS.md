@@ -2217,7 +2217,56 @@ Usuário atinge limite diário → `getLimitReachedMessage()`
 
 ---
 
-**Última atualização:** 15/01/2026 - Adicionado títulos obrigatórios da Avisa API nas campanhas Twitter Discovery V2 e Cleanup Feature V2 (fix bug 422)
+**Última atualização:** 12/03/2026 - Migração para Meta Cloud API: adicionado fluxo de janela 24h e templates
+
+---
+
+## Meta Cloud API - Janela de 24h e Templates
+
+**Status**: ✅ ATIVO (quando USE_META=true)
+
+```mermaid
+flowchart TD
+    START([Mensagem a enviar]) --> CHECK_META{USE_META<br/>ativo?}
+
+    CHECK_META -->|Não| SEND_NORMAL[📤 Envio normal<br/>Evolution/Z-API]
+    CHECK_META -->|Sim| CHECK_WINDOW{Janela 24h<br/>aberta?}
+
+    CHECK_WINDOW -->|Sim| SEND_FREE[📤 Mensagem normal<br/>GRÁTIS]
+    CHECK_WINDOW -->|Não| CHECK_TYPE{Tipo de<br/>mensagem?}
+
+    CHECK_TYPE -->|Texto/Botões| SEND_TEMPLATE[📋 Envia template<br/>PAGO ~R$0,15-0,35]
+    CHECK_TYPE -->|Sticker| NOTIFY[📋 Template: figurinha pronta<br/>Aguarda resposta do usuário]
+
+    NOTIFY --> USER_REPLY([Usuário responde]) --> WINDOW_OPEN[Janela 24h abre] --> SEND_STICKER[📤 Envia sticker<br/>GRÁTIS]
+```
+
+### Fluxo de envio de stickers pendentes (job 8h)
+
+```mermaid
+flowchart TD
+    JOB([Job 8:00 AM]) --> QUERY[Busca stickers pendentes]
+    QUERY --> LOOP{Para cada sticker}
+
+    LOOP --> CHECK{Janela 24h<br/>aberta?}
+    CHECK -->|Sim| SEND[📤 Envia sticker]
+    CHECK -->|Não| TEMPLATE[📋 Template: sticker_pronto<br/>Usuário precisa responder]
+    TEMPLATE --> WAIT([Status: notified<br/>Aguarda resposta])
+
+    SEND --> OK([Status: enviado])
+```
+
+### Templates registrados na Meta
+
+| Template | Categoria | Custo | Uso |
+|----------|-----------|-------|-----|
+| sticker_pronto | UTILITY | ~R$0,15 | Stickers pendentes prontos |
+| limite_atingido | MARKETING | ~R$0,35 | Reminder de upgrade |
+| pagamento_confirmado | UTILITY | ~R$0,15 | Confirmação de pagamento |
+| reengajamento | MARKETING | ~R$0,35 | Usuário inativo 30d+ |
+| pix_pendente | UTILITY | ~R$0,15 | PIX expirado/pendente |
+| mensagem_campanha | MARKETING | ~R$0,35 | Campanhas genéricas |
+| entrega_figurinha | UTILITY | ~R$0,15 | Figurinha pronta |
 
 
 

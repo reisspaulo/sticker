@@ -13,7 +13,8 @@
 import { rpc, rpcAll } from '../rpc';
 import logger from '../config/logger';
 import { sendText } from './whatsappApi';
-import { sendButtons, type ButtonData } from './whatsappApi';
+import { type ButtonData } from './whatsappApi';
+import { sendTextOrTemplate, sendButtonsOrTemplate, TEMPLATES } from './templateService';
 import type { CampaignPendingMessage, CampaignAnalytics, CampaignHealthResult } from '../rpc/types';
 
 // ============================================
@@ -233,7 +234,10 @@ export async function sendCampaignMessage(message: CampaignPendingMessage): Prom
 
     switch (content_type) {
       case 'text':
-        await sendText(user_number, processedBody);
+        // Smart send: uses template if outside 24h window
+        await sendTextOrTemplate(user_number, processedBody, TEMPLATES.CAMPAIGN_MESSAGE, [
+          processedBody,
+        ]);
         break;
 
       case 'buttons':
@@ -242,20 +246,27 @@ export async function sendCampaignMessage(message: CampaignPendingMessage): Prom
             msg: '[CAMPAIGN] Buttons content_type but no buttons defined, sending as text',
             userCampaignId: message.user_campaign_id,
           });
-          await sendText(user_number, processedBody);
+          await sendTextOrTemplate(user_number, processedBody, TEMPLATES.CAMPAIGN_MESSAGE, [
+            processedBody,
+          ]);
         } else {
           const buttonData: ButtonData[] = buttons.map((btn) => ({
             id: btn.id,
             text: btn.text,
           }));
 
-          await sendButtons({
-            number: user_number,
-            title: processedTitle,
-            desc: processedBody,
-            footer: footer || undefined,
-            buttons: buttonData,
-          });
+          // Smart send: uses template if outside 24h window
+          await sendButtonsOrTemplate(
+            {
+              number: user_number,
+              title: processedTitle,
+              desc: processedBody,
+              footer: footer || undefined,
+              buttons: buttonData,
+            },
+            TEMPLATES.CAMPAIGN_MESSAGE,
+            [processedBody]
+          );
         }
         break;
 

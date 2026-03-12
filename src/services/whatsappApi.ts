@@ -386,6 +386,34 @@ export async function downloadMedia(messageKeyOrUrl: any): Promise<Buffer> {
 }
 
 // ============================================
+// TEMPLATE MESSAGES (Meta Cloud API only)
+// ============================================
+
+/**
+ * Send a template message (for messages outside 24h conversation window)
+ * Only works with Meta Cloud API. No-op for other providers.
+ */
+export async function sendTemplate(
+  userNumber: string,
+  templateName: string,
+  languageCode: string = 'pt_BR',
+  components?: Array<{
+    type: 'header' | 'body' | 'button';
+    parameters?: Array<{ type: 'text'; text: string }>;
+    sub_type?: 'quick_reply';
+    index?: number;
+  }>
+): Promise<void> {
+  if (featureFlags.USE_META) {
+    logger.debug('[WhatsApp Adapter] Sending template via Meta Cloud API');
+    return metaApi.sendTemplate(userNumber, templateName, languageCode, components);
+  }
+
+  // Legacy providers don't have templates - send nothing
+  logger.warn('[WhatsApp Adapter] sendTemplate called but not using Meta - ignoring');
+}
+
+// ============================================
 // WEBHOOK CONFIGURATION
 // ============================================
 

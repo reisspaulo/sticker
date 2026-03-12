@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
-import { sendText } from '../services/whatsappApi';
 import { sendList } from '../services/whatsappApi';
+import { sendTextOrTemplate, TEMPLATES } from '../services/templateService';
 import { logExperimentEvent } from '../services/experimentService';
 import { logJobStart, logJobComplete, logJobFailed } from '../services/jobLogger';
 import logger from '../config/logger';
@@ -290,8 +290,8 @@ Você já pode criar mais figurinhas hoje! 🎨
 Digite *planos* se quiser saber mais.`;
           }
 
-          // Send message
-          await sendText(reminder.user_number, message);
+          // Send message (use template if outside 24h window)
+          await sendTextOrTemplate(reminder.user_number, message, TEMPLATES.LIMIT_REACHED);
         }
 
         // Update reminder status

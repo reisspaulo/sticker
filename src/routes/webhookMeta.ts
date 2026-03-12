@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { WebhookPayload } from '../types/evolution';
 import logger from '../config/logger';
+import { updateLastInteraction } from '../services/conversationWindow';
 
 /**
  * Meta Cloud API Webhook Handler
@@ -367,6 +368,9 @@ export default async function webhookMetaRoutes(fastify: FastifyInstance) {
           type: message.type,
           contactName,
         });
+
+        // Update 24h conversation window timestamp
+        updateLastInteraction(message.from).catch(() => {});
 
         // Ignore group messages (shouldn't happen with Cloud API, but safety check)
         if (message.from.includes('@g.us')) {

@@ -81,7 +81,16 @@ Z_API_BASE_URL=$(doppler secrets get Z_API_BASE_URL --plain --project sticker --
 USE_ZAPI=$(doppler secrets get USE_ZAPI --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "false")
 ZAPI_WEBHOOK_ENABLED=$(doppler secrets get ZAPI_WEBHOOK_ENABLED --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "false")
 
-echo "✅ Secrets loaded (21 variables)"
+# Meta Cloud API
+USE_META=$(doppler secrets get USE_META --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "false")
+META_WEBHOOK_ENABLED=$(doppler secrets get META_WEBHOOK_ENABLED --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "false")
+WHATSAPP_ACCESS_TOKEN=$(doppler secrets get WHATSAPP_ACCESS_TOKEN --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "")
+WHATSAPP_PHONE_NUMBER_ID=$(doppler secrets get WHATSAPP_PHONE_NUMBER_ID --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "")
+WHATSAPP_BUSINESS_ACCOUNT_ID=$(doppler secrets get WHATSAPP_BUSINESS_ACCOUNT_ID --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "")
+WHATSAPP_WEBHOOK_TOKEN=$(doppler secrets get WHATSAPP_WEBHOOK_TOKEN --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "")
+META_API_VERSION=$(doppler secrets get META_API_VERSION --plain --project sticker --config "$CONFIG" 2>/dev/null || echo "v22.0")
+
+echo "✅ Secrets loaded (28 variables)"
 echo ""
 
 echo "2️⃣  Generating stack file with secrets..."
@@ -127,6 +136,13 @@ services:
       - Z_API_BASE_URL=${Z_API_BASE_URL}
       - USE_ZAPI=${USE_ZAPI}
       - ZAPI_WEBHOOK_ENABLED=${ZAPI_WEBHOOK_ENABLED}
+      - USE_META=${USE_META}
+      - META_WEBHOOK_ENABLED=${META_WEBHOOK_ENABLED}
+      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
+      - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}
+      - WHATSAPP_BUSINESS_ACCOUNT_ID=${WHATSAPP_BUSINESS_ACCOUNT_ID}
+      - WHATSAPP_WEBHOOK_TOKEN=${WHATSAPP_WEBHOOK_TOKEN}
+      - META_API_VERSION=${META_API_VERSION}
     networks:
       - traefik-public
       - ytem-backend

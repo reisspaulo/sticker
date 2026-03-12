@@ -19,13 +19,14 @@ const zapiClientToken = process.env.Z_API_CLIENT_TOKEN;
 const zapiBaseUrl = process.env.Z_API_BASE_URL || 'https://api.z-api.io';
 
 if (process.env.USE_ZAPI === 'true' && (!zapiInstance || !zapiToken || !zapiClientToken)) {
-  throw new Error('Z_API_INSTANCE, Z_API_TOKEN, and Z_API_CLIENT_TOKEN must be defined when USE_ZAPI=true');
+  throw new Error(
+    'Z_API_INSTANCE, Z_API_TOKEN, and Z_API_CLIENT_TOKEN must be defined when USE_ZAPI=true'
+  );
 }
 
 // Build base URL for this instance (only if Z-API vars are present)
-const instanceBaseUrl = zapiInstance && zapiToken
-  ? `${zapiBaseUrl}/instances/${zapiInstance}/token/${zapiToken}`
-  : '';
+const instanceBaseUrl =
+  zapiInstance && zapiToken ? `${zapiBaseUrl}/instances/${zapiInstance}/token/${zapiToken}` : '';
 
 // Create axios instance with default configuration
 const api: AxiosInstance = axios.create({

@@ -8,7 +8,11 @@ const evolutionApiUrl = process.env.EVOLUTION_API_URL;
 const evolutionApiKey = process.env.EVOLUTION_API_KEY;
 const evolutionInstance = process.env.EVOLUTION_INSTANCE;
 
-if (!process.env.USE_META && !process.env.USE_ZAPI && (!evolutionApiUrl || !evolutionApiKey || !evolutionInstance)) {
+if (
+  !process.env.USE_META &&
+  !process.env.USE_ZAPI &&
+  (!evolutionApiUrl || !evolutionApiKey || !evolutionInstance)
+) {
   throw new Error('EVOLUTION_API_URL, EVOLUTION_API_KEY, and EVOLUTION_INSTANCE must be defined');
 }
 

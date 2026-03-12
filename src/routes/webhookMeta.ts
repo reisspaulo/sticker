@@ -22,7 +22,16 @@ interface MetaWebhookMessage {
   from: string; // Phone number (e.g., "5511999999999")
   id: string; // Message ID (wamid.xxx)
   timestamp: string; // Unix timestamp
-  type: 'text' | 'image' | 'video' | 'sticker' | 'audio' | 'document' | 'interactive' | 'button' | 'reaction';
+  type:
+    | 'text'
+    | 'image'
+    | 'video'
+    | 'sticker'
+    | 'audio'
+    | 'document'
+    | 'interactive'
+    | 'button'
+    | 'reaction';
 
   text?: {
     body: string;
@@ -134,10 +143,7 @@ interface MetaWebhookPayload {
  * Key difference: Meta sends media IDs, not URLs. The downloadMedia
  * function in metaCloudApi.ts handles the 2-step download.
  */
-function transformMetaPayload(
-  message: MetaWebhookMessage,
-  contactName: string
-): WebhookPayload {
+function transformMetaPayload(message: MetaWebhookMessage, contactName: string): WebhookPayload {
   const { from, id, timestamp } = message;
 
   const evolutionPayload: WebhookPayload = {

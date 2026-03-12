@@ -115,13 +115,10 @@ async function checkMetaConnection(): Promise<boolean> {
       return false;
     }
 
-    const response = await axios.get(
-      `https://graph.facebook.com/${apiVersion}/${phoneNumberId}`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        timeout: 10000,
-      }
-    );
+    const response = await axios.get(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      timeout: 10000,
+    });
 
     const isConnected = !!response.data?.id;
 

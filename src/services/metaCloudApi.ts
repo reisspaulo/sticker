@@ -566,13 +566,10 @@ export async function sendPixButton(request: SendPixButtonRequest): Promise<void
  */
 export async function checkConnection(): Promise<boolean> {
   try {
-    const response = await axios.get(
-      `https://graph.facebook.com/${apiVersion}/${phoneNumberId}`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        params: { fields: 'verified_name,quality_rating' },
-      }
-    );
+    const response = await axios.get(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      params: { fields: 'verified_name,quality_rating' },
+    });
 
     logger.info({
       msg: '[Meta] Connection status checked',
@@ -614,12 +611,9 @@ export async function downloadMedia(mediaId: string): Promise<Buffer> {
 
   try {
     // Step 1: Get temporary download URL
-    const urlResponse = await axios.get(
-      `https://graph.facebook.com/${apiVersion}/${mediaId}`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }
-    );
+    const urlResponse = await axios.get(`https://graph.facebook.com/${apiVersion}/${mediaId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
 
     const downloadUrl = urlResponse.data.url;
 

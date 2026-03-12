@@ -20,7 +20,7 @@ const PRODUCT_TO_PLAN: Record<string, PlanType> = {
 };
 
 const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2025-12-15.clover',
+  apiVersion: '2026-02-25.clover' as any,
 });
 
 /**

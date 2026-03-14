@@ -140,37 +140,38 @@ jobs:
               exit 1
             fi
 
-            # Health check via container exec (bypasses external firewall/proxy)
-            HEALTH_RESPONSE=$(docker exec $CONTAINER_ID node -e "fetch('http://localhost:3000/health').then(r=>r.text()).then(d=>console.log(d))")
-            echo "Health response: $HEALTH_RESPONSE"
-
-            # Check if healthy
-            STATUS=$(echo $HEALTH_RESPONSE | jq -r '.status')
-            if [ "$STATUS" != "healthy" ] && [ "$STATUS" != "degraded" ]; then
-              echo "❌ Health check failed! Status: $STATUS"
-              exit 1
-            fi
-
-            # Verify deployed commit SHA matches
-            DEPLOYED_SHA=$(echo $HEALTH_RESPONSE | jq -r '.git_sha')
             EXPECTED_SHA="${{ github.sha }}"
 
-            echo "📦 Expected SHA: $EXPECTED_SHA"
-            echo "🚀 Deployed SHA: $DEPLOYED_SHA"
-
-            if [ "$DEPLOYED_SHA" != "$EXPECTED_SHA" ]; then
-              echo "⚠️ WARNING: Deployed version ($DEPLOYED_SHA) does not match expected ($EXPECTED_SHA)"
-              echo "This may indicate the deploy did not complete correctly."
-              sleep 30
-              HEALTH_RESPONSE=$(docker exec $CONTAINER_ID node -e "fetch('http://localhost:3000/health').then(r=>r.text()).then(d=>console.log(d))")
-              DEPLOYED_SHA=$(echo $HEALTH_RESPONSE | jq -r '.git_sha')
-              if [ "$DEPLOYED_SHA" != "$EXPECTED_SHA" ]; then
-                echo "❌ CRITICAL: Version mismatch persists after retry!"
-                exit 1
-              fi
-            fi
-
-            echo "✅ Health check passed! Correct version deployed."
+            # Health check + version verify in one node call (no jq needed)
+            docker exec $CONTAINER_ID node -e "
+              fetch('http://localhost:3000/health')
+                .then(r => r.json())
+                .then(d => {
+                  console.log('Health response:', JSON.stringify(d, null, 2));
+                  const status = d.status;
+                  const sha = d.git_sha;
+                  console.log('📦 Expected SHA: $EXPECTED_SHA');
+                  console.log('🚀 Deployed SHA: ' + sha);
+                  if (status !== 'healthy' && status !== 'degraded') {
+                    console.log('❌ Health check failed! Status: ' + status);
+                    process.exit(1);
+                  }
+                  if (sha !== '$EXPECTED_SHA') {
+                    console.log('⚠️ SHA mismatch, retrying in 30s...');
+                    return new Promise(r => setTimeout(r, 30000))
+                      .then(() => fetch('http://localhost:3000/health'))
+                      .then(r => r.json())
+                      .then(d2 => {
+                        if (d2.git_sha !== '$EXPECTED_SHA') {
+                          console.log('❌ CRITICAL: Version mismatch persists!');
+                          process.exit(1);
+                        }
+                      });
+                  }
+                  console.log('✅ Health check passed! Correct version deployed.');
+                })
+                .catch(e => { console.error('❌ Health check error:', e.message); process.exit(1); });
+            "
 
       - name: Rollback on failure
         if: failure()

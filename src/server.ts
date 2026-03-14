@@ -49,137 +49,222 @@ const LANDING_PAGE_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StickerBot - Figurinhas para WhatsApp</title>
+  <title>StickerBot — Figurinhas para WhatsApp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <style>
+    :root { --bg: #0a0a0a; --surface: #141414; --border: #2a2a2a; --text: #e8e8e8; --text-muted: #888; --accent: #f0c040; --green: #25D366; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a1a; background: #fafafa; }
-    .hero { background: linear-gradient(135deg, #075E54 0%, #128C7E 50%, #25D366 100%); color: white; padding: 80px 20px; text-align: center; }
-    .hero h1 { font-size: 2.8rem; margin-bottom: 12px; font-weight: 700; }
-    .hero p { font-size: 1.2rem; opacity: 0.9; max-width: 600px; margin: 0 auto; }
-    .container { max-width: 900px; margin: 0 auto; padding: 0 20px; }
-    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; padding: 60px 20px; max-width: 900px; margin: 0 auto; }
-    .feature { background: white; border-radius: 12px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    .feature .icon { font-size: 2rem; margin-bottom: 12px; }
-    .feature h3 { font-size: 1.1rem; margin-bottom: 8px; }
-    .feature p { font-size: 0.9rem; color: #555; line-height: 1.5; }
-    .how-it-works { background: white; padding: 60px 20px; text-align: center; }
-    .how-it-works h2 { font-size: 1.8rem; margin-bottom: 40px; }
-    .steps { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; max-width: 800px; margin: 0 auto; }
-    .step { flex: 1; min-width: 180px; max-width: 220px; }
-    .step .number { width: 48px; height: 48px; border-radius: 50%; background: #25D366; color: white; font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
-    .step h4 { margin-bottom: 6px; }
-    .step p { font-size: 0.85rem; color: #666; }
-    .plans { padding: 60px 20px; text-align: center; max-width: 900px; margin: 0 auto; }
-    .plans h2 { font-size: 1.8rem; margin-bottom: 40px; }
-    .plans-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
-    .plan { background: white; border-radius: 12px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    .plan h3 { font-size: 1.2rem; margin-bottom: 4px; }
-    .plan .price { font-size: 1.6rem; font-weight: 700; color: #128C7E; margin: 8px 0 16px; }
-    .plan ul { list-style: none; text-align: left; }
-    .plan ul li { padding: 6px 0; font-size: 0.9rem; color: #444; }
-    .plan ul li::before { content: "\\2713"; color: #25D366; font-weight: 700; margin-right: 8px; }
-    .cta { background: #075E54; color: white; padding: 60px 20px; text-align: center; }
-    .cta h2 { font-size: 1.8rem; margin-bottom: 12px; }
-    .cta p { opacity: 0.85; margin-bottom: 24px; font-size: 1.05rem; }
-    .cta a { display: inline-block; background: #25D366; color: white; text-decoration: none; padding: 14px 36px; border-radius: 30px; font-size: 1.1rem; font-weight: 600; transition: background 0.2s; }
-    .cta a:hover { background: #20bd5a; }
-    footer { padding: 30px 20px; text-align: center; font-size: 0.8rem; color: #888; }
-    footer a { color: #128C7E; text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
-    .badge { display: inline-block; background: rgba(255,255,255,0.15); padding: 6px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 20px; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+    /* Nav */
+    nav { padding: 20px 40px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: rgba(10,10,10,0.92); backdrop-filter: blur(12px); z-index: 100; }
+    nav .logo { font-family: 'Instrument Serif', serif; font-size: 1.4rem; letter-spacing: -0.02em; text-decoration: none; color: var(--text); }
+    nav .logo span { color: var(--accent); }
+    nav .nav-cta { color: var(--bg); background: var(--accent); text-decoration: none; font-size: 0.82rem; font-weight: 500; padding: 8px 20px; border-radius: 6px; transition: opacity 0.2s; }
+    nav .nav-cta:hover { opacity: 0.85; }
+
+    /* Hero */
+    .hero { padding: 100px 24px 80px; text-align: center; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; top: -40%; left: 50%; transform: translateX(-50%); width: 600px; height: 600px; background: radial-gradient(circle, rgba(240,192,64,0.06) 0%, transparent 70%); pointer-events: none; }
+    .hero .badge { display: inline-block; border: 1px solid var(--border); color: var(--text-muted); padding: 6px 16px; border-radius: 20px; font-size: 0.78rem; margin-bottom: 28px; letter-spacing: 0.03em; }
+    .hero h1 { font-family: 'Instrument Serif', serif; font-size: 3.6rem; font-weight: 400; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 20px; max-width: 700px; margin-left: auto; margin-right: auto; }
+    .hero h1 em { font-style: italic; color: var(--accent); }
+    .hero p { color: var(--text-muted); font-size: 1.05rem; line-height: 1.7; max-width: 520px; margin: 0 auto 36px; }
+    .hero .cta-btn { display: inline-flex; align-items: center; gap: 10px; background: var(--green); color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 0.95rem; font-weight: 500; transition: transform 0.2s, box-shadow 0.2s; }
+    .hero .cta-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(37,211,102,0.2); }
+    .hero .cta-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+    /* Section titles */
+    .section-label { text-align: center; color: var(--accent); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 12px; }
+    .section-title { text-align: center; font-family: 'Instrument Serif', serif; font-size: 2.2rem; font-weight: 400; letter-spacing: -0.02em; margin-bottom: 48px; }
+
+    /* How it works */
+    .how { padding: 80px 24px; border-top: 1px solid var(--border); }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; max-width: 840px; margin: 0 auto; background: var(--border); border-radius: 12px; overflow: hidden; }
+    .step { background: var(--surface); padding: 36px 28px; }
+    .step-num { font-family: 'Instrument Serif', serif; font-size: 2.4rem; color: var(--accent); opacity: 0.4; margin-bottom: 16px; }
+    .step h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 10px; }
+    .step p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+
+    /* Features */
+    .features { padding: 80px 24px; border-top: 1px solid var(--border); }
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 900px; margin: 0 auto; }
+    .feat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px 24px; transition: border-color 0.3s; }
+    .feat:hover { border-color: #3a3a3a; }
+    .feat-icon { width: 44px; height: 44px; border-radius: 10px; background: rgba(240,192,64,0.08); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin-bottom: 20px; }
+    .feat h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 10px; }
+    .feat p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+
+    /* Plans */
+    .plans { padding: 80px 24px; border-top: 1px solid var(--border); }
+    .plans-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 900px; margin: 0 auto; }
+    .plan { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px 24px; display: flex; flex-direction: column; }
+    .plan.featured { border-color: var(--accent); position: relative; }
+    .plan.featured::after { content: 'Popular'; position: absolute; top: -10px; right: 20px; background: var(--accent); color: var(--bg); font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .plan-name { font-size: 0.82rem; color: var(--text-muted); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 8px; }
+    .plan-price { font-family: 'Instrument Serif', serif; font-size: 2.4rem; letter-spacing: -0.02em; margin-bottom: 4px; }
+    .plan-price .period { font-family: 'DM Sans', sans-serif; font-size: 0.82rem; color: var(--text-muted); font-weight: 400; }
+    .plan-desc { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .plan ul { list-style: none; flex: 1; }
+    .plan li { font-size: 0.85rem; color: var(--text-muted); padding: 6px 0; padding-left: 20px; position: relative; }
+    .plan li::before { content: ''; position: absolute; left: 0; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: var(--green); transform: translateY(-50%); }
+    .plan .plan-cta { display: block; text-align: center; margin-top: 24px; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
+    .plan .plan-cta.primary { background: var(--accent); color: var(--bg); }
+    .plan .plan-cta.primary:hover { opacity: 0.85; }
+    .plan .plan-cta.secondary { border: 1px solid var(--border); color: var(--text); }
+    .plan .plan-cta.secondary:hover { border-color: var(--text-muted); }
+
+    /* CTA */
+    .bottom-cta { padding: 80px 24px; border-top: 1px solid var(--border); text-align: center; position: relative; overflow: hidden; }
+    .bottom-cta::before { content: ''; position: absolute; bottom: -30%; left: 50%; transform: translateX(-50%); width: 500px; height: 500px; background: radial-gradient(circle, rgba(37,211,102,0.05) 0%, transparent 70%); pointer-events: none; }
+    .bottom-cta h2 { font-family: 'Instrument Serif', serif; font-size: 2.4rem; font-weight: 400; letter-spacing: -0.02em; margin-bottom: 16px; }
+    .bottom-cta p { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 32px; max-width: 440px; margin-left: auto; margin-right: auto; line-height: 1.7; }
+    .bottom-cta .cta-btn { display: inline-flex; align-items: center; gap: 10px; background: var(--green); color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 0.95rem; font-weight: 500; transition: transform 0.2s, box-shadow 0.2s; }
+    .bottom-cta .cta-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(37,211,102,0.2); }
+    .bottom-cta .cta-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+    /* Footer */
+    footer { border-top: 1px solid var(--border); padding: 32px 40px; text-align: center; font-size: 0.72rem; color: #555; }
+    footer a { color: var(--text-muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+    footer .footer-links { margin-top: 10px; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .hero { padding: 60px 20px 50px; }
+      .hero h1 { font-size: 2.4rem; }
+      .steps { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr; }
+      .plans-grid { grid-template-columns: 1fr; }
+      .section-title { font-size: 1.8rem; }
+      .bottom-cta h2 { font-size: 1.8rem; }
+    }
+
+    /* Animations */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .hero .badge { animation: fadeUp 0.6s ease both; }
+    .hero h1 { animation: fadeUp 0.6s ease 0.1s both; }
+    .hero p { animation: fadeUp 0.6s ease 0.2s both; }
+    .hero .cta-btn { animation: fadeUp 0.6s ease 0.3s both; }
   </style>
 </head>
 <body>
-  <div class="hero">
+  <nav>
+    <a href="/" class="logo">Sticker<span>Bot</span></a>
+    <a href="https://wa.me/5511988709202" class="nav-cta">Comecar gratis</a>
+  </nav>
+
+  <section class="hero">
     <div class="badge">WhatsApp Business Platform</div>
-    <h1>StickerBot</h1>
-    <p>Transforme suas imagens e videos em figurinhas para WhatsApp em segundos. Envie uma foto e receba o sticker pronto.</p>
-  </div>
+    <h1>Suas fotos viram <em>figurinhas</em> em segundos</h1>
+    <p>Envie uma imagem, GIF ou video pelo WhatsApp e receba o sticker pronto. Sem instalar nada.</p>
+    <a href="https://wa.me/5511988709202" class="cta-btn">
+      <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      Abrir no WhatsApp
+    </a>
+  </section>
 
-  <div class="features">
-    <div class="feature">
-      <div class="icon">🎨</div>
-      <h3>Stickers Instantaneos</h3>
-      <p>Envie uma imagem, GIF ou video e receba sua figurinha pronta automaticamente. Sem apps extras.</p>
-    </div>
-    <div class="feature">
-      <div class="icon">🐦</div>
-      <h3>Videos do Twitter/X</h3>
-      <p>Envie um link de tweet e baixe o video direto no WhatsApp. Converta em figurinha animada se quiser.</p>
-    </div>
-    <div class="feature">
-      <div class="icon">✨</div>
-      <h3>Edicao com IA</h3>
-      <p>Remova fundos e bordas das suas figurinhas usando inteligencia artificial. Stickers profissionais.</p>
-    </div>
-  </div>
-
-  <div class="how-it-works">
-    <h2>Como Funciona</h2>
+  <section class="how">
+    <div class="section-label">Como funciona</div>
+    <h2 class="section-title">Tres passos. Zero complicacao.</h2>
     <div class="steps">
       <div class="step">
-        <div class="number">1</div>
-        <h4>Envie uma imagem</h4>
-        <p>Mande qualquer foto, GIF ou video pelo WhatsApp</p>
+        <div class="step-num">01</div>
+        <h3>Envie a midia</h3>
+        <p>Mande qualquer foto, GIF ou video na conversa do WhatsApp com o bot.</p>
       </div>
       <div class="step">
-        <div class="number">2</div>
-        <h4>Processamos</h4>
-        <p>O bot converte automaticamente em figurinha otimizada</p>
+        <div class="step-num">02</div>
+        <h3>Processamento automatico</h3>
+        <p>O bot converte, redimensiona e otimiza a midia para o formato de figurinha.</p>
       </div>
       <div class="step">
-        <div class="number">3</div>
-        <h4>Receba o sticker</h4>
-        <p>A figurinha volta pronta para usar nos seus grupos</p>
+        <div class="step-num">03</div>
+        <h3>Receba o sticker</h3>
+        <p>A figurinha volta pronta em segundos, direto no chat. Use nos seus grupos.</p>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="plans">
-    <h2>Planos</h2>
+  <section class="features">
+    <div class="section-label">Recursos</div>
+    <h2 class="section-title">Muito alem de figurinhas</h2>
+    <div class="features-grid">
+      <div class="feat">
+        <div class="feat-icon">&#9889;</div>
+        <h3>Stickers instantaneos</h3>
+        <p>Envie imagem, GIF ou video e receba a figurinha automaticamente. Estaticos e animados. Sem app extra.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">&#127909;</div>
+        <h3>Download de videos do Twitter/X</h3>
+        <p>Cole um link de tweet e baixe o video direto no WhatsApp. Converta em figurinha animada se quiser.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">&#10024;</div>
+        <h3>Edicao com inteligencia artificial</h3>
+        <p>Remova fundos e bordas automaticamente usando IA. Stickers com acabamento profissional.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="plans">
+    <div class="section-label">Planos</div>
+    <h2 class="section-title">Escolha o seu ritmo</h2>
     <div class="plans-grid">
       <div class="plan">
-        <h3>Gratuito</h3>
-        <div class="price">R$ 0</div>
+        <div class="plan-name">Gratuito</div>
+        <div class="plan-price">R$ 0</div>
+        <div class="plan-desc">Para experimentar sem compromisso</div>
         <ul>
           <li>4 figurinhas por dia</li>
           <li>4 videos Twitter por dia</li>
           <li>Stickers estaticos e animados</li>
         </ul>
+        <a href="https://wa.me/5511988709202" class="plan-cta secondary">Comecar gratis</a>
       </div>
-      <div class="plan">
-        <h3>Premium</h3>
-        <div class="price">R$ 5/mes</div>
+      <div class="plan featured">
+        <div class="plan-name">Premium</div>
+        <div class="plan-price">R$ 5 <span class="period">/ mes</span></div>
+        <div class="plan-desc">Para quem usa todo dia</div>
         <ul>
           <li>20 figurinhas por dia</li>
           <li>15 videos Twitter por dia</li>
           <li>Suporte prioritario</li>
         </ul>
+        <a href="https://wa.me/5511988709202?text=Quero%20o%20plano%20Premium" class="plan-cta primary">Assinar Premium</a>
       </div>
       <div class="plan">
-        <h3>Ultra</h3>
-        <div class="price">R$ 9,90/mes</div>
+        <div class="plan-name">Ultra</div>
+        <div class="plan-price">R$ 9,90 <span class="period">/ mes</span></div>
+        <div class="plan-desc">Sem limites. Sem espera.</div>
         <ul>
           <li>Figurinhas ilimitadas</li>
-          <li>Videos ilimitados</li>
+          <li>Downloads ilimitados</li>
           <li>Processamento prioritario</li>
+          <li>Suporte VIP</li>
         </ul>
+        <a href="https://wa.me/5511988709202?text=Quero%20o%20plano%20Ultra" class="plan-cta secondary">Assinar Ultra</a>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="cta">
-    <h2>Comece Agora</h2>
-    <p>Envie uma mensagem para nosso WhatsApp e crie sua primeira figurinha gratis.</p>
-    <a href="https://wa.me/5511988709202">Abrir no WhatsApp</a>
-  </div>
+  <section class="bottom-cta">
+    <h2>Pronto para criar?</h2>
+    <p>Envie uma mensagem e crie sua primeira figurinha agora mesmo. E gratis.</p>
+    <a href="https://wa.me/5511988709202" class="cta-btn">
+      <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      Abrir no WhatsApp
+    </a>
+  </section>
 
   <footer>
-    <p>65.508.556 PAULO HENRIQUE REIS ALVES | CNPJ 65.508.556/0001-39</p>
-    <p style="margin-top: 8px;">
-      <a href="/privacy">Politica de Privacidade</a> &middot;
-      <a href="/terms">Termos de Servico</a>
-    </p>
+    <div>65.508.556 PAULO HENRIQUE REIS ALVES &middot; CNPJ 65.508.556/0001-39</div>
+    <div class="footer-links">
+      <a href="/privacy">Privacidade</a> &middot; <a href="/terms">Termos de uso</a>
+    </div>
   </footer>
 </body>
 </html>`;

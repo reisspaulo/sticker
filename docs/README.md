@@ -2,8 +2,8 @@
 
 Bot de WhatsApp que transforma imagens em stickers automaticamente.
 
-> 🆕 **NOVO:** [Download de Vídeos do Twitter](TWITTER-VIDEO-DOWNLOAD.md) - Solução testada e funcionando!
-> 📝 **v2.0:** Sistema de respostas baseado em texto + gerenciamento de contexto
+> 📡 **API:** Meta Cloud API (WhatsApp Oficial) - ver [MIGRACAO-META-CLOUD-API.md](MIGRACAO-META-CLOUD-API.md)
+> 🆕 **Templates:** Sistema de templates para janela 24h - ver [META-TEMPLATES.md](META-TEMPLATES.md)
 
 ---
 
@@ -12,7 +12,7 @@ Bot de WhatsApp que transforma imagens em stickers automaticamente.
 - **Node.js** 20+
 - **Docker** e **Docker Compose**
 - **Supabase** (conta gratuita)
-- **Evolution API** (já configurada)
+- **Meta Cloud API** (conta Meta Business configurada) - ver [META-SETUP-CHECKLIST.md](META-SETUP-CHECKLIST.md)
 
 ---
 
@@ -44,10 +44,13 @@ LOG_LEVEL=info
 SUPABASE_URL=https://YOUR_SUPABASE_PROJECT_ID.supabase.co
 SUPABASE_SERVICE_KEY=seu-service-key-aqui
 
-# Evolution API (local)
-EVOLUTION_API_URL=http://localhost:8080
-EVOLUTION_API_KEY=YOUR_EVOLUTION_API_KEY
-EVOLUTION_INSTANCE=meu-zap
+# Meta Cloud API (WhatsApp Oficial)
+WHATSAPP_ACCESS_TOKEN=seu-token-aqui
+WHATSAPP_PHONE_NUMBER_ID=seu-phone-number-id
+WHATSAPP_BUSINESS_ACCOUNT_ID=seu-business-account-id
+WHATSAPP_WEBHOOK_TOKEN=seu-webhook-verify-token
+META_API_VERSION=v22.0
+USE_META=true
 ```
 
 ### 3. Rodar em Desenvolvimento
@@ -123,7 +126,7 @@ Resposta esperada:
   "timestamp": "2025-12-27T...",
   "services": {
     "supabase": "connected",
-    "evolution_api": "connected"
+    "meta_cloud_api": "connected"
   }
 }
 ```
@@ -173,24 +176,21 @@ WHERE id IN ('stickers-estaticos', 'stickers-animados');
 
 ---
 
-## 🔗 Conectar Evolution API
+## 🔗 Configurar Meta Cloud API
 
-### Local (dev)
-No dashboard da Evolution API (http://localhost:3001), configure o webhook:
+### Webhook (recepção de mensagens)
+Configurado no Meta Business Manager → WhatsApp → Configuration:
 
-1. Vá em **Instâncias** → **meu-zap**
-2. Clique em **Webhook**
-3. URL: `http://localhost:3000/webhook`
-4. Events: Selecione `MESSAGES_UPSERT`
-5. Salvar
+1. **Callback URL:** `https://your-domain.com/webhook/meta`
+2. **Verify Token:** mesmo valor de `WHATSAPP_WEBHOOK_TOKEN`
+3. **Subscription Fields:** `messages`
 
-### Produção ✅ Deployado
-Evolution API rodando em: https://your-evolution-api.com
+### Templates (envio fora da janela 24h)
+Templates pré-aprovados no Meta Business Manager.
+Ver guia completo: [META-TEMPLATES.md](META-TEMPLATES.md)
 
-Configure webhook via Evolution Manager (https://your-evolution-manager.com):
-1. Instâncias → **meu-zap**
-2. Webhook URL: `https://your-domain.com/webhook`
-3. Events: `MESSAGES_UPSERT`
+### Detalhes
+Ver guia completo: [META-SETUP-CHECKLIST.md](META-SETUP-CHECKLIST.md)
 
 ---
 
@@ -201,11 +201,11 @@ Configure webhook via Evolution Manager (https://your-evolution-manager.com):
 - Verifique se o `.env` existe
 - Verifique se as variáveis estão preenchidas
 
-### Erro: "Evolution API connection refused"
+### Erro: "Meta Cloud API token expired"
 
-- Certifique-se que Evolution API está rodando
-- Local: `docker ps | grep evolution`
-- Produção: `curl https://your-evolution-api.com`
+- Tokens temporários expiram em ~1h
+- Gere token permanente via System User no Meta Business Manager
+- Atualize via: `docker service update --env-add WHATSAPP_ACCESS_TOKEN=novo-token sticker_backend`
 
 ### Erro: "Health check failed"
 
@@ -251,7 +251,7 @@ sticker/
 - 🔑 Acesso ao Doppler (projeto `sticker`)
 - 🖥️ Acesso à VPS (YOUR_VPS_IP - Contabo srv1007351)
 - 📦 GitHub Container Registry configurado
-- ✅ **Evolution API deployada** (https://your-evolution-api.com)
+- ✅ **Meta Cloud API configurada** (ver [META-SETUP-CHECKLIST.md](META-SETUP-CHECKLIST.md))
 
 ### 1. Configurar DNS no Cloudflare ⚠️ PRIMEIRO PASSO
 
@@ -266,10 +266,6 @@ sticker/
    - **Proxy:** ☁️ Proxied (ON)
    - **TTL:** Auto
 4. SSL/TLS → **Full (strict)**
-
-**DNS já configurados:**
-- ✅ your-evolution-api.com → Evolution API
-- ✅ your-evolution-manager.com → Evolution Manager
 
 Ver guia completo: `deploy/CLOUDFLARE-DNS-SETUP.md`
 
@@ -336,18 +332,19 @@ vps-ssh "docker service ls | grep sticker"
 curl https://your-evolution-api.com
 ```
 
-### 5. Configurar Webhook na Evolution API ✅
+### 5. Configurar Webhook Meta Cloud API
 
-Acessar Evolution Manager: https://your-evolution-manager.com
+No Meta Business Manager → WhatsApp → Configuration:
 
-1. Instâncias → **meu-zap** (b2b76790-7a59-4eae-81dc-7dfabd0784b8)
-2. Webhook → **URL:** `https://your-domain.com/webhook`
-3. Events → Selecione `MESSAGES_UPSERT`
-4. Salvar
+1. **Callback URL:** `https://your-domain.com/webhook/meta`
+2. **Verify Token:** valor de `WHATSAPP_WEBHOOK_TOKEN`
+3. **Subscription Fields:** `messages`
 
 ### 📚 Guias Detalhados
 
-- **DNS Cloudflare:** `deploy/CLOUDFLARE-DNS-SETUP.md` ⚠️ **Ler primeiro!**
+- **Meta Cloud API:** [MIGRACAO-META-CLOUD-API.md](MIGRACAO-META-CLOUD-API.md)
+- **Meta Setup:** [META-SETUP-CHECKLIST.md](META-SETUP-CHECKLIST.md)
+- **DNS Cloudflare:** `deploy/CLOUDFLARE-DNS-SETUP.md`
 - **Doppler Setup:** `deploy/DOPPLER-SETUP.md`
 - **Deployment Guide:** `deploy/DEPLOYMENT-GUIDE.md`
 
@@ -355,21 +352,23 @@ Acessar Evolution Manager: https://your-evolution-manager.com
 
 ## 🚀 Status do Projeto
 
-**Sprints Concluídos:**
+**Concluído:**
 - [x] Sprint 1: Setup inicial
 - [x] Sprint 2-7: Desenvolvimento local completo
-- [x] Sprint 8 (Parte 1): Evolution API deployada ✅
+- [x] Sprint 8: Deploy VPS (Docker Swarm + Traefik)
+- [x] Sprint 9+: Twitter, pagamentos, admin panel
+- [x] Migração código Meta Cloud API
 
-**Próximos Passos:**
-- [ ] Sprint 8 (Parte 2): Deploy Sticker Bot
-- [ ] Configurar webhook Evolution → Sticker Bot
-- [ ] Testes end-to-end em produção
+**Em andamento:**
+- [ ] Registrar número real (+55) no Meta Business Manager
+- [ ] Criar templates no Meta Business Manager
+- [ ] Gerar token permanente (System User)
+- [ ] Remover providers legados (Evolution, Avisa, Z-API)
 
 **URLs em Produção:**
-- ✅ Evolution API: https://your-evolution-api.com
-- ✅ Evolution Manager: https://your-evolution-manager.com
-- ⏳ Sticker Bot: https://your-domain.com (pendente)
+- ✅ Sticker Bot: https://your-domain.com
+- ✅ Admin Panel: https://admin-your-domain.com
 
 ---
 
-**Última atualização:** 2025-12-27
+**Última atualização:** 2026-03-12

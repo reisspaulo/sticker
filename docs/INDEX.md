@@ -80,15 +80,31 @@ Documentação das funcionalidades do bot.
 
 ---
 
-### 🔌 Integrações (`integrations/`)
+### 📡 Meta Cloud API (WhatsApp Oficial)
 
-APIs e serviços externos.
+Documentação da API oficial da Meta, usada em produção.
 
 | Documento | Descrição |
 |-----------|-----------|
-| [AVISA_API_DOCS.md](integrations/AVISA_API_DOCS.md) | API de WhatsApp (Avisa) |
+| [**MIGRACAO-META-CLOUD-API.md**](MIGRACAO-META-CLOUD-API.md) | Guia completo de migração para Meta Cloud API |
+| [**META-SETUP-CHECKLIST.md**](META-SETUP-CHECKLIST.md) | Checklist rápido de onboarding Meta |
+| [**META-TEMPLATES.md**](META-TEMPLATES.md) | Templates de mensagem (janela 24h) |
+| [**README-MIGRACAO.md**](README-MIGRACAO.md) | Status atual da migração |
+| [ENDPOINT-MAPPING.md](ENDPOINT-MAPPING.md) | Mapeamento de endpoints legado → Meta |
+| [REAPROVEITAMENTO-BANCO-E-MENSAGENS.md](REAPROVEITAMENTO-BANCO-E-MENSAGENS.md) | Reuso de banco e mensagens na migração |
+
+---
+
+### 🔌 Integrações (`integrations/`)
+
+APIs e serviços externos (legado - ver Meta Cloud API acima para provider atual).
+
+| Documento | Descrição |
+|-----------|-----------|
+| [AVISA_API_DOCS.md](integrations/AVISA_API_DOCS.md) | ⚠️ Legado - API de WhatsApp (Avisa) |
 | [ABACATEPAY-IMPLEMENTATION.md](integrations/ABACATEPAY-IMPLEMENTATION.md) | Integração de pagamentos |
-| [ENDPOINTS.md](integrations/ENDPOINTS.md) | Endpoints do bot |
+| [ENDPOINTS.md](integrations/ENDPOINTS.md) | ⚠️ Legado - Endpoints Evolution API |
+| [Z-API_MIGRATION.md](integrations/Z-API_MIGRATION.md) | ⚠️ Legado - Migração Z-API |
 
 ---
 
@@ -108,6 +124,7 @@ Histórico de desenvolvimento.
 
 | Documento | Descrição |
 |-----------|-----------|
+| [**SPRINT-22-META-CLOUD-API-MIGRATION.md**](sprints/SPRINT-22-META-CLOUD-API-MIGRATION.md) | **Sprint 22 - Migração Meta Cloud API** (ATUAL) |
 | [SPRINT-1-SUMMARY.md](sprints/SPRINT-1-SUMMARY.md) | Sprint 1 - Infraestrutura |
 | [SPRINT-2-SUMMARY.md](sprints/SPRINT-2-SUMMARY.md) | Sprint 2 - Webhook |
 | [SPRINTS-4-7-SUMMARY.md](sprints/SPRINTS-4-7-SUMMARY.md) | Sprints 4-7 - Features core |
@@ -159,7 +176,7 @@ Documentos antigos ou obsoletos.
 | **Admin Panel** | https://admin-your-domain.com/ |
 | Health Check | https://your-domain.com/health |
 | Webhook | https://your-domain.com/webhook |
-| Evolution API | https://your-evolution-api.com |
+| ~~Evolution API~~ | ⚠️ Legado - desativado |
 
 ### Comandos VPS
 
@@ -180,6 +197,7 @@ vps-ssh "docker service ls | grep sticker"
 
 | Componente | Status |
 |------------|--------|
+| **Meta Cloud API** | 🔄 Código pronto, registro de número pendente |
 | **Admin Panel** | ✅ Desenvolvimento (queries funcionando) |
 | Backend (Fastify) | ✅ Produção |
 | Worker (BullMQ) | ✅ Produção |
@@ -189,11 +207,20 @@ vps-ssh "docker service ls | grep sticker"
 | Sistema de créditos | ✅ Funcionando |
 | CI/CD (GitHub Actions) | ✅ Automatizado |
 | Monitoramento | ✅ Ativo |
+| Templates Meta (janela 24h) | ✅ Implementado |
+| Evolution/Avisa/Z-API | ⚠️ Legado - sendo removidos |
 
 ---
 
-## 🆕 Novos Documentos (2026-01-11)
+## 🆕 Atualizações Recentes
 
+### 2026-03-12 - Migração Meta Cloud API
+- [MIGRACAO-META-CLOUD-API.md](MIGRACAO-META-CLOUD-API.md) - Guia completo de migração
+- [META-SETUP-CHECKLIST.md](META-SETUP-CHECKLIST.md) - Checklist de onboarding
+- [META-TEMPLATES.md](META-TEMPLATES.md) - Templates para janela 24h
+- [README-MIGRACAO.md](README-MIGRACAO.md) - Status da migração
+
+### 2026-01-11 - Admin Panel & Infra
 - [CHANGELOG.md](../CHANGELOG.md) - Registro de todas as mudanças
 - [ADMIN_PANEL_DEPLOYMENT.md](ADMIN_PANEL_DEPLOYMENT.md) - Checklist de deploy do admin panel
 - [FEATURE_TEMPLATE.md](FEATURE_TEMPLATE.md) - Template para documentar novas features
@@ -201,4 +228,4 @@ vps-ssh "docker service ls | grep sticker"
 
 ---
 
-**Última atualização:** 11/01/2026
+**Última atualização:** 12/03/2026

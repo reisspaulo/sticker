@@ -166,6 +166,12 @@ export async function sendPendingStickersJob(): Promise<{
 
             await sendTemplate(sticker.user_number, TEMPLATES.STICKER_READY, 'pt_BR', [
               { type: 'body', parameters: [{ type: 'text', text: '1' }] },
+              {
+                type: 'button',
+                sub_type: 'quick_reply',
+                index: 0,
+                parameters: [{ type: 'text', text: 'receive_pending_stickers' }],
+              },
             ]);
 
             // Keep status as pending - sticker will be sent when user replies
@@ -345,4 +351,111 @@ export async function sendPendingStickersJob(): Promise<{
 
     throw error;
   }
+}
+
+/**
+ * Send all pending stickers for a specific user.
+ * Called when user taps "Receber figurinhas" button from a template message,
+ * which opens the 24h conversation window.
+ */
+export async function sendPendingStickersForUser(userNumber: string): Promise<{
+  sent: number;
+  failed: number;
+  errors: Array<{ stickerId: string; error: string }>;
+}> {
+  let sent = 0;
+  let failed = 0;
+  const errors: Array<{ stickerId: string; error: string }> = [];
+
+  const { data: pendingStickers, error: queryError } = await supabase
+    .from('stickers')
+    .select('id, user_number, processed_url, tipo, created_at')
+    .eq('user_number', userNumber)
+    .eq('status', 'pendente')
+    .order('created_at', { ascending: true });
+
+  if (queryError) {
+    logger.error({
+      msg: '[SEND-PENDING-USER] Error querying pending stickers',
+      userNumber,
+      error: queryError,
+    });
+    throw queryError;
+  }
+
+  if (!pendingStickers || pendingStickers.length === 0) {
+    logger.info({
+      msg: '[SEND-PENDING-USER] No pending stickers for user',
+      userNumber,
+    });
+    return { sent: 0, failed: 0, errors: [] };
+  }
+
+  logger.info({
+    msg: '[SEND-PENDING-USER] Sending pending stickers for user',
+    userNumber,
+    count: pendingStickers.length,
+  });
+
+  for (const sticker of pendingStickers) {
+    try {
+      // Claim the sticker atomically
+      const { data: claimed, error: claimError } = await supabase
+        .from('stickers')
+        .update({ status: 'sending' })
+        .eq('id', sticker.id)
+        .eq('status', 'pendente')
+        .select()
+        .single();
+
+      if (claimError || !claimed) {
+        continue; // Already claimed by another process
+      }
+
+      await sendSticker(sticker.user_number, sticker.processed_url);
+
+      await supabase
+        .from('stickers')
+        .update({ status: 'enviado', sent_at: new Date().toISOString() })
+        .eq('id', sticker.id);
+
+      sent++;
+
+      logger.info({
+        msg: '[SEND-PENDING-USER] Sticker sent',
+        stickerId: sticker.id,
+        userNumber,
+      });
+
+      // Small delay to avoid rate limiting
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      failed++;
+      errors.push({ stickerId: sticker.id, error: errorMessage });
+
+      // Revert status back to pendente
+      await supabase
+        .from('stickers')
+        .update({ status: 'pendente' })
+        .eq('id', sticker.id)
+        .eq('status', 'sending');
+
+      logger.error({
+        msg: '[SEND-PENDING-USER] Failed to send sticker',
+        stickerId: sticker.id,
+        userNumber,
+        error: errorMessage,
+      });
+    }
+  }
+
+  logger.info({
+    msg: '[SEND-PENDING-USER] Completed',
+    userNumber,
+    sent,
+    failed,
+  });
+
+  return { sent, failed, errors };
 }

@@ -89,6 +89,10 @@ flowchart TD
     BTN -->|use_bonus| BONUS[🎁 +2 créditos]
     BONUS --> END_OK
 
+    %% Fluxo de Botões - Stickers Pendentes (Meta 24h window)
+    BTN -->|receive_pending_stickers<br/>receive_sticker| PENDING_SEND[📤 sendPendingStickersForUser]
+    PENDING_SEND --> END_OK
+
     %% Fluxo de Botões - Campanha Twitter Discovery V2
     BTN -->|btn_campaign_twitter_learn| CAMP_LEARN[📱 Tutorial Twitter]
     BTN -->|btn_campaign_twitter_dismiss| CAMP_DISMISS[❌ Cancela campanha]
@@ -661,9 +665,11 @@ if (shouldShowTwitter) {
 
 ---
 
-## 11. Fluxo Pending Stickers - Envio às 8h
+## 11. Fluxo Pending Stickers - Envio às 8h + On-Demand (Meta 24h)
 
 **Status**: ✅ ATIVO
+
+### 11a. Envio agendado (Cron 8h)
 
 ```mermaid
 sequenceDiagram
@@ -698,6 +704,47 @@ sequenceDiagram
     end
 
     WK-->>CRON: Resultado: {sent: X, failed: Y}
+```
+
+### 11b. Envio on-demand via botão (Meta 24h window)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as 👤 Usuário
+    participant META as 📱 Meta Cloud API
+    participant WH as 🔗 Webhook
+    participant FN as ⚙️ sendPendingStickersForUser
+    participant DB as 🗄️ Supabase
+
+    Note over U,DB: Fora da janela 24h - usuário recebe template com botão
+
+    META->>U: Template: "Suas figurinhas estão prontas!"<br/>[Receber figurinhas 🎉]
+    U->>META: Toca no botão (receive_pending_stickers)
+    META->>WH: Webhook: button payload
+
+    Note over WH: Botão abre janela de 24h
+
+    WH->>FN: sendPendingStickersForUser(userNumber)
+    FN->>DB: SELECT * FROM stickers<br/>WHERE user_number = X AND status = 'pendente'
+    DB-->>FN: Stickers do usuário
+
+    loop Para cada sticker (atomic lock)
+        FN->>DB: UPDATE status = 'sending' (lock atômico)
+        FN->>META: sendSticker(url, userNumber)
+
+        alt Sucesso
+            META-->>FN: ✅
+            FN->>DB: UPDATE status = 'enviado'
+        else Falha
+            META-->>FN: ❌
+            FN->>DB: REVERT status = 'pendente'
+        end
+
+        Note over FN: ⏳ Delay 200ms
+    end
+
+    FN-->>WH: {sent: X, failed: Y, errors: [...]}
 ```
 
 **Tabela: pending_sticker_sends**

@@ -244,6 +244,34 @@ export async function processWebhookRequest(
         },
       });
 
+      // Handle "Receive pending stickers" button from Meta template
+      if (interactive.id === 'receive_pending_stickers' || interactive.id === 'receive_sticker') {
+        try {
+          // User clicked template button - 24h window is now open
+          // Trigger pending sticker delivery for this user
+          const { sendPendingStickersForUser } = await import('../jobs/sendPendingStickers');
+          const result = await sendPendingStickersForUser(userNumber);
+
+          fastify.log.info({
+            msg: 'Pending stickers delivered via template button',
+            userNumber,
+            result,
+          });
+
+          return reply.status(200).send({
+            status: 'pending_stickers_sent',
+            ...result,
+          });
+        } catch (error) {
+          fastify.log.error({
+            msg: 'Error sending pending stickers via template button',
+            userNumber,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+          return reply.status(200).send({ status: 'pending_stickers_error' });
+        }
+      }
+
       // Handle PIX payment confirmation button - INSTANT ACTIVATION
       if (interactive.id === 'button_confirm_pix') {
         try {

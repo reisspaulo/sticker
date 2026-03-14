@@ -14,41 +14,48 @@
 
 ## 🔄 Visão Geral das APIs
 
-### **Evolution API** (Recepção + Envio)
-- **Função**: Receber webhooks e enviar mensagens básicas
-- **Endpoint**: `https://your-domain.com/webhook`
-- **Responsável por**:
-  - Conectar com WhatsApp via Baileys
-  - Receber mensagens dos usuários
-  - Enviar webhooks para nosso backend
-  - Enviar mensagens de TEXTO simples
-  - Enviar mídia (stickers, imagens, vídeos)
-  - **🌍 Fallback para números internacionais** (quando Avisa API não suporta)
+### **Meta Cloud API** (Produção - API Oficial) ✅ ATUAL
 
-### **Avisa API** (Envio Interativo)
-- **Função**: Enviar mensagens interativas
-- **Endpoint**: `https://www.avisaapi.com.br/api`
-- **⚠️ LIMITAÇÃO**: Suporta apenas números brasileiros (+55)
+- **Função**: Receber e enviar mensagens via API oficial do WhatsApp
+- **Endpoint recepção**: Webhook registrado no Meta Business Manager
+- **Endpoint envio**: `https://graph.facebook.com/v22.0/{PHONE_NUMBER_ID}/messages`
 - **Responsável por**:
-  - Enviar LISTAS interativas (selection lists)
-  - Enviar BOTÕES interativos
-  - Enviar BOTÕES PIX (copia e cola nativo)
-  - Recursos avançados de WhatsApp Business
-- **Fallback automático**: Números internacionais são convertidos para texto via Evolution API
+  - Receber mensagens via webhook oficial
+  - Enviar texto, mídia (stickers, imagens, vídeos)
+  - Enviar botões interativos e listas
+  - Enviar templates pré-aprovados (fora da janela 24h)
+- **Janela de 24h**: Mensagens gratuitas dentro de 24h da última mensagem do usuário. Fora disso, requer template pago.
+- **Arquivos**:
+  - `src/services/metaCloudApi.ts` - Implementação da API
+  - `src/routes/webhookMeta.ts` - Webhook de recepção
+  - `src/services/conversationWindow.ts` - Controle da janela 24h
+  - `src/services/templateService.ts` - Templates inteligentes
+- **Docs**: [MIGRACAO-META-CLOUD-API.md](../MIGRACAO-META-CLOUD-API.md), [META-TEMPLATES.md](../META-TEMPLATES.md)
+
+### ~~Evolution API~~ / ~~Avisa API~~ / ~~Z-API~~ (Legado) ⚠️
+
+> **DESCONTINUADOS** - Providers terceiros foram substituídos pela Meta Cloud API oficial.
+> Código ainda presente no repositório (guarded por feature flags) mas não utilizado em produção.
+>
+> - Evolution API: `src/services/evolutionApi.ts` (Baileys - WhatsApp não oficial)
+> - Avisa API: `src/services/avisaApi.ts` (mensagens interativas, apenas BR)
+> - Z-API: `src/services/zapiApi.ts` (outro provider terceiro)
+>
+> Feature flag: `USE_META=true` direciona todo tráfego para Meta Cloud API.
 
 ### **Backend StickerBot**
 - **Função**: Processar lógica de negócio
 - **Endpoint**: `https://your-domain.com`
 - **Responsável por**:
-  - Receber webhooks da Evolution API
+  - Receber webhooks da Meta Cloud API (rota `/webhook/meta`)
   - Processar comandos e mensagens
-  - **Detectar número brasileiro vs internacional**
-  - Decidir qual API usar para resposta
+  - Gerenciar janela de conversa 24h
+  - Decidir entre mensagem normal ou template
   - Gerenciar assinaturas e limites
 
 ---
 
-## 📊 Fluxo Principal
+## 📊 Fluxo Principal (Meta Cloud API)
 
 ```
 ┌─────────────┐
@@ -58,90 +65,70 @@
        │
        │ 1. Envia mensagem
        ↓
-┌──────────────────┐
-│  Evolution API   │ ← Conectado ao WhatsApp via Baileys
-│   (VPS Porto)    │
-└────────┬─────────┘
+┌──────────────────────┐
+│  Meta Cloud API      │ ← API Oficial WhatsApp
+│  (graph.facebook.com)│
+└────────┬─────────────┘
          │
          │ 2. Webhook POST
-         │    https://your-domain.com/webhook
+         │    /webhook/meta
          ↓
 ┌─────────────────────────────┐
 │   Backend StickerBot        │
 │   (Docker Swarm - VPS)      │
 │                             │
 │  1. Valida webhook          │
-│  2. Identifica tipo         │
-│  3. Processa comando        │
-│  4. Decide resposta         │
-└──────┬──────────────┬───────┘
-       │              │
-       │              │
-       ↓              ↓
-┌──────────────┐  ┌────────────────┐
-│ Evolution    │  │  Avisa API     │
-│   sendText   │  │  sendList      │
-│              │  │  sendButtons   │
-└──────┬───────┘  └────────┬───────┘
-       │                   │
-       │                   │
-       └─────────┬─────────┘
-                 │
-                 ↓
-         ┌──────────────┐
-         │   WhatsApp   │
-         │   (Usuário)  │
-         └──────────────┘
+│  2. Atualiza janela 24h     │
+│  3. Identifica tipo         │
+│  4. Processa comando        │
+│  5. Decide resposta         │
+└──────────────┬──────────────┘
+               │
+        ┌──────┴──────┐
+        │             │
+        ↓             ↓
+ ┌────────────┐  ┌─────────────────┐
+ │ Dentro 24h │  │ Fora 24h        │
+ │ (gratuito) │  │ (template pago) │
+ │            │  │                 │
+ │ sendText   │  │ sendTemplate    │
+ │ sendSticker│  │ (com botões)    │
+ │ sendButtons│  │                 │
+ └─────┬──────┘  └───────┬─────────┘
+       │                 │
+       └────────┬────────┘
+                │
+                ↓
+┌──────────────────────┐
+│  Meta Cloud API      │
+│  POST /messages      │
+└────────┬─────────────┘
+         │
+         ↓
+  ┌──────────────┐
+  │   WhatsApp   │
+  │   (Usuário)  │
+  └──────────────┘
 ```
 
 ---
 
-## 🌍 Detecção de Números Internacionais
+## 🌍 Números Internacionais
 
-### **Problema**
-A Avisa API suporta apenas números brasileiros (+55). Números internacionais (ex: Angola +244, EUA +1) recebem erro "Could not validate the provided number".
+### **Com Meta Cloud API**
 
-### **Solução: Fallback Automático**
+A Meta Cloud API suporta envio para qualquer número internacional sem restrições de DDI.
+Não há mais necessidade de fallback entre providers - todas as mensagens (texto, mídia, botões, listas) são enviadas pela mesma API.
 
-```
-Enviar mensagem interativa
-           ↓
-    ┌──────────────────┐
-    │ isBrazilianNumber│
-    │   (número)       │
-    └────────┬─────────┘
-             │
-    ┌────────┴────────┐
-    │                 │
-    ↓                 ↓
-┌────────┐      ┌────────────┐
-│ +55?   │      │ Outro DDI? │
-│ SIM    │      │ NÃO        │
-└───┬────┘      └─────┬──────┘
-    │                 │
-    ↓                 ↓
-┌────────────┐  ┌──────────────────┐
-│ Avisa API  │  │ Evolution API    │
-│ (interativo)│  │ (texto fallback) │
-└────────────┘  └──────────────────┘
-```
+> **Nota:** O fallback automático BR/Internacional era necessário quando usávamos Avisa API (que só suportava +55).
+> Com a migração para Meta Cloud API, essa complexidade foi eliminada.
 
-### **Funções Afetadas**
-
-**Arquivo:** `src/services/avisaApi.ts`
-
-| Função | BR (+55) | Internacional |
-|--------|----------|---------------|
-| `sendButtons()` | Botões nativos WhatsApp | Texto numerado: `1. Opção A\n2. Opção B` |
-| `sendList()` | Lista interativa dropdown | Texto com itens: `📋 *Título:*\n1. *Item* - desc` |
-| `sendPixButton()` | Botão PIX copia e cola | Código PIX em bloco de código |
-
-### **Exemplo: sendButtons() para Angola**
+### **Exemplo: sendButtons() (Meta Cloud API)**
 
 **Input:**
 ```typescript
 await sendButtons({
-  number: '244974983551', // Angola
+  number: '244974983551', // Angola - funciona normalmente
   title: '⚠️ Limite Atingido!',
   buttons: [
     { id: 'btn_premium', text: '💰 Premium' },

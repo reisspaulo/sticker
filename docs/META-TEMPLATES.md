@@ -16,9 +16,12 @@ Categoria: UTILITY
 Idioma: pt_BR
 
 Corpo:
-Suas figurinhas estão prontas! 🎉 Enviamos {{1}} figurinha(s) que estavam pendentes. Mande uma imagem para criar mais!
+Suas figurinhas estão prontas! 🎉 Você tem {{1}} figurinha(s) pendente(s). Toque no botão abaixo para recebê-las!
 
 Rodapé: StickerBot
+
+Botões (quick_reply):
+  [0] "Receber figurinhas" → payload: "receive_pending_stickers"
 
 Parâmetros: {{1}} = número de figurinhas
 ```
@@ -100,9 +103,12 @@ Categoria: UTILITY
 Idioma: pt_BR
 
 Corpo:
-Sua figurinha está pronta! 🎨 Responda qualquer mensagem para recebê-la.
+Sua figurinha está pronta! 🎨 Toque no botão abaixo para recebê-la.
 
 Rodapé: StickerBot
+
+Botões (quick_reply):
+  [0] "Receber figurinha" → payload: "receive_sticker"
 
 Parâmetros: nenhum
 ```

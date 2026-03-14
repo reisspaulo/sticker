@@ -162,9 +162,9 @@ export function getTemplateCatalog() {
       category: 'UTILITY',
       language: 'pt_BR',
       header: null,
-      body: 'Suas figurinhas estão prontas! 🎉 Enviamos {{1}} figurinha(s) que estavam pendentes. Mande uma imagem para criar mais!',
+      body: 'Suas figurinhas estão prontas! 🎉 Você tem {{1}} figurinha(s) pendente(s). Toque no botão abaixo para recebê-las!',
       footer: 'StickerBot',
-      buttons: null,
+      buttons: [{ type: 'quick_reply', text: 'Receber figurinhas' }],
       params: ['{{1}} = número de figurinhas'],
     },
     {
@@ -222,9 +222,9 @@ export function getTemplateCatalog() {
       category: 'UTILITY',
       language: 'pt_BR',
       header: null,
-      body: 'Sua figurinha está pronta! 🎨 Responda qualquer mensagem para recebê-la.',
+      body: 'Sua figurinha está pronta! 🎨 Toque no botão abaixo para recebê-la.',
       footer: 'StickerBot',
-      buttons: null,
+      buttons: [{ type: 'quick_reply', text: 'Receber figurinha' }],
       params: [],
     },
   ];

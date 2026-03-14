@@ -67,9 +67,18 @@ cron.schedule('0 8 * * *', async () => {
 
 **O que faz:**
 1. Busca TODOS os stickers com `status='pendente'`
-2. Envia cada um (ordem FIFO - mais antigo primeiro)
-3. Atualiza status para `status='enviado'`
-4. Salva log completo em `pending_sticker_sends`
+2. **Verifica janela 24h** (Meta Cloud API):
+   - Se dentro da janela → envia sticker diretamente
+   - Se fora da janela → envia template com botão "Receber figurinhas"
+3. Envia cada um (ordem FIFO - mais antigo primeiro)
+4. Atualiza status para `status='enviado'`
+5. Salva log completo em `pending_sticker_sends`
+
+**Fluxo com botão (fora da janela 24h):**
+1. Job envia template `sticker_pronto` com botão quick_reply
+2. Usuário toca "Receber figurinhas" → abre janela 24h
+3. Webhook chama `sendPendingStickersForUser(userNumber)`
+4. Stickers enviados dentro da janela agora aberta
 
 ---
 
@@ -391,7 +400,7 @@ CREATE POLICY "Users can view their own pending_sticker_sends"
 
 **Criado:** 2026-01-07
 **Versão:** 1.0
-**Última atualização:** 2026-01-07
+**Última atualização:** 2026-03-12
 
 **Commits:**
 - `903aef8` - Implementação inicial com logging completo
@@ -402,6 +411,9 @@ CREATE POLICY "Users can view their own pending_sticker_sends"
 
 ## 🎯 Próximos Passos (Opcional)
 
+- [x] ~~Suporte à janela 24h da Meta Cloud API~~ ✅ Implementado
+- [x] ~~Template com botão para entrega fora da janela~~ ✅ Implementado
+- [x] ~~Função `sendPendingStickersForUser` para entrega via botão~~ ✅ Implementado
 - [ ] Dashboard visual para `pending_sticker_sends`
 - [ ] Endpoint API `/health/pending-stickers` para monitoramento
 - [ ] Retry automático para stickers que falharam

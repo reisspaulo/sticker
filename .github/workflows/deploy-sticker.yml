@@ -74,8 +74,7 @@ jobs:
           build-args: |
             GIT_COMMIT_SHA=${{ github.sha }}
             DEPLOYED_AT=${{ github.event.head_commit.timestamp }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          no-cache: true
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Login to GHCR on VPS
@@ -125,42 +124,53 @@ jobs:
             docker service ps sticker_worker --filter "desired-state=running" --format "{{.CurrentState}}"
 
       - name: Health check and version verification
-        run: |
-          echo "🏥 Running health check..."
-          sleep 10
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            echo "🏥 Running health check via localhost..."
+            sleep 10
 
-          # Get health response
-          HEALTH_RESPONSE=$(curl -s https://your-domain.com/health)
-          echo "Health response: $HEALTH_RESPONSE"
-
-          # Check if healthy
-          STATUS=$(echo $HEALTH_RESPONSE | jq -r '.status')
-          if [ "$STATUS" != "healthy" ] && [ "$STATUS" != "degraded" ]; then
-            echo "❌ Health check failed! Status: $STATUS"
-            exit 1
-          fi
-
-          # Verify deployed commit SHA matches
-          DEPLOYED_SHA=$(echo $HEALTH_RESPONSE | jq -r '.git_sha')
-          EXPECTED_SHA="${{ github.sha }}"
-
-          echo "📦 Expected SHA: $EXPECTED_SHA"
-          echo "🚀 Deployed SHA: $DEPLOYED_SHA"
-
-          if [ "$DEPLOYED_SHA" != "$EXPECTED_SHA" ]; then
-            echo "⚠️ WARNING: Deployed version ($DEPLOYED_SHA) does not match expected ($EXPECTED_SHA)"
-            echo "This may indicate the deploy did not complete correctly."
-            # Don't fail yet - give rolling update more time
-            sleep 30
-            HEALTH_RESPONSE=$(curl -s https://your-domain.com/health)
-            DEPLOYED_SHA=$(echo $HEALTH_RESPONSE | jq -r '.git_sha')
-            if [ "$DEPLOYED_SHA" != "$EXPECTED_SHA" ]; then
-              echo "❌ CRITICAL: Version mismatch persists after retry!"
+            # Get container ID for backend
+            CONTAINER_ID=$(docker ps --filter name=sticker_backend -q | head -1)
+            if [ -z "$CONTAINER_ID" ]; then
+              echo "❌ Backend container not found!"
               exit 1
             fi
-          fi
 
-          echo "✅ Health check passed! Correct version deployed."
+            # Health check via container exec (bypasses external firewall/proxy)
+            HEALTH_RESPONSE=$(docker exec $CONTAINER_ID node -e "fetch('http://localhost:3000/health').then(r=>r.text()).then(d=>console.log(d))")
+            echo "Health response: $HEALTH_RESPONSE"
+
+            # Check if healthy
+            STATUS=$(echo $HEALTH_RESPONSE | jq -r '.status')
+            if [ "$STATUS" != "healthy" ] && [ "$STATUS" != "degraded" ]; then
+              echo "❌ Health check failed! Status: $STATUS"
+              exit 1
+            fi
+
+            # Verify deployed commit SHA matches
+            DEPLOYED_SHA=$(echo $HEALTH_RESPONSE | jq -r '.git_sha')
+            EXPECTED_SHA="${{ github.sha }}"
+
+            echo "📦 Expected SHA: $EXPECTED_SHA"
+            echo "🚀 Deployed SHA: $DEPLOYED_SHA"
+
+            if [ "$DEPLOYED_SHA" != "$EXPECTED_SHA" ]; then
+              echo "⚠️ WARNING: Deployed version ($DEPLOYED_SHA) does not match expected ($EXPECTED_SHA)"
+              echo "This may indicate the deploy did not complete correctly."
+              sleep 30
+              HEALTH_RESPONSE=$(docker exec $CONTAINER_ID node -e "fetch('http://localhost:3000/health').then(r=>r.text()).then(d=>console.log(d))")
+              DEPLOYED_SHA=$(echo $HEALTH_RESPONSE | jq -r '.git_sha')
+              if [ "$DEPLOYED_SHA" != "$EXPECTED_SHA" ]; then
+                echo "❌ CRITICAL: Version mismatch persists after retry!"
+                exit 1
+              fi
+            fi
+
+            echo "✅ Health check passed! Correct version deployed."
 
       - name: Rollback on failure
         if: failure()

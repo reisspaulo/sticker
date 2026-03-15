@@ -1,6 +1,6 @@
 # 🚀 CI/CD Workflow - Guia de Deploy Automatizado
 
-**Última atualização:** 2026-01-12
+**Última atualização:** 2026-03-14
 **Status:** ✅ Implementado e testado com sucesso
 
 > **📚 Documentos relacionados:**
@@ -102,8 +102,10 @@ Build and push Docker image:
   - Tags criadas:
     - ghcr.io/your-username/stickerbot:latest
     - ghcr.io/your-username/stickerbot:<git-sha>
-  - Cache: GitHub Actions cache
+  - Cache: DESABILITADO (no-cache: true)
 ```
+
+> **Por que sem cache?** Em marco/2026, o cache do GitHub Actions (`cache-from: type=gha`) serviu camadas stale com codigo-fonte antigo, mesmo com novo commit SHA nos build args. A imagem resultante tinha codigo desatualizado apesar do deploy "suceder". O `no-cache: true` garante que cada build usa o codigo correto. Trade-off: builds levam ~1 min a mais.
 
 ### 2.1. Login no GHCR na VPS
 
@@ -201,9 +203,23 @@ docker service update \
 
 ### 6. Health Check Final
 
+O health check roda **via SSH + `docker exec` + `node`** dentro do container backend:
+
 ```bash
-curl --fail https://your-domain.com/health || exit 1
+# Executado no CI via appleboy/ssh-action na VPS:
+CONTAINER_ID=$(docker ps --filter name=sticker_backend -q | head -1)
+docker exec $CONTAINER_ID node -e "
+  fetch('http://localhost:3000/health')
+    .then(r => r.json())
+    .then(d => {
+      // Verifica status healthy/degraded
+      // Verifica que git_sha bate com o commit esperado
+      // Se SHA nao bater, retry apos 30s
+    })
+"
 ```
+
+> **Por que nao `curl`?** O servidor tem protecao anti-bot (fingerprinting JS) que retorna HTML em vez de JSON para clientes nao-browser. Rodar dentro do container via `docker exec` bypassa Traefik e a protecao anti-bot completamente. Alem disso, a VPS nao tem `jq` instalado, entao usamos `node` (disponivel dentro do container) para parsear JSON.
 
 Se falhar, o workflow **para com erro** e aciona rollback.
 
@@ -291,11 +307,10 @@ done
 ### Monitorar Health Check Durante Deploy
 
 ```bash
-# Terminal 1: Health check contínuo
+# Terminal 1: Health check contínuo (via SSH + docker exec, evita anti-bot)
 while true; do
-    RESULT=$(curl -s https://your-domain.com/health)
-    echo "$(date +%H:%M:%S) - $(echo $RESULT | jq -r '.status') - v$(echo $RESULT | jq -r '.version')"
-    sleep 1
+    vps-ssh "docker exec \$(docker ps --filter name=sticker_backend -q | head -1) node -e \"fetch('http://localhost:3000/health').then(r=>r.json()).then(d=>console.log(d.status, 'v'+d.version, d.git_sha?.slice(0,7)))\"" 2>/dev/null
+    sleep 5
 done
 ```
 
@@ -317,7 +332,8 @@ vps-ssh "docker service logs --tail 50 -f sticker_worker"
 ### Verificar Versão em Produção
 
 ```bash
-curl https://your-domain.com/health | jq '.version'
+# Via SSH + docker exec (evita anti-bot)
+vps-ssh "docker exec \$(docker ps --filter name=sticker_backend -q | head -1) node -e \"fetch('http://localhost:3000/health').then(r=>r.json()).then(d=>console.log('version:', d.version, '| sha:', d.git_sha))\""
 ```
 
 ---
@@ -450,12 +466,12 @@ vps-ssh "docker service update --force sticker_backend"
 
 ### Health check falha após deploy
 
-**Sintomas**: Workflow falha no step "Health check"
+**Sintomas**: Workflow falha no step "Health check and version verification"
 
 **Diagnóstico**:
 ```bash
-# Testar health check manualmente
-curl -v https://your-domain.com/health
+# Testar health check manualmente via SSH + docker exec (nao use curl externo!)
+vps-ssh "docker exec \$(docker ps --filter name=sticker_backend -q | head -1) node -e \"fetch('http://localhost:3000/health').then(r=>r.json()).then(d=>console.log(JSON.stringify(d,null,2)))\""
 
 # Ver logs
 vps-ssh "docker service logs --tail 50 sticker_backend"
@@ -469,6 +485,8 @@ vps-ssh "docker service logs traefik_traefik | grep sticker"
 # Rollback manual se necessário
 vps-ssh "docker service update --rollback sticker_backend"
 ```
+
+> **Nota:** Nao use `curl https://stickers.ytem.com.br/health` de fora do servidor para diagnostico. A protecao anti-bot retorna HTML em vez de JSON. Sempre use SSH + `docker exec`.
 
 ---
 
@@ -669,8 +687,8 @@ git push origin main
 
 # Aguardar workflow completar (2-3 min)
 
-# Verificar health
-curl https://your-domain.com/health
+# Verificar health (via SSH, evita anti-bot)
+vps-ssh "docker exec \$(docker ps --filter name=sticker_backend -q | head -1) node -e \"fetch('http://localhost:3000/health').then(r=>r.json()).then(d=>console.log(d.status))\""
 
 # Ver logs por 2-3 minutos
 vps-ssh "docker service logs -f sticker_backend"
@@ -708,12 +726,16 @@ jobs:
 
     steps:
       - name: Checkout code
+      - name: Setup Node.js
+      - name: Install dependencies
+      - name: Validate Documentation
       - name: Set up Docker Buildx
       - name: Login to GHCR
-      - name: Build and push Docker image
+      - name: Build and push Docker image  # no-cache: true
+      - name: Login to GHCR on VPS
       - name: Deploy Backend to VPS
       - name: Deploy Worker to VPS
-      - name: Health check
+      - name: Health check and version verification  # via SSH + docker exec + node
       - name: Rollback on failure (if needed)
       - name: Notify success
 ```
@@ -728,7 +750,7 @@ jobs:
 |---------|-----|
 | **GitHub Actions** | https://github.com/your-username/sticker/actions |
 | **GHCR Packages** | https://github.com/your-username?tab=packages |
-| **Health Check (Prod)** | https://your-domain.com/health |
+| **Health Check (Prod)** | https://stickers.ytem.com.br/health (usar via SSH/docker exec) |
 | **Workflow File** | `.github/workflows/deploy-sticker.yml` |
 | **GitHub Secrets** | https://github.com/your-username/sticker/settings/secrets/actions |
 
@@ -755,8 +777,8 @@ git push origin main
 # 2. Aguardar workflow (2-3 min)
 # https://github.com/your-username/sticker/actions
 
-# 3. Verificar produção
-curl https://your-domain.com/health
+# 3. Verificar produção (via SSH, evita anti-bot)
+vps-ssh "docker exec \$(docker ps --filter name=sticker_backend -q | head -1) node -e \"fetch('http://localhost:3000/health').then(r=>r.json()).then(d=>console.log(d.status,d.git_sha?.slice(0,7)))\""
 ```
 
 ### Em caso de problema:
@@ -773,8 +795,8 @@ vps-ssh "docker service update --rollback sticker_worker"
 # Logs em tempo real
 vps-ssh "docker service logs -f sticker_backend"
 
-# Health check
-watch -n 1 'curl -s https://your-domain.com/health | jq'
+# Health check (via SSH, evita anti-bot)
+vps-ssh "docker exec \$(docker ps --filter name=sticker_backend -q | head -1) node -e \"fetch('http://localhost:3000/health').then(r=>r.json()).then(d=>console.log(JSON.stringify(d,null,2)))\""
 ```
 
 ---
@@ -923,7 +945,7 @@ O Admin Panel tem seu próprio workflow de deploy separado do Sticker Bot princi
 │          │                                                   │
 │          └──→ Deploy to VPS (Docker Swarm)                  │
 │               - Service: sticker_admin                       │
-│               - URL: https://admin-your-domain.com     │
+│               - URL: https://admin-stickers.ytem.com.br     │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -984,7 +1006,7 @@ git push origin main
 |---------|-------|
 | **Imagem Docker** | `ghcr.io/your-username/sticker-admin:latest` |
 | **Service Name** | `sticker_admin` |
-| **URL Pública** | https://admin-your-domain.com |
+| **URL Pública** | https://admin-stickers.ytem.com.br |
 | **Porta** | 3000 |
 | **Réplicas** | 1 |
 | **Autenticação** | Supabase Auth (role=admin) |
@@ -1007,7 +1029,7 @@ O serviço é exposto via Traefik com as seguintes labels:
 
 ```yaml
 --label traefik.enable=true
---label "traefik.http.routers.sticker-admin.rule=Host(`admin-your-domain.com`)"
+--label "traefik.http.routers.sticker-admin.rule=Host(`admin-stickers.ytem.com.br`)"
 --label traefik.http.routers.sticker-admin.entrypoints=websecure
 --label traefik.http.routers.sticker-admin.tls=true
 --label traefik.http.routers.sticker-admin.tls.certresolver=letsencrypt
@@ -1024,7 +1046,7 @@ vps-ssh "docker service ls | grep sticker_admin"
 vps-ssh "docker service logs sticker_admin --tail 50"
 
 # Testar acesso
-curl -s -o /dev/null -w "%{http_code}" https://admin-your-domain.com
+curl -s -o /dev/null -w "%{http_code}" https://admin-stickers.ytem.com.br
 # Deve retornar: 200
 ```
 
@@ -1246,25 +1268,28 @@ return reply.status(statusCode).send({
 #### 4. Verificação Automática no CI/CD
 
 ```yaml
+# Roda via SSH + docker exec + node (nao curl externo, por causa de anti-bot)
 - name: Health check and version verification
-  run: |
-    HEALTH_RESPONSE=$(curl -s https://your-domain.com/health)
-    DEPLOYED_SHA=$(echo $HEALTH_RESPONSE | jq -r '.git_sha')
-    EXPECTED_SHA="${{ github.sha }}"
-
-    if [ "$DEPLOYED_SHA" != "$EXPECTED_SHA" ]; then
-      echo "❌ CRITICAL: Version mismatch!"
-      exit 1  # Triggers automatic rollback
-    fi
-
-    echo "✅ Correct version deployed."
+  uses: appleboy/ssh-action@v1.0.0
+  with:
+    script: |
+      CONTAINER_ID=$(docker ps --filter name=sticker_backend -q | head -1)
+      docker exec $CONTAINER_ID node -e "
+        fetch('http://localhost:3000/health')
+          .then(r => r.json())
+          .then(d => {
+            if (d.status !== 'healthy' && d.status !== 'degraded') process.exit(1);
+            if (d.git_sha !== '$EXPECTED_SHA') process.exit(1);
+            console.log('Health OK, correct version deployed.');
+          })
+      "
 ```
 
 ### Verificar Versão em Produção
 
 ```bash
-# Ver versão atual
-curl -s https://your-domain.com/health | jq '{git_sha, deployed_at, version}'
+# Ver versão atual (via SSH + docker exec, evita anti-bot)
+vps-ssh "docker exec \$(docker ps --filter name=sticker_backend -q | head -1) node -e \"fetch('http://localhost:3000/health').then(r=>r.json()).then(d=>console.log(JSON.stringify({git_sha:d.git_sha,deployed_at:d.deployed_at,version:d.version},null,2)))\""
 
 # Output esperado:
 {
@@ -1355,8 +1380,8 @@ Manual → ghcr.io/your-username/sticker-bot-backend  ❌ Código de semanas atr
 
 **Como detectar esse problema no futuro**:
 ```bash
-# 1. Verificar health check
-curl -s https://your-domain.com/health | jq '.git_sha'
+# 1. Verificar health check (via SSH, evita anti-bot)
+vps-ssh "docker exec \$(docker ps --filter name=sticker_backend -q | head -1) node -e \"fetch('http://localhost:3000/health').then(r=>r.json()).then(d=>console.log(d.git_sha))\""
 
 # 2. Comparar com último commit
 git log -1 --format='%H'
@@ -1470,5 +1495,32 @@ VALUES (p_user_id, v_campaign_id, 'menu_shown', '{}');
 
 ---
 
-**Última atualização:** 14/01/2026
-**Testado e validado com:** Zero-downtime deployment test + GHCR authentication fix + BullMQ queue pattern + Admin Panel deployment + CI Pipeline RPC Type-Safe + Version Tracking System
+### Marco/2026 - Anti-Bot Protection, jq e Docker Cache
+
+**Problema 1 - Anti-bot bloqueia health check externo:**
+O CI fazia `curl https://stickers.ytem.com.br/health` do GitHub Actions runner. A protecao anti-bot do servidor (fingerprinting JS page) retornava HTML em vez de JSON. O CI interpretava como falha e acionava rollback automatico.
+
+**Problema 2 - VPS nao tem `jq`:**
+Quando movemos o health check para rodar via SSH na VPS, usamos `jq` para parsear a resposta JSON. Porem a VPS nao tem `jq` instalado, causando nova falha e rollback.
+
+**Problema 3 - Docker build cache serve codigo stale:**
+O `cache-from: type=gha` do GitHub Actions servia camadas de cache com codigo-fonte antigo. Mesmo com novo commit SHA nos build args, a imagem resultante tinha codigo desatualizado.
+
+**Solucoes implementadas no `.github/workflows/deploy-sticker.yml`:**
+
+| Problema | Fix | Detalhe |
+|----------|-----|---------|
+| Anti-bot | SSH + `docker exec` + `node` | Health check roda dentro do container via `http://localhost:3000/health`, bypassa Traefik |
+| Sem `jq` | `node -e "fetch(...)"` | Node.js ja existe no container, parseia JSON nativamente |
+| Cache stale | `no-cache: true` | Desabilita cache do Docker build, garante codigo correto |
+
+**Aprendizados:**
+- Nunca fazer health check via request externo (curl de fora) quando ha protecao anti-bot
+- Nao depender de ferramentas que podem nao existir na VPS (`jq`, `python`, etc.) — usar o que ja existe no container
+- Docker build cache pode ser perigoso para deploys: camadas de COPY/ADD podem ser servidas do cache mesmo quando os arquivos mudaram
+- Desabilitar cache e mais seguro que arriscar deploy de codigo stale
+
+---
+
+**Última atualização:** 2026-03-14
+**Testado e validado com:** Zero-downtime deployment test + GHCR authentication fix + BullMQ queue pattern + Admin Panel deployment + CI Pipeline RPC Type-Safe + Version Tracking System + Anti-bot health check fix + Docker cache fix

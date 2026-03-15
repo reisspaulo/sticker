@@ -1,7 +1,7 @@
 # 🚀 Guia de Mudanças Rápidas - Sticker Bot
 
-> Documentação atualizada em: 08/01/2026
-> Ambiente: Produção em https://your-domain.com
+> Documentação atualizada em: 14/03/2026
+> Ambiente: Produção em https://stickers.ytem.com.br
 
 > **📚 Documentos relacionados:**
 > - [CI/CD Workflow (Deploy Automatizado)](../setup/CI-CD-WORKFLOW.md) - Como fazer deploy via git push
@@ -16,7 +16,7 @@
 2. [Arquitetura em Produção](#arquitetura-em-produção)
 3. [Processo de Deploy](#processo-de-deploy)
 4. [Mudanças Rápidas Comuns](#mudanças-rápidas-comuns)
-5. [QR Code e WhatsApp](#qr-code-e-whatsapp)
+5. [Meta Cloud API e WhatsApp](#meta-cloud-api-e-whatsapp)
 6. [Domínios e Subdomínios](#domínios-e-subdomínios)
 7. [Troubleshooting](#troubleshooting)
 8. [Logs do Supabase](#logs-do-supabase)
@@ -143,12 +143,12 @@ vps-ssh "echo 'Conexão OK' && hostname"
 │                     Docker Swarm Stack                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐  │
-│  │   Backend    │  │    Worker    │  │  Evolution API  │  │
-│  │   (Fastify)  │  │   (BullMQ)   │  │  (wa.ytem.com)  │  │
-│  └──────┬───────┘  └──────┬───────┘  └────────┬────────┘  │
-│         │                  │                   │            │
-│         └──────────┬───────┴───────────────────┘            │
+│  ┌──────────────┐  ┌──────────────┐                        │
+│  │   Backend    │  │    Worker    │                        │
+│  │   (Fastify)  │  │   (BullMQ)   │                        │
+│  └──────┬───────┘  └──────┬───────┘                        │
+│         │                  │                                │
+│         └──────────┬───────┘                                │
 │                    │                                        │
 │         ┌──────────▼────────────┐                          │
 │         │  Redis (ytem-redis)   │                          │
@@ -156,27 +156,29 @@ vps-ssh "echo 'Conexão OK' && hostname"
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │              Admin Panel (Next.js)                    │  │
-│  │           admin-your-domain.com                  │  │
+│  │         admin-stickers.ytem.com.br                    │  │
 │  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                            │
-                           ▼
-              ┌────────────────────────┐
-              │  Supabase (Cloud)      │
-              │  - PostgreSQL          │
-              │  - Storage (S3)        │
-              │  - Auth (usuarios)     │
-              └────────────────────────┘
+                     ┌─────┴─────┐
+                     ▼           ▼
+    ┌────────────────────┐  ┌──────────────────────┐
+    │  Supabase (Cloud)  │  │  Meta Cloud API      │
+    │  - PostgreSQL      │  │  (WhatsApp Business)  │
+    │  - Storage (S3)    │  │  - Webhooks           │
+    │  - Auth (usuarios) │  │  - Templates (HSM)    │
+    └────────────────────┘  └──────────────────────┘
 ```
+
+> **Nota:** Evolution API foi removida. O provedor de WhatsApp atual e o Meta Cloud API (WhatsApp Business Platform), configurado via Meta Business Manager.
 
 ### **Serviços Rodando**
 
 | Serviço | URL | Porta | Função |
 |---------|-----|-------|--------|
-| **Backend** | https://your-domain.com | 3000 | API REST + Webhooks |
+| **Backend** | https://stickers.ytem.com.br | 3000 | API REST + Webhooks (Meta Cloud API) |
 | **Worker** | - | - | Processa filas BullMQ |
-| **Admin Panel** | https://admin-your-domain.com | 3000 | Gestao de stickers/emocoes |
-| **Evolution API** | https://your-evolution-api.com | 8080 | Integração WhatsApp |
+| **Admin Panel** | https://admin-stickers.ytem.com.br | 3000 | Gestao de stickers/emocoes |
 | **Redis** | ytem-databases_redis:6379 | 6379 | Filas + Cache |
 | **Supabase** | YOUR_SUPABASE_PROJECT_ID.supabase.co | 443 | Banco + Storage + Auth |
 
@@ -232,19 +234,23 @@ O GitHub Actions fará automaticamente:
 #### **5. Verificar Saúde (após ~3-5 min)**
 
 ```bash
-# Health check
-curl https://your-domain.com/health | jq '.'
+# Health check via SSH + docker exec (recomendado, evita anti-bot do servidor)
+vps-ssh "docker exec \$(docker ps --filter name=sticker_backend -q | head -1) node -e \"fetch('http://localhost:3000/health').then(r=>r.json()).then(d=>console.log(JSON.stringify(d,null,2)))\""
 
 # Deve retornar:
 {
   "status": "healthy",
-  "timestamp": "2025-12-28T02:34:25.576Z",
+  "timestamp": "2026-03-14T02:34:25.576Z",
   "services": {
     "redis": "connected",
     "supabase": "connected"
-  }
+  },
+  "git_sha": "abc123...",
+  "deployed_at": "2026-03-14T..."
 }
 ```
+
+> **Nota:** Nao use `curl https://stickers.ytem.com.br/health` de fora do servidor. O Traefik/VPS tem protecao anti-bot (fingerprinting JS) que retorna HTML em vez de JSON para clientes nao-browser. O health check do CI/CD roda via SSH + `docker exec` + `node` dentro do container por esse motivo.
 
 #### **6. Verificar Logs**
 
@@ -552,7 +558,7 @@ git push origin main
 
 O admin usa Supabase Auth com verificação de role:
 - Apenas usuários com `role = 'admin'` na tabela `user_profiles` podem acessar
-- Login: https://admin-your-domain.com/login
+- Login: https://admin-stickers.ytem.com.br/login
 
 #### **Criar Novo Admin**
 
@@ -575,85 +581,49 @@ vps-ssh "docker service logs sticker_admin --tail 50"
 
 ---
 
-## 📱 QR Code e WhatsApp
+## 📱 Meta Cloud API e WhatsApp
 
 ### **Como Funciona**
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  Evolution   │────▶│   Instância  │────▶│   WhatsApp   │
-│     API      │     │   "meu-zap"  │     │    Client    │
-└──────────────┘     └──────────────┘     └──────────────┘
-       │                    │                     │
-       │ 1. Gera QR Code    │                     │
-       │◀───────────────────│                     │
-       │                    │                     │
-       │ 2. Apresenta QR    │                     │
-       │──────────────────────────────────────────▶│
-       │                    │ 3. Usuário escaneia │
-       │                    │◀────────────────────│
-       │                    │                     │
-       │ 4. Conecta         │                     │
-       │◀───────────────────│◀────────────────────│
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────┐
+│  Meta Cloud API  │────▶│  WhatsApp Business│────▶│   Usuarios   │
+│  (graph.facebook │     │  Phone Number     │     │  (WhatsApp)  │
+│   .com/v21.0)    │     │  Registration     │     │              │
+└──────────────────┘     └──────────────────┘     └──────────────┘
+       │                         │                       │
+       │ 1. Webhook configurado  │                       │
+       │    no Meta Business Mgr │                       │
+       │                         │                       │
+       │ 2. Mensagem recebida    │                       │
+       │◀────────────────────────│◀──────────────────────│
+       │                         │                       │
+       │ 3. Resposta via API     │                       │
+       │────────────────────────▶│──────────────────────▶│
 ```
 
-### **Gerar QR Code**
+> **Nota:** Meta Cloud API nao usa QR Code. O numero de WhatsApp Business e registrado via Meta Business Manager com verificacao por SMS/chamada telefonica.
+
+### **Verificar Webhook**
+
+O webhook e configurado no Meta Business Manager (App Dashboard > WhatsApp > Configuration):
+- **Callback URL:** `https://stickers.ytem.com.br/webhook`
+- **Verify Token:** configurado no Doppler (`META_WEBHOOK_VERIFY_TOKEN`)
+- **Subscribed fields:** `messages`
+
+### **Verificar Status da Conexao**
 
 ```bash
-# Gerar e abrir QR code automaticamente
-curl -s https://your-evolution-api.com/instance/connect/meu-zap \
-  -H "apikey: YOUR_EVOLUTION_API_KEY" | \
-  jq -r '.base64' | \
-  sed 's/data:image\/png;base64,//' | \
-  base64 -D > /tmp/whatsapp-qrcode.png && \
-  open /tmp/whatsapp-qrcode.png
+# Health check do backend (via SSH, evita anti-bot)
+vps-ssh "docker exec \$(docker ps --filter name=sticker_backend -q | head -1) node -e \"fetch('http://localhost:3000/health').then(r=>r.json()).then(d=>console.log(JSON.stringify(d,null,2)))\""
 ```
 
-### **Verificar Status da Conexão**
+### **Janela de Conversacao (24h)**
 
-```bash
-curl -s https://your-evolution-api.com/instance/fetchInstances \
-  -H "apikey: YOUR_EVOLUTION_API_KEY" | \
-  jq '.[0] | {name, connectionStatus, profileName}'
-```
-
-**Retorno esperado:**
-```json
-{
-  "name": "meu-zap",
-  "connectionStatus": "open",
-  "profileName": "Clareoou"
-}
-```
-
-### **Configurar Webhook**
-
-```bash
-curl -X POST https://your-evolution-api.com/webhook/set/meu-zap \
-  -H "apikey: YOUR_EVOLUTION_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://your-domain.com/webhook",
-    "enabled": true,
-    "events": [
-      "MESSAGES_UPSERT",
-      "MESSAGES_UPDATE",
-      "CONNECTION_UPDATE"
-    ],
-    "headers": {
-      "apikey": "YOUR_EVOLUTION_API_KEY"
-    }
-  }'
-```
-
-### **Se Desconectar**
-
-**Reconectar:**
-```bash
-# Gerar novo QR code e escanear novamente
-curl -s https://your-evolution-api.com/instance/connect/meu-zap \
-  -H "apikey: YOUR_EVOLUTION_API_KEY"
-```
+Meta Cloud API tem uma regra de janela de 24h:
+- **Dentro da janela (24h apos ultima mensagem do usuario):** pode enviar mensagens livres (texto, midia, stickers)
+- **Fora da janela:** so pode enviar **templates** (mensagens pre-aprovadas pela Meta)
+- O sistema usa `templateService.ts` para enviar templates quando necessario (ex: stickers pendentes)
 
 ---
 
@@ -662,18 +632,15 @@ curl -s https://your-evolution-api.com/instance/connect/meu-zap \
 ### **Estrutura de Domínios**
 
 ```
-your-domain.com (Domínio principal)
-├── your-evolution-api.com              → Evolution API (WhatsApp)
-│   └── Porta: 8080
-│   └── Certificado: Let's Encrypt
-│   └── Traefik: evolution_api
+ytem.com.br (Domínio principal)
 │
-├── your-domain.com        → Sticker Bot (Backend)
+├── stickers.ytem.com.br        → Sticker Bot (Backend)
 │   └── Porta: 3000
 │   └── Certificado: Let's Encrypt
 │   └── Traefik: sticker_backend
+│   └── Webhook: Meta Cloud API
 │
-└── admin-your-domain.com  → Admin Panel (Next.js)
+└── admin-stickers.ytem.com.br  → Admin Panel (Next.js)
     └── Porta: 3000
     └── Certificado: Let's Encrypt
     └── Traefik: sticker_admin
@@ -699,7 +666,7 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
-        - "traefik.http.routers.sticker-api.rule=Host(`your-domain.com`)"
+        - "traefik.http.routers.sticker-api.rule=Host(`stickers.ytem.com.br`)"
         - "traefik.http.routers.sticker-api.entrypoints=websecure"
         - "traefik.http.routers.sticker-api.tls=true"
         - "traefik.http.routers.sticker-api.tls.certresolver=letsencrypt"
@@ -708,7 +675,7 @@ services:
 
 **Como funciona:**
 1. Traefik escuta em `443` (HTTPS)
-2. Recebe request para `your-domain.com`
+2. Recebe request para `stickers.ytem.com.br`
 3. Verifica labels e roteia para `sticker_backend:3000`
 4. Gerencia certificado SSL automaticamente
 
@@ -721,7 +688,7 @@ services:
 
 **Verificar certificado:**
 ```bash
-echo | openssl s_client -connect your-domain.com:443 2>/dev/null | \
+echo | openssl s_client -connect stickers.ytem.com.br:443 2>/dev/null | \
   openssl x509 -noout -dates
 ```
 
@@ -745,32 +712,30 @@ vps-ssh "docker service update --force sticker_backend"
 vps-ssh "docker service update --force sticker_worker"
 ```
 
-### **Webhook não recebendo mensagens**
+### **Webhook não recebendo mensagens (Meta Cloud API)**
 
-**1. Verificar se webhook está configurado:**
+**1. Verificar se webhook está configurado no Meta:**
+- Acessar [Meta App Dashboard](https://developers.facebook.com/apps/) > seu app > WhatsApp > Configuration
+- Confirmar que Callback URL e `https://stickers.ytem.com.br/webhook`
+- Confirmar que Verify Token bate com `META_WEBHOOK_VERIFY_TOKEN` no Doppler
+
+**2. Testar endpoint webhook diretamente:**
 ```bash
-curl https://your-evolution-api.com/webhook/find/meu-zap \
-  -H "apikey: YOUR_EVOLUTION_API_KEY" | jq '.'
+# Via SSH (evita anti-bot)
+vps-ssh "docker exec \$(docker ps --filter name=sticker_backend -q | head -1) node -e \"fetch('http://localhost:3000/webhook').then(r=>r.text()).then(console.log)\""
 ```
 
-**2. Verificar se Evolution está conectado:**
+**3. Verificar logs de webhook:**
 ```bash
-curl https://your-evolution-api.com/instance/connectionState/meu-zap \
-  -H "apikey: YOUR_EVOLUTION_API_KEY" | jq '.'
-```
-
-**3. Testar endpoint webhook diretamente:**
-```bash
-curl https://your-domain.com/webhook
-# Deve retornar: {"status":"online",...}
+vps-ssh "docker service logs sticker_backend --tail 100 | grep -i webhook"
 ```
 
 ### **Stickers não sendo processados**
 
-**1. Verificar Redis:**
+**1. Verificar Redis e Supabase (via SSH):**
 ```bash
-curl https://your-domain.com/health | jq '.services.redis'
-# Deve retornar: "connected"
+vps-ssh "docker exec \$(docker ps --filter name=sticker_backend -q | head -1) node -e \"fetch('http://localhost:3000/health').then(r=>r.json()).then(d=>console.log('Redis:', d.services.redis, '| Supabase:', d.services.supabase))\""
+# Deve retornar: Redis: connected | Supabase: connected
 ```
 
 **2. Ver fila do BullMQ:**
@@ -778,21 +743,58 @@ curl https://your-domain.com/health | jq '.services.redis'
 vps-ssh "docker service logs sticker_worker --tail 50 | grep 'Processing sticker job'"
 ```
 
-**3. Verificar Supabase:**
-```bash
-curl https://your-domain.com/health | jq '.services.supabase'
-# Deve retornar: "connected"
-```
-
 ### **Imagem não atualiza após deploy**
 
-**Problema:** Docker usa cache
+**Problema:** Docker usa cache (build ou pull)
 
 **Solução:**
 ```bash
 # Force pull da nova imagem
 vps-ssh "docker service update --force --with-registry-auth \
   --image ghcr.io/your-username/stickerbot:latest sticker_backend"
+```
+
+> **Nota:** O CI/CD agora usa `no-cache: true` no Docker build para evitar que o GitHub Actions cache sirva camadas stale. Veja a secao de Known Issues abaixo.
+
+---
+
+### **Known Issues & Fixes (Marco 2026)**
+
+#### 1. Anti-bot protection bloqueia health check externo
+
+**Problema:** O servidor (Traefik/VPS) tem protecao anti-bot que retorna uma pagina HTML de fingerprinting JS em vez de JSON quando o request vem de um cliente nao-browser (ex: `curl` do GitHub Actions runner).
+
+**Impacto:** CI health check via `curl https://stickers.ytem.com.br/health` recebia HTML, interpretava como falha, e acionava rollback automatico.
+
+**Fix:** Health check agora roda via SSH + `docker exec` + `node` dentro do container, fazendo request para `http://localhost:3000/health` (bypassa Traefik/anti-bot completamente).
+
+```yaml
+# No deploy-sticker.yml - health check roda DENTRO do container
+docker exec $CONTAINER_ID node -e "
+  fetch('http://localhost:3000/health')
+    .then(r => r.json())
+    .then(d => { /* verifica status e SHA */ })
+"
+```
+
+#### 2. VPS nao tem `jq` instalado
+
+**Problema:** Quando movemos o health check para rodar via SSH na VPS, usamos `jq` para parsear JSON. Porem a VPS nao tem `jq` instalado, causando falha no health check e rollback.
+
+**Fix:** Substituimos `jq` por `node -e` (Node.js ja existe dentro do container Docker). O health check agora usa `docker exec` + `node` para parsear JSON nativamente.
+
+#### 3. Docker build cache serve codigo stale
+
+**Problema:** O GitHub Actions Docker build usava `cache-from: type=gha` que servia camadas de cache com codigo-fonte antigo, mesmo com novo commit SHA nos build args. A imagem resultante tinha codigo desatualizado.
+
+**Fix:** Desabilitado cache com `no-cache: true` no step de build do workflow. Trade-off: builds levam ~1 min a mais, mas garantem codigo correto.
+
+```yaml
+# .github/workflows/deploy-sticker.yml
+- name: Build and push Docker image
+  uses: docker/build-push-action@v5
+  with:
+    no-cache: true  # Garante que nao usa cache stale
 ```
 
 ---
@@ -879,10 +881,10 @@ vps-ssh "docker system prune -af"
 
 | Recurso | URL |
 |---------|-----|
-| Backend Health | https://your-domain.com/health |
-| Backend Webhook | https://your-domain.com/webhook |
-| Admin Panel | https://admin-your-domain.com |
-| Evolution API | https://your-evolution-api.com |
+| Backend Health | https://stickers.ytem.com.br/health |
+| Backend Webhook | https://stickers.ytem.com.br/webhook |
+| Admin Panel | https://admin-stickers.ytem.com.br |
+| Meta App Dashboard | https://developers.facebook.com/apps/ |
 | Supabase Dashboard | https://supabase.com/dashboard/project/YOUR_SUPABASE_PROJECT_ID |
 | Doppler (Secrets) | https://dashboard.doppler.com/ |
 | GitHub Actions | https://github.com/your-username/sticker/actions |
@@ -898,8 +900,9 @@ vps-ssh "docker system prune -af"
 ```bash
 SUPABASE_URL
 SUPABASE_SERVICE_KEY
-EVOLUTION_API_KEY
-EVOLUTION_INSTANCE
+META_ACCESS_TOKEN
+META_PHONE_NUMBER_ID
+META_WEBHOOK_VERIFY_TOKEN
 REDIS_URL
 VPS_HOST
 VPS_USER
@@ -950,6 +953,6 @@ vps-ssh "docker stack rm sticker"
 
 ---
 
-**Última atualização:** 08/01/2026
+**Última atualização:** 14/03/2026
 **Mantido por:** Paulo Henrique
-**Versão:** 1.1
+**Versão:** 1.2
